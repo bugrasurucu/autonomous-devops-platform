@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.npm/
+package-lock.json
+
+# Build
+dist/
+build/
+*.pyc
+__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform.lock.hcl
+
+# Environment
+.env
+.env.local
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary
+/tmp/
+*.tmp

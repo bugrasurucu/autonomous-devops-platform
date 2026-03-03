@@ -1,0 +1,63 @@
+# FinOps Maliyet Eşik Politikaları
+# FinOps Agent devre kesici konfigürasyonu
+
+thresholds:
+  # Aylık toplam bütçe limiti (USD)
+  monthly_budget_usd: 500
+
+  # Tek dağıtım başına maksimum maliyet artışı (USD)
+  per_deploy_max_usd: 50
+
+  # Maliyet artış yüzdesi limiti (%)
+  cost_increase_percentage_max: 20
+
+  # Uyarı eşiği (bütçenin %80'i)
+  warning_threshold_percentage: 80
+
+# Devre kesici kuralları
+circuit_breaker:
+  # Bütçe aşımında pipeline'ı durdur
+  action_on_budget_breach: "HALT_PIPELINE"
+  
+  # Uyarı eşiğinde bildirim gönder
+  action_on_warning: "NOTIFY_AND_CONTINUE"
+  
+  # Bildirim kanalı
+  notification_channel: "slack:#devops-finops"
+
+# Maliyet optimizasyon kuralları
+optimization_rules:
+  # Graviton geçiş önerisi
+  - name: "graviton_migration"
+    condition: "instance_family in ['m5', 'm6i', 'c5', 'c6i', 'r5', 'r6i']"
+    recommendation: "Graviton (m7g, c7g, r7g) kullanarak %20-40 tasarruf sağlayın"
+    estimated_savings_percentage: 30
+
+  # Log tutma süresi
+  - name: "log_retention_optimization"
+    condition: "cloudwatch_log_retention_days > 90"
+    recommendation: "Log tutma süresini 90 güne düşürün"
+    estimated_savings_percentage: 15
+
+  # Reserved Instance önerisi
+  - name: "reserved_instance"
+    condition: "on_demand_running_hours > 720"
+    recommendation: "1 yıllık Reserved Instance/Savings Plan satın alın"
+    estimated_savings_percentage: 40
+
+  # Kullanılmayan kaynaklar
+  - name: "unused_resources"
+    condition: "resource_utilization < 5"
+    recommendation: "Kullanılmayan EBS, Elastic IP ve idle RDS instance'larını kapatın"
+    estimated_savings_percentage: 100
+
+# Raporlama
+reporting:
+  # Her dağıtımda maliyet raporu üret
+  per_deploy_report: true
+  
+  # Haftalık maliyet trendi raporu
+  weekly_trend_report: true
+  
+  # Artifact olarak kaydet
+  save_as_artifact: true

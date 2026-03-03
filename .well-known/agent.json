@@ -1,0 +1,94 @@
+{
+    "protocol": "a2a-v1",
+    "platform": {
+        "name": "Autonomous DevOps Platform",
+        "version": "1.0.0",
+        "description": "Google Antigravity tabanlı çoklu ajan DevOps ve Self-Healing platformu"
+    },
+    "orchestrator": {
+        "agent_id": "auto-bootstrap",
+        "name": "Orkestratör Ajan",
+        "endpoint": "/agents/orchestrator",
+        "patterns": [
+            "sequential",
+            "concurrent",
+            "handoff"
+        ]
+    },
+    "agents": [
+        {
+            "agent_id": "infra-agent",
+            "name": "Platform ve Altyapı Ajanı",
+            "description": "AWS altyapısını Terraform/CDK ile kodlar ve provizyonlar",
+            "endpoint": "/agents/infra",
+            "capabilities": [
+                "generate_terraform",
+                "provision_resources",
+                "security_scan"
+            ],
+            "mcp_servers": [
+                "aws-cloud-control",
+                "aws-iac",
+                "aws-terraform"
+            ],
+            "iam_role": "devops-infra-agent-role"
+        },
+        {
+            "agent_id": "pipeline-agent",
+            "name": "Boru Hattı ve CI/CD Ajanı",
+            "description": "CI/CD pipeline yapılandırır, test yazar, görsel QA yapar",
+            "endpoint": "/agents/pipeline",
+            "capabilities": [
+                "generate_cicd_config",
+                "generate_tests",
+                "visual_qa",
+                "deploy",
+                "rollback"
+            ],
+            "mcp_servers": [
+                "mcpdoc-github-actions",
+                "mcpdoc-aws"
+            ],
+            "iam_role": "devops-pipeline-agent-role"
+        },
+        {
+            "agent_id": "finops-agent",
+            "name": "Finansal Operasyonlar Ajanı",
+            "description": "Maliyet analizi, bütçe doğrulama ve optimizasyon önerileri",
+            "endpoint": "/agents/finops",
+            "capabilities": [
+                "cost_estimation",
+                "budget_validation",
+                "cost_optimization"
+            ],
+            "mcp_servers": [
+                "aws-pricing"
+            ],
+            "iam_role": "devops-finops-agent-role"
+        },
+        {
+            "agent_id": "sre-agent",
+            "name": "SRE ve Self-Healing Ajanı",
+            "description": "Monitoring, anomali tespiti, RCA ve otonom iyileştirme",
+            "endpoint": "/agents/sre",
+            "capabilities": [
+                "monitoring_setup",
+                "anomaly_detection",
+                "rca_analysis",
+                "auto_remediation"
+            ],
+            "mcp_servers": [
+                "aws-cloudwatch"
+            ],
+            "iam_role": "devops-sre-agent-role"
+        }
+    ],
+    "communication": {
+        "shared_state": "master_clipboard",
+        "circuit_breaker": {
+            "max_retries": 3,
+            "finops_budget_usd": 500,
+            "sre_max_auto_remediation_per_hour": 5
+        }
+    }
+}

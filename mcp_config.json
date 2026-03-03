@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/model-context-protocol/main/schema/mcp-config.schema.json",
+  "mcpServers": {
+    "aws-cloud-control": {
+      "command": "uvx",
+      "args": ["awslabs.cloud-control-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "${AWS_PROFILE:-default}",
+        "AWS_REGION": "${AWS_REGION:-eu-west-1}",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "description": "1200+ AWS kaynağı üzerinde CRUDL işlemleri. Checkov güvenlik taraması entegre.",
+      "agentRole": "infra-agent"
+    },
+    "aws-iac": {
+      "command": "uvx",
+      "args": ["awslabs.iac-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "${AWS_PROFILE:-default}",
+        "AWS_REGION": "${AWS_REGION:-eu-west-1}",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "description": "CDK/CloudFormation şablon üretimi, dokümantasyon erişimi ve güvenlik doğrulaması.",
+      "agentRole": "infra-agent"
+    },
+    "aws-terraform": {
+      "command": "uvx",
+      "args": ["awslabs.terraform-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "${AWS_PROFILE:-default}",
+        "AWS_REGION": "${AWS_REGION:-eu-west-1}",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "description": "Terraform HCL üretimi, güvenlik taraması ve en iyi uygulama zorunluluğu.",
+      "agentRole": "infra-agent"
+    },
+    "aws-pricing": {
+      "command": "uvx",
+      "args": ["awslabs.pricing-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "${AWS_PROFILE:-default}",
+        "AWS_REGION": "${AWS_REGION:-eu-west-1}",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "description": "AWS Pricing API üzerinden maliyet tahmini. Dağıtım öncesi bütçe analizi.",
+      "agentRole": "finops-agent"
+    },
+    "aws-cloudwatch": {
+      "command": "uvx",
+      "args": ["awslabs.cloudwatch-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "${AWS_PROFILE:-default}",
+        "AWS_REGION": "${AWS_REGION:-eu-west-1}",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "description": "CloudWatch metrikleri, loglar ve alarm sorgulaması. RCA anomali tespiti.",
+      "agentRole": "sre-agent"
+    },
+    "mcpdoc-aws": {
+      "command": "uvx",
+      "args": ["mcpdoc@latest"],
+      "env": {
+        "URLS": "https://docs.aws.amazon.com/llms.txt,https://registry.terraform.io/llms.txt"
+      },
+      "description": "llms.txt standardı ile AWS ve Terraform belgelerine LLM dostu erişim. Halüsinasyon önleme.",
+      "agentRole": "all"
+    },
+    "mcpdoc-github-actions": {
+      "command": "uvx",
+      "args": ["mcpdoc@latest"],
+      "env": {
+        "URLS": "https://docs.github.com/llms.txt"
+      },
+      "description": "GitHub Actions belgelerine erişim. Pipeline ajanı için.",
+      "agentRole": "pipeline-agent"
+    }
+  }
+}

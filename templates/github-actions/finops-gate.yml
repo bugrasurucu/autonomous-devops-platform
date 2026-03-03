@@ -1,0 +1,68 @@
+name: FinOps Cost Gate
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/**'
+
+jobs:
+  cost-analysis:
+    name: 💰 FinOps Maliyet Analizi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Infracost Setup
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Baseline
+        run: |
+          infracost breakdown \
+            --path infrastructure/terraform/ \
+            --format json \
+            --out-file /tmp/infracost-base.json
+        env:
+          INFRACOST_TERRAFORM_CLOUD_TOKEN: ${{ secrets.TFC_TOKEN }}
+
+      - name: Generate Diff
+        run: |
+          git checkout ${{ github.event.pull_request.base.sha }}
+          infracost breakdown \
+            --path infrastructure/terraform/ \
+            --format json \
+            --out-file /tmp/infracost-prev.json || true
+          git checkout ${{ github.sha }}
+          
+          infracost diff \
+            --path /tmp/infracost-base.json \
+            --compare-to /tmp/infracost-prev.json \
+            --format json \
+            --out-file /tmp/infracost-diff.json
+
+      - name: Post PR Comment
+        run: |
+          infracost comment github \
+            --path /tmp/infracost-diff.json \
+            --repo ${{ github.repository }} \
+            --pull-request ${{ github.event.pull_request.number }} \
+            --github-token ${{ github.token }} \
+            --behavior update
+
+      - name: Cost Gate Check
+        run: |
+          DIFF_COST=$(cat /tmp/infracost-diff.json | jq -r '.diffTotalMonthlyCost // "0"')
+          echo "📊 Maliyet farkı: \$$DIFF_COST/ay"
+          
+          if (( $(echo "$DIFF_COST > 50" | bc -l 2>/dev/null || echo 0) )); then
+            echo "🛑 Dağıtım başına maliyet limiti (\$50) aşıldı!"
+            echo "::error::FinOps Gate: Maliyet artışı limit üzerinde (\$$DIFF_COST/ay)"
+            exit 1
+          else
+            echo "✅ Maliyet kabul edilebilir sınırlar içinde"
+          fi
