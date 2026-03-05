@@ -324,9 +324,13 @@
     },
     "infra": {
       "data": {
-        "result": "OK"
+        "vpc_id": "vpc-0a1b2c3d4e5f",
+        "ecs_cluster_arn": "arn:aws:ecs:eu-west-1:123456789:cluster/test-app",
+        "rds_endpoint": "test-app-db.cluster-xyz.eu-west-1.rds.amazonaws.com",
+        "alb_dns": "test-app-alb-1234.eu-west-1.elb.amazonaws.com",
+        "ecr_repo": "123456789.dkr.ecr.eu-west-1.amazonaws.com/test-app"
       },
-      "updatedAt": "2026-03-05T23:24:49.305Z"
+      "updatedAt": "2026-03-03T22:32:01.233Z"
     },
     "finops": {
       "data": {
@@ -381,9 +385,12 @@
     },
     "pipeline": {
       "data": {
-        "result": "OK"
+        "pipeline_url": "https://github.com/bugrasurucu/test-app/actions",
+        "test_results": "24/24 passed",
+        "coverage": "87%",
+        "docker_image": "test-app:latest"
       },
-      "updatedAt": "2026-03-05T23:24:56.892Z"
+      "updatedAt": "2026-03-03T22:32:08.238Z"
     },
     "sre": {
       "data": {
