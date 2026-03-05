@@ -1,457 +1,302 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mission Control — Otonom DevOps Platform</title>
-  <meta name="description" content="Google Antigravity tabanlı Otonom DevOps ve Self-Healing Platformu Görev Kontrol Merkezi" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mission Control — Otonom DevOps Platform</title>
+    <meta name="description"
+        content="Google Antigravity tabanlı Otonom DevOps ve Self-Healing Platformu Görev Kontrol Merkezi" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <!-- ═══ Ambient Background ═══ -->
-  <div class="ambient-bg">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-  </div>
-
-  <!-- ═══ Sidebar ═══ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
-      <div class="brand-icon">
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <circle cx="14" cy="14" r="12" stroke="url(#brandGrad)" stroke-width="2.5" />
-          <circle cx="14" cy="14" r="5" fill="url(#brandGrad)" />
-          <path d="M14 2 L14 6 M14 22 L14 26 M2 14 L6 14 M22 14 L26 14" stroke="url(#brandGrad)" stroke-width="1.5" stroke-linecap="round" />
-          <defs>
-            <linearGradient id="brandGrad" x1="0" y1="0" x2="28" y2="28">
-              <stop offset="0%" stop-color="#818cf8" />
-              <stop offset="100%" stop-color="#c084fc" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-      <span class="brand-text">Mission Control</span>
+    <!-- ═══ Ambient Background ═══ -->
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
     </div>
 
-    <nav class="sidebar-nav">
-      <a href="#" class="nav-item active" data-page="dashboard">
-        <span class="nav-icon">◎</span>
-        <span class="nav-label">Dashboard</span>
-      </a>
-      <a href="#" class="nav-item" data-page="agents">
-        <span class="nav-icon">⬡</span>
-        <span class="nav-label">Ajanlar</span>
-      </a>
-      <a href="#" class="nav-item" data-page="orchestration">
-        <span class="nav-icon">⟁</span>
-        <span class="nav-label">Orkestrasyon</span>
-      </a>
-      <a href="#" class="nav-item" data-page="pipeline">
-        <span class="nav-icon">▸▸</span>
-        <span class="nav-label">Pipeline</span>
-      </a>
-      <a href="#" class="nav-item" data-page="finops">
-        <span class="nav-icon">◈</span>
-        <span class="nav-label">FinOps</span>
-      </a>
-      <a href="#" class="nav-item" data-page="selfheal">
-        <span class="nav-icon">↻</span>
-        <span class="nav-label">Self-Healing</span>
-      </a>
-    </nav>
+    <!-- ═══ Sidebar ═══ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <circle cx="14" cy="14" r="12" stroke="url(#brandGrad)" stroke-width="2.5" />
+                    <circle cx="14" cy="14" r="5" fill="url(#brandGrad)" />
+                    <path d="M14 2 L14 6 M14 22 L14 26 M2 14 L6 14 M22 14 L26 14" stroke="url(#brandGrad)"
+                        stroke-width="1.5" stroke-linecap="round" />
+                    <defs>
+                        <linearGradient id="brandGrad" x1="0" y1="0" x2="28" y2="28">
+                            <stop offset="0%" stop-color="#818cf8" />
+                            <stop offset="100%" stop-color="#c084fc" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <span class="brand-text">Mission Control</span>
+        </div>
 
-    <div class="sidebar-footer">
-      <div class="system-status">
-        <span class="status-dot pulse"></span>
-        <span class="status-text">Tüm Sistemler Aktif</span>
-      </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">◎</span>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="agents">
+                <span class="nav-icon">⬡</span>
+                <span class="nav-label">Ajanlar</span>
+            </a>
+            <a href="#" class="nav-item" data-page="orchestration">
+                <span class="nav-icon">⟁</span>
+                <span class="nav-label">Orkestrasyon</span>
+            </a>
+            <a href="#" class="nav-item" data-page="pipeline">
+                <span class="nav-icon">▸▸</span>
+                <span class="nav-label">Pipeline</span>
+            </a>
+            <a href="#" class="nav-item" data-page="finops">
+                <span class="nav-icon">◈</span>
+                <span class="nav-label">FinOps</span>
+            </a>
+            <a href="#" class="nav-item" data-page="selfheal">
+                <span class="nav-icon">↻</span>
+                <span class="nav-label">Self-Healing</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="system-status">
+                <span class="status-dot pulse"></span>
+                <span class="status-text">Tüm Sistemler Aktif</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══ Main Content ═══ -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="top-bar-right">
+                <div class="live-badge">
+                    <span class="live-dot"></span>
+                    CANLI
+                </div>
+                <button class="btn-deploy" id="deployBtn">
+                    <span class="deploy-icon">🚀</span>
+                    Deploy AWS
+                </button>
+            </div>
+        </header>
+
+        <!-- ═══ PAGE: Dashboard ═══ -->
+        <section class="page active" id="page-dashboard">
+            <!-- Stat Cards -->
+            <div class="stats-grid">
+                <div class="stat-card" id="stat-agents" data-color="indigo">
+                    <div class="stat-icon">⬡</div>
+                    <div class="stat-info">
+                        <span class="stat-value">0/4</span>
+                        <span class="stat-label">Aktif Ajan</span>
+                    </div>
+                    <canvas class="sparkline" data-color="#818cf8"></canvas>
+                </div>
+                <div class="stat-card" id="stat-deploys" data-color="emerald">
+                    <div class="stat-icon">▸▸</div>
+                    <div class="stat-info">
+                        <span class="stat-value">0</span>
+                        <span class="stat-label">Başarılı Deploy</span>
+                    </div>
+                    <canvas class="sparkline" data-color="#34d399"></canvas>
+                </div>
+                <div class="stat-card" id="stat-cost" data-color="amber">
+                    <div class="stat-icon">◈</div>
+                    <div class="stat-info">
+                        <span class="stat-value">$0</span>
+                        <span class="stat-label">Aylık Maliyet</span>
+                    </div>
+                    <canvas class="sparkline" data-color="#fbbf24"></canvas>
+                </div>
+                <div class="stat-card" id="stat-heal" data-color="rose">
+                    <div class="stat-icon">↻</div>
+                    <div class="stat-info">
+                        <span class="stat-value">0</span>
+                        <span class="stat-label">Self-Heal</span>
+                    </div>
+                    <canvas class="sparkline" data-color="#f43f5e"></canvas>
+                </div>
+            </div>
+
+            <!-- Agent Overview + Activity -->
+            <div class="dashboard-grid">
+                <!-- Agent Cards -->
+                <div class="glass-panel agent-overview">
+                    <h2 class="panel-title">Ajan Durumları</h2>
+                    <div class="agent-cards" id="agentStatusList">
+                        <!-- Dinamik: WebSocket/API'den gelecek -->
+                    </div>
+                </div>
+
+                <!-- Activity Feed -->
+                <div class="glass-panel activity-feed">
+                    <h2 class="panel-title">Canlı Aktivite</h2>
+                    <div class="feed-list" id="activityFeed">
+                        <!-- JS ile doldurulacak -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orchestration Flow -->
+            <div class="glass-panel orchestration-visual">
+                <h2 class="panel-title">Orkestrasyon Akışı</h2>
+                <div class="flow-container" id="orchestrationFlow">
+                    <!-- Dinamik: deploy başlatıldığında WebSocket ile güncellenir -->
+                    <div class="empty-state">Deploy başlatarak orkestrasyon akışını görün.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: Agents ═══ -->
+        <section class="page" id="page-agents">
+            <div class="glass-panel">
+                <h2 class="panel-title">Ajan Detayları ve MCP Sunucuları</h2>
+                <div class="agents-detail-grid" id="agentsDetailGrid">
+                    <!-- JS ile doldurulacak -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: Orchestration ═══ -->
+        <section class="page" id="page-orchestration">
+            <div class="glass-panel">
+                <h2 class="panel-title">Orkestrasyon Desenleri</h2>
+                <div class="patterns-grid">
+                    <div class="pattern-card">
+                        <div class="pattern-icon">→→→</div>
+                        <h3>Sıralı (Sequential)</h3>
+                        <p>Infra → FinOps → Pipeline → SRE</p>
+                        <div class="pattern-visual sequential">
+                            <span class="p-node p-active">I</span>
+                            <span class="p-arrow">→</span>
+                            <span class="p-node">F</span>
+                            <span class="p-arrow">→</span>
+                            <span class="p-node">P</span>
+                            <span class="p-arrow">→</span>
+                            <span class="p-node">S</span>
+                        </div>
+                    </div>
+                    <div class="pattern-card">
+                        <div class="pattern-icon">⇉</div>
+                        <h3>Eşzamanlı (Concurrent)</h3>
+                        <p>SRE ║ Pipeline — aynı anda çalışır</p>
+                        <div class="pattern-visual concurrent">
+                            <span class="p-node p-active">SRE</span>
+                            <span class="p-parallel">║</span>
+                            <span class="p-node p-active">PIP</span>
+                        </div>
+                    </div>
+                    <div class="pattern-card">
+                        <div class="pattern-icon">⤳</div>
+                        <h3>Devir Teslim (Handoff)</h3>
+                        <p>Görev içeriğine göre dinamik yönlendirme</p>
+                        <div class="pattern-visual handoff">
+                            <span class="p-node p-active">ORK</span>
+                            <span class="p-arrow">⤳</span>
+                            <span class="p-node">?</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-panel">
+                <h2 class="panel-title">Master Clipboard (Shared State)</h2>
+                <div class="clipboard-viewer" id="clipboardViewer">
+                    <pre id="clipboardContent"></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: Pipeline ═══ -->
+        <section class="page" id="page-pipeline">
+            <div class="glass-panel">
+                <h2 class="panel-title">Son Dağıtımlar</h2>
+                <div class="deploy-table" id="deploymentsTable">
+                    <!-- Dinamik: API'den gelecek -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: FinOps ═══ -->
+        <section class="page" id="page-finops">
+            <div id="finopsContent">
+                <!-- Dinamik: API'den gelecek -->
+                <div class="empty-state">FinOps verileri deploy sonrası güncellenecek.</div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: Self-Healing ═══ -->
+        <section class="page" id="page-selfheal">
+            <div class="glass-panel">
+                <h2 class="panel-title">Self-Healing Döngüsü ve Olaylar</h2>
+                <div id="incidentsTimeline">
+                    <!-- Dinamik: API'den gelecek -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Deploy Modal -->
+    <div class="modal-overlay" id="deployModal">
+        <div class="modal glass-panel">
+            <h2>🚀 Otonom Dağıtım Başlat</h2>
+            <form id="deployForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Proje Adı</label>
+                        <input type="text" name="projectName" placeholder="my-awesome-app" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>AWS Bölgesi</label>
+                        <select name="region" class="form-input">
+                            <option value="eu-west-1">EU West 1 (Ireland)</option>
+                            <option value="us-east-1">US East 1 (Virginia)</option>
+                            <option value="ap-southeast-1">AP Southeast 1 (Singapore)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ortam</label>
+                        <div class="radio-group">
+                            <label class="radio-label"><input type="radio" name="environment" value="dev" /> Dev</label>
+                            <label class="radio-label"><input type="radio" name="environment" value="staging" />
+                                Staging</label>
+                            <label class="radio-label"><input type="radio" name="environment" value="production"
+                                    checked /> Production</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Bütçe Limiti (USD/ay)</label>
+                        <input type="number" name="budget" value="500" class="form-input" />
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" id="closeModal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="deploy-icon">🚀</span> Dağıtımı Başlat
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-  </aside>
 
-  <!-- ═══ Main Content ═══ -->
-  <main class="main-content">
-    <!-- Header -->
-    <header class="top-bar">
-      <div class="top-bar-left">
-        <button class="menu-toggle" id="menuToggle">☰</button>
-        <h1 id="pageTitle">Dashboard</h1>
-      </div>
-      <div class="top-bar-right">
-        <div class="live-badge">
-          <span class="live-dot"></span>
-          CANLI
-        </div>
-        <button class="btn-deploy" id="deployBtn">
-          <span class="deploy-icon">🚀</span>
-          Deploy AWS
-        </button>
-      </div>
-    </header>
-
-    <!-- ═══ PAGE: Dashboard ═══ -->
-    <section class="page active" id="page-dashboard">
-      <!-- Stat Cards -->
-      <div class="stats-grid">
-        <div class="stat-card" data-color="indigo">
-          <div class="stat-icon">⬡</div>
-          <div class="stat-info">
-            <span class="stat-value" id="activeAgents">4</span>
-            <span class="stat-label">Aktif Ajan</span>
-          </div>
-          <div class="stat-sparkline" id="sparkAgents"></div>
-        </div>
-        <div class="stat-card" data-color="emerald">
-          <div class="stat-icon">▸▸</div>
-          <div class="stat-info">
-            <span class="stat-value" id="deployCount">12</span>
-            <span class="stat-label">Başarılı Deploy</span>
-          </div>
-          <div class="stat-sparkline" id="sparkDeploys"></div>
-        </div>
-        <div class="stat-card" data-color="amber">
-          <div class="stat-icon">◈</div>
-          <div class="stat-info">
-            <span class="stat-value" id="monthlyCost">$247</span>
-            <span class="stat-label">Aylık Maliyet</span>
-          </div>
-          <div class="stat-sparkline" id="sparkCost"></div>
-        </div>
-        <div class="stat-card" data-color="rose">
-          <div class="stat-icon">↻</div>
-          <div class="stat-info">
-            <span class="stat-value" id="healEvents">3</span>
-            <span class="stat-label">Self-Heal Olayı</span>
-          </div>
-          <div class="stat-sparkline" id="sparkHeal"></div>
-        </div>
-      </div>
-
-      <!-- Agent Overview + Activity -->
-      <div class="dashboard-grid">
-        <!-- Agent Cards -->
-        <div class="glass-panel agent-overview">
-          <h2 class="panel-title">Ajan Durumları</h2>
-          <div class="agent-cards">
-            <div class="agent-card" data-agent="infra">
-              <div class="agent-avatar infra">
-                <span>🏗</span>
-              </div>
-              <div class="agent-details">
-                <h3>Infra Agent</h3>
-                <p class="agent-status online">● Hazır</p>
-                <div class="agent-task">Son: VPC + ECS provizyonlama</div>
-              </div>
-              <div class="agent-metrics">
-                <div class="metric-ring" data-value="92" data-color="#818cf8">
-                  <svg viewBox="0 0 36 36">
-                    <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="ring-fill" stroke-dasharray="92, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  </svg>
-                  <span class="ring-value">92%</span>
-                </div>
-              </div>
-            </div>
-            <div class="agent-card" data-agent="pipeline">
-              <div class="agent-avatar pipeline">
-                <span>🔄</span>
-              </div>
-              <div class="agent-details">
-                <h3>Pipeline Agent</h3>
-                <p class="agent-status running">◉ Çalışıyor</p>
-                <div class="agent-task">CI/CD: test aşaması</div>
-              </div>
-              <div class="agent-metrics">
-                <div class="metric-ring" data-value="67" data-color="#34d399">
-                  <svg viewBox="0 0 36 36">
-                    <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="ring-fill" stroke-dasharray="67, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  </svg>
-                  <span class="ring-value">67%</span>
-                </div>
-              </div>
-            </div>
-            <div class="agent-card" data-agent="finops">
-              <div class="agent-avatar finops">
-                <span>💰</span>
-              </div>
-              <div class="agent-details">
-                <h3>FinOps Agent</h3>
-                <p class="agent-status online">● Hazır</p>
-                <div class="agent-task">Bütçe: %49 kullanıldı</div>
-              </div>
-              <div class="agent-metrics">
-                <div class="metric-ring" data-value="49" data-color="#fbbf24">
-                  <svg viewBox="0 0 36 36">
-                    <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="ring-fill" stroke-dasharray="49, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  </svg>
-                  <span class="ring-value">49%</span>
-                </div>
-              </div>
-            </div>
-            <div class="agent-card" data-agent="sre">
-              <div class="agent-avatar sre">
-                <span>🛡</span>
-              </div>
-              <div class="agent-details">
-                <h3>SRE Agent</h3>
-                <p class="agent-status watching">◎ İzliyor</p>
-                <div class="agent-task">0 alarm — sistem stabil</div>
-              </div>
-              <div class="agent-metrics">
-                <div class="metric-ring" data-value="100" data-color="#f43f5e">
-                  <svg viewBox="0 0 36 36">
-                    <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="ring-fill" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  </svg>
-                  <span class="ring-value">100%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Activity Feed -->
-        <div class="glass-panel activity-feed">
-          <h2 class="panel-title">Canlı Aktivite</h2>
-          <div class="feed-list" id="activityFeed">
-            <!-- JS ile doldurulacak -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Orchestration Flow -->
-      <div class="glass-panel orchestration-visual">
-        <h2 class="panel-title">Orkestrasyon Akışı</h2>
-        <div class="flow-container" id="flowContainer">
-          <div class="flow-node start" id="flowStart">
-            <div class="node-icon">📂</div>
-            <div class="node-label">Proje Yüklendi</div>
-          </div>
-          <div class="flow-connector active" id="conn1"><div class="flow-particle"></div></div>
-          <div class="flow-node active" id="flowBootstrap">
-            <div class="node-icon">🔍</div>
-            <div class="node-label">Auto-Bootstrap</div>
-            <div class="node-status">Repo analizi</div>
-          </div>
-          <div class="flow-connector" id="conn2"><div class="flow-particle"></div></div>
-          <div class="flow-node" id="flowInfra">
-            <div class="node-icon">🏗</div>
-            <div class="node-label">Infra Agent</div>
-            <div class="node-status">Bekliyor</div>
-          </div>
-          <div class="flow-connector" id="conn3"><div class="flow-particle"></div></div>
-          <div class="flow-node" id="flowFinops">
-            <div class="node-icon">💰</div>
-            <div class="node-label">FinOps Gate</div>
-            <div class="node-status">Bekliyor</div>
-          </div>
-          <div class="flow-connector" id="conn4"><div class="flow-particle"></div></div>
-          <div class="flow-node" id="flowPipeline">
-            <div class="node-icon">🚀</div>
-            <div class="node-label">Pipeline</div>
-            <div class="node-status">Bekliyor</div>
-          </div>
-          <div class="flow-connector" id="conn5"><div class="flow-particle"></div></div>
-          <div class="flow-node" id="flowSre">
-            <div class="node-icon">🛡</div>
-            <div class="node-label">SRE Setup</div>
-            <div class="node-status">Bekliyor</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ PAGE: Agents ═══ -->
-    <section class="page" id="page-agents">
-      <div class="glass-panel">
-        <h2 class="panel-title">Ajan Detayları ve MCP Sunucuları</h2>
-        <div class="agents-detail-grid" id="agentsDetailGrid">
-          <!-- JS ile doldurulacak -->
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ PAGE: Orchestration ═══ -->
-    <section class="page" id="page-orchestration">
-      <div class="glass-panel">
-        <h2 class="panel-title">Orkestrasyon Desenleri</h2>
-        <div class="patterns-grid">
-          <div class="pattern-card">
-            <div class="pattern-icon">→→→</div>
-            <h3>Sıralı (Sequential)</h3>
-            <p>Infra → FinOps → Pipeline → SRE</p>
-            <div class="pattern-visual sequential">
-              <span class="p-node p-active">I</span>
-              <span class="p-arrow">→</span>
-              <span class="p-node">F</span>
-              <span class="p-arrow">→</span>
-              <span class="p-node">P</span>
-              <span class="p-arrow">→</span>
-              <span class="p-node">S</span>
-            </div>
-          </div>
-          <div class="pattern-card">
-            <div class="pattern-icon">⇉</div>
-            <h3>Eşzamanlı (Concurrent)</h3>
-            <p>SRE ║ Pipeline — aynı anda çalışır</p>
-            <div class="pattern-visual concurrent">
-              <span class="p-node p-active">SRE</span>
-              <span class="p-parallel">║</span>
-              <span class="p-node p-active">PIP</span>
-            </div>
-          </div>
-          <div class="pattern-card">
-            <div class="pattern-icon">⤳</div>
-            <h3>Devir Teslim (Handoff)</h3>
-            <p>Görev içeriğine göre dinamik yönlendirme</p>
-            <div class="pattern-visual handoff">
-              <span class="p-node p-active">ORK</span>
-              <span class="p-arrow">⤳</span>
-              <span class="p-node">?</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="glass-panel">
-        <h2 class="panel-title">Master Clipboard (Shared State)</h2>
-        <div class="clipboard-viewer" id="clipboardViewer">
-          <pre id="clipboardContent"></pre>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ PAGE: Pipeline ═══ -->
-    <section class="page" id="page-pipeline">
-      <div class="glass-panel">
-        <h2 class="panel-title">CI/CD Pipeline Durumu</h2>
-        <div class="pipeline-stages" id="pipelineStages">
-          <!-- JS ile doldurulacak -->
-        </div>
-      </div>
-      <div class="glass-panel">
-        <h2 class="panel-title">Son Dağıtımlar</h2>
-        <div class="deploy-table" id="deployTable">
-          <!-- JS ile doldurulacak -->
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ PAGE: FinOps ═══ -->
-    <section class="page" id="page-finops">
-      <div class="finops-header-grid">
-        <div class="glass-panel finops-budget">
-          <h2 class="panel-title">Bütçe Durumu</h2>
-          <div class="budget-gauge" id="budgetGauge">
-            <div class="gauge-ring">
-              <svg viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="52" class="gauge-bg" />
-                <circle cx="60" cy="60" r="52" class="gauge-fill" id="gaugeCircle" />
-              </svg>
-              <div class="gauge-center">
-                <span class="gauge-value">$247</span>
-                <span class="gauge-label">/ $500</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="glass-panel finops-breakdown">
-          <h2 class="panel-title">Maliyet Dağılımı</h2>
-          <div class="cost-bars" id="costBars">
-            <!-- JS ile doldurulacak -->
-          </div>
-        </div>
-      </div>
-      <div class="glass-panel">
-        <h2 class="panel-title">Optimizasyon Önerileri</h2>
-        <div class="optimization-list" id="optimizationList">
-          <!-- JS ile doldurulacak -->
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ PAGE: Self-Healing ═══ -->
-    <section class="page" id="page-selfheal">
-      <div class="glass-panel">
-        <h2 class="panel-title">Self-Healing Döngüsü</h2>
-        <div class="heal-cycle">
-          <div class="cycle-step active" data-step="sense">
-            <div class="step-number">1</div>
-            <div class="step-name">SENSE</div>
-            <div class="step-desc">CloudWatch Alarm</div>
-          </div>
-          <div class="cycle-arrow">→</div>
-          <div class="cycle-step" data-step="analyze">
-            <div class="step-number">2</div>
-            <div class="step-name">ANALYZE</div>
-            <div class="step-desc">RCA + RAG</div>
-          </div>
-          <div class="cycle-arrow">→</div>
-          <div class="cycle-step" data-step="act">
-            <div class="step-number">3</div>
-            <div class="step-name">ACT</div>
-            <div class="step-desc">Otonom İyileştirme</div>
-          </div>
-          <div class="cycle-arrow">→</div>
-          <div class="cycle-step" data-step="verify">
-            <div class="step-number">4</div>
-            <div class="step-name">VERIFY</div>
-            <div class="step-desc">Health Check</div>
-          </div>
-        </div>
-      </div>
-      <div class="glass-panel">
-        <h2 class="panel-title">Olay Geçmişi</h2>
-        <div class="incident-timeline" id="incidentTimeline">
-          <!-- JS ile doldurulacak -->
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Deploy Modal -->
-  <div class="modal-overlay" id="deployModal">
-    <div class="modal glass-panel">
-      <h2>🚀 Otonom Dağıtım Başlat</h2>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Proje Adı</label>
-          <input type="text" id="projectName" placeholder="my-awesome-app" class="form-input" />
-        </div>
-        <div class="form-group">
-          <label>AWS Bölgesi</label>
-          <select id="awsRegion" class="form-input">
-            <option value="eu-west-1">EU West 1 (Ireland)</option>
-            <option value="us-east-1">US East 1 (Virginia)</option>
-            <option value="ap-southeast-1">AP Southeast 1 (Singapore)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Ortam</label>
-          <div class="radio-group">
-            <label class="radio-label"><input type="radio" name="env" value="dev" /> Dev</label>
-            <label class="radio-label"><input type="radio" name="env" value="staging" /> Staging</label>
-            <label class="radio-label"><input type="radio" name="env" value="production" checked /> Production</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Bütçe Limiti (USD/ay)</label>
-          <input type="number" id="budgetLimit" value="500" class="form-input" />
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-ghost" id="modalCancel">İptal</button>
-        <button class="btn btn-primary" id="modalDeploy">
-          <span class="deploy-icon">🚀</span> Dağıtımı Başlat
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
+
 </html>

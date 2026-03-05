@@ -1,650 +1,761 @@
 /**
- * Mission Control — Otonom DevOps Dashboard
- * Interactive dashboard with live simulations, sparklines, and animations
+ * Mission Control — Dashboard Client
+ * API + WebSocket ile gerçek veri entegrasyonu
  */
 
 // ══════════════════════════════════════
-// Data & State
+// API & WebSocket Connection
 // ══════════════════════════════════════
 
-const AGENTS = [
-    {
-        id: 'infra',
-        name: 'Platform & Infra Agent',
-        icon: '🏗',
-        description: 'AWS altyapısını Terraform/CDK ile kodlar ve provizyonlar',
-        status: 'online',
-        mcp: ['aws-cloud-control', 'aws-iac', 'aws-terraform'],
-        capabilities: ['generate_terraform', 'provision_resources', 'security_scan'],
-        iam: 'devops-infra-agent-role',
-        color: '#818cf8',
-    },
-    {
-        id: 'pipeline',
-        name: 'Pipeline & CI/CD Agent',
-        icon: '🔄',
-        description: 'CI/CD pipeline yapılandırır, test yazar, görsel QA yapar',
-        status: 'running',
-        mcp: ['mcpdoc-github-actions', 'mcpdoc-aws'],
-        capabilities: ['generate_cicd_config', 'generate_tests', 'visual_qa', 'deploy', 'rollback'],
-        iam: 'devops-pipeline-agent-role',
-        color: '#34d399',
-    },
-    {
-        id: 'finops',
-        name: 'FinOps Agent',
-        icon: '💰',
-        description: 'Maliyet analizi, bütçe doğrulama ve optimizasyon önerileri',
-        status: 'online',
-        mcp: ['aws-pricing'],
-        capabilities: ['cost_estimation', 'budget_validation', 'cost_optimization'],
-        iam: 'devops-finops-agent-role',
-        color: '#fbbf24',
-    },
-    {
-        id: 'sre',
-        name: 'SRE & Self-Healing Agent',
-        icon: '🛡',
-        description: 'Monitoring, anomali tespiti, RCA ve otonom iyileştirme',
-        status: 'watching',
-        mcp: ['aws-cloudwatch'],
-        capabilities: ['monitoring_setup', 'anomaly_detection', 'rca_analysis', 'auto_remediation'],
-        iam: 'devops-sre-agent-role',
-        color: '#f43f5e',
-    },
-];
+const API_BASE = window.location.origin + '/api';
+let ws = null;
+let wsReconnectTimer = null;
+let appState = {};
+let isConnected = false;
 
-const ACTIVITIES = [
-    { icon: '🏗', text: 'Infra Agent: VPC modülü oluşturuldu (10.0.0.0/16)', color: '#818cf8', time: '2dk önce' },
-    { icon: '💰', text: 'FinOps: Maliyet analizi tamamlandı — $247/ay', color: '#fbbf24', time: '5dk önce' },
-    { icon: '🔄', text: 'Pipeline: CI/CD testleri çalışıyor (8/12)', color: '#34d399', time: '8dk önce' },
-    { icon: '🛡', text: 'SRE: CloudWatch Dashboard kuruldu', color: '#f43f5e', time: '15dk önce' },
-    { icon: '🏗', text: 'Infra Agent: ECS Fargate cluster oluşturuldu', color: '#818cf8', time: '22dk önce' },
-    { icon: '🔒', text: 'Checkov: 0 kritik güvenlik açığı', color: '#34d399', time: '25dk önce' },
-    { icon: '💰', text: 'FinOps: Graviton geçiş önerisi — %30 tasarruf', color: '#fbbf24', time: '30dk önce' },
-    { icon: '🛡', text: 'SRE: Self-healing Lambda deploy edildi', color: '#f43f5e', time: '35dk önce' },
-    { icon: '🏗', text: 'Infra Agent: RDS (PostgreSQL 15.4) oluşturuldu', color: '#818cf8', time: '40dk önce' },
-    { icon: '🔄', text: 'Pipeline: Docker image build tamamlandı', color: '#34d399', time: '45dk önce' },
-];
+function connectWebSocket() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
 
-const COST_BREAKDOWN = [
-    { label: 'ECS Fargate', value: 89, max: 150, color: '#818cf8' },
-    { label: 'RDS', value: 72, max: 150, color: '#c084fc' },
-    { label: 'NAT Gateway', value: 45, max: 150, color: '#a78bfa' },
-    { label: 'ALB', value: 22, max: 150, color: '#60a5fa' },
-    { label: 'CloudWatch', value: 12, max: 150, color: '#22d3ee' },
-    { label: 'Diğer', value: 7, max: 150, color: '#94a3b8' },
-];
+    ws.onopen = () => {
+        isConnected = true;
+        updateConnectionStatus(true);
+        console.log('🔌 WebSocket bağlandı');
+        clearTimeout(wsReconnectTimer);
+    };
 
-const OPTIMIZATIONS = [
-    { icon: '💡', title: 'Graviton Geçişi', desc: 'ECS task\'ları ARM64 (Graviton) mimarisine taşıyın', savings: '-$27/ay' },
-    { icon: '📦', title: 'Reserved Instance', desc: 'RDS için 1 yıllık RI satın alarak tasarruf edin', savings: '-$29/ay' },
-    { icon: '📊', title: 'Log Retention', desc: 'CloudWatch log tutma süresini 90 güne düşürün', savings: '-$4/ay' },
-    { icon: '🧹', title: 'Kullanılmayan EIP', desc: '2 adet kullanılmayan Elastic IP kaldırılabilir', savings: '-$7/ay' },
-];
+    ws.onclose = () => {
+        isConnected = false;
+        updateConnectionStatus(false);
+        console.log('🔌 WebSocket koptu, yeniden bağlanılıyor...');
+        wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+    };
 
-const INCIDENTS = [
-    {
-        title: 'CPU Spike Algılandı',
-        time: '2 gün önce',
-        desc: 'ECS CPU kullanımı %92\'ye ulaştı — trafik artışı',
-        action: '✅ Auto-scale: 2 → 4 task, 5dk içinde çözüldü',
-        status: 'resolved',
-    },
-    {
-        title: 'RDS Bağlantı Hatası',
-        time: '5 gün önce',
-        desc: 'Connection pool tükendi — max_connections limiti',
-        action: '✅ Parametre grubu güncellendi, restart yapıldı',
-        status: 'resolved',
-    },
-    {
-        title: '5xx Hata Artışı',
-        time: '1 hafta önce',
-        desc: 'Deployment sonrası 5xx hata sayısı 15\'e çıktı',
-        action: '✅ Önceki task definition\'a rollback yapıldı',
-        status: 'resolved',
-    },
-];
+    ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleWSMessage(msg);
+    };
 
-const PIPELINE_STAGES = [
-    { name: 'Lint', icon: '🔍', status: 'done', time: '12s' },
-    { name: 'Test', icon: '🧪', status: 'done', time: '1m 23s' },
-    { name: 'Security', icon: '🔒', status: 'done', time: '34s' },
-    { name: 'Build', icon: '🐳', status: 'done', time: '2m 11s' },
-    { name: 'FinOps', icon: '💰', status: 'done', time: '18s' },
-    { name: 'Deploy', icon: '🚀', status: 'running', time: '...' },
-];
+    ws.onerror = () => {
+        ws.close();
+    };
+}
 
-const DEPLOYMENTS = [
-    { id: '#142', commit: 'feat: add health endpoint', env: 'production', status: 'success', time: '12:42', duration: '4m 38s' },
-    { id: '#141', commit: 'fix: memory leak in handler', env: 'production', status: 'success', time: '10:15', duration: '4m 12s' },
-    { id: '#140', commit: 'chore: update dependencies', env: 'staging', status: 'success', time: '09:30', duration: '3m 55s' },
-    { id: '#139', commit: 'feat: add caching layer', env: 'production', status: 'failed', time: 'Dün 18:22', duration: '5m 01s' },
-    { id: '#138', commit: 'fix: cors configuration', env: 'staging', status: 'success', time: 'Dün 15:10', duration: '3m 42s' },
-];
-
-const CLIPBOARD_STATE = {
-    project_research: {
-        type: 'nodejs',
-        framework: 'express',
-        database: 'postgresql',
-        port: 3000,
-        docker: true,
-    },
-    'infra-agent': {
-        vpc_id: 'vpc-0a1b2c3d4e5f',
-        ecs_cluster_arn: 'arn:aws:ecs:eu-west-1:123456789:cluster/my-app',
-        rds_endpoint: 'my-app-db.cluster-xyz.eu-west-1.rds.amazonaws.com',
-        alb_dns: 'my-app-alb-1234.eu-west-1.elb.amazonaws.com',
-    },
-    'finops-agent': {
-        estimated_cost: '$247/ay',
-        budget_status: 'OK',
-        decision: 'PROCEED',
-        savings_potential: '$67/ay',
-    },
-    'pipeline-agent': {
-        pipeline_url: 'https://github.com/org/app/actions',
-        test_results: '24/24 passed',
-        coverage: '87%',
-    },
-    'sre-agent': {
-        dashboard_url: 'https://console.aws.amazon.com/cloudwatch/dashboards/my-app',
-        alarms_active: 0,
-        self_healing: 'enabled',
-        uptime: '99.95%',
-    },
-};
-
-// ══════════════════════════════════════
-// Navigation
-// ══════════════════════════════════════
-
-const navItems = document.querySelectorAll('.nav-item');
-const pages = document.querySelectorAll('.page');
-const pageTitle = document.getElementById('pageTitle');
-const menuToggle = document.getElementById('menuToggle');
-const sidebar = document.getElementById('sidebar');
-
-const PAGE_TITLES = {
-    dashboard: 'Dashboard',
-    agents: 'Ajanlar',
-    orchestration: 'Orkestrasyon',
-    pipeline: 'Pipeline',
-    finops: 'FinOps',
-    selfheal: 'Self-Healing',
-};
-
-navItems.forEach((item) => {
-    item.addEventListener('click', (e) => {
-        e.preventDefault();
-        const page = item.dataset.page;
-
-        navItems.forEach((n) => n.classList.remove('active'));
-        item.classList.add('active');
-
-        pages.forEach((p) => p.classList.remove('active'));
-        const target = document.getElementById(`page-${page}`);
-        if (target) {
-            target.classList.add('active');
-        }
-
-        pageTitle.textContent = PAGE_TITLES[page] || 'Dashboard';
-
-        // Close mobile sidebar
-        sidebar.classList.remove('open');
-    });
-});
-
-menuToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
-});
-
-// ══════════════════════════════════════
-// Deploy Modal
-// ══════════════════════════════════════
-
-const deployBtn = document.getElementById('deployBtn');
-const deployModal = document.getElementById('deployModal');
-const modalCancel = document.getElementById('modalCancel');
-const modalDeploy = document.getElementById('modalDeploy');
-
-deployBtn.addEventListener('click', () => {
-    deployModal.classList.add('show');
-});
-
-modalCancel.addEventListener('click', () => {
-    deployModal.classList.remove('show');
-});
-
-deployModal.addEventListener('click', (e) => {
-    if (e.target === deployModal) {
-        deployModal.classList.remove('show');
+function handleWSMessage(msg) {
+    switch (msg.type) {
+        case 'INIT':
+            appState = msg.payload;
+            renderAll();
+            break;
+        case 'AGENT_UPDATED':
+            if (appState.agents) appState.agents[msg.payload.id] = msg.payload;
+            renderAgents();
+            renderStats();
+            break;
+        case 'NEW_ACTIVITY':
+            if (!appState.activities) appState.activities = [];
+            appState.activities.unshift(msg.payload);
+            renderActivityFeed();
+            animatePulse();
+            break;
+        case 'NEW_DEPLOYMENT':
+            if (!appState.deployments) appState.deployments = [];
+            appState.deployments.unshift(msg.payload);
+            renderDeployments();
+            renderStats();
+            break;
+        case 'DEPLOYMENT_UPDATED':
+            if (appState.deployments) {
+                const idx = appState.deployments.findIndex(d => d.deployId === msg.payload.deployId);
+                if (idx >= 0) appState.deployments[idx] = msg.payload;
+            }
+            renderDeployments();
+            renderStats();
+            break;
+        case 'FINOPS_UPDATED':
+            appState.finops = msg.payload;
+            renderFinOps();
+            renderStats();
+            break;
+        case 'NEW_INCIDENT':
+            if (!appState.incidents) appState.incidents = [];
+            appState.incidents.unshift(msg.payload);
+            renderIncidents();
+            renderStats();
+            break;
+        case 'INCIDENT_RESOLVED':
+            if (appState.incidents) {
+                const idx = appState.incidents.findIndex(i => i.id === msg.payload.id);
+                if (idx >= 0) appState.incidents[idx] = msg.payload;
+            }
+            renderIncidents();
+            break;
+        case 'CLIPBOARD_UPDATED':
+            if (!appState.clipboard) appState.clipboard = {};
+            Object.assign(appState.clipboard, { [msg.payload.key]: { data: msg.payload.value } });
+            renderClipboard();
+            break;
+        case 'ORCHESTRATION_UPDATED':
+            appState.orchestration = msg.payload;
+            renderOrchestrationFlow();
+            break;
+        case 'STATE_CHANGED':
+            appState = { ...msg.payload, stats: msg.payload.stats };
+            renderAll();
+            break;
     }
-});
+}
 
-modalDeploy.addEventListener('click', () => {
-    deployModal.classList.remove('show');
-    startOrchestrationAnimation();
-});
+async function apiFetch(endpoint, options = {}) {
+    try {
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        return await res.json();
+    } catch (err) {
+        console.error(`API error (${endpoint}):`, err);
+        return null;
+    }
+}
 
 // ══════════════════════════════════════
-// Activity Feed
+// Page Navigation
 // ══════════════════════════════════════
 
+let currentPage = 'dashboard';
+
+function initNavigation() {
+    document.querySelectorAll('.nav-item').forEach((item) => {
+        item.addEventListener('click', () => {
+            const page = item.dataset.page;
+            if (page) switchPage(page);
+        });
+    });
+
+    // Mobile toggle
+    const toggle = document.getElementById('sidebarToggle');
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+    }
+}
+
+function switchPage(page) {
+    currentPage = page;
+    document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
+
+    const pageEl = document.getElementById(`page-${page}`);
+    const navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (pageEl) pageEl.classList.add('active');
+    if (navEl) navEl.classList.add('active');
+
+    // Sayfa geçişinde render
+    renderCurrentPage();
+}
+
+function renderCurrentPage() {
+    switch (currentPage) {
+        case 'dashboard': renderDashboard(); break;
+        case 'agents': renderAgentsPage(); break;
+        case 'orchestration': renderOrchestrationPage(); break;
+        case 'pipeline': renderPipelinePage(); break;
+        case 'finops': renderFinOpsPage(); break;
+        case 'selfheal': renderSelfHealPage(); break;
+    }
+}
+
+// ══════════════════════════════════════
+// Connection Status Indicator
+// ══════════════════════════════════════
+
+function updateConnectionStatus(connected) {
+    let indicator = document.getElementById('connectionStatus');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'connectionStatus';
+        indicator.style.cssText = `
+      position: fixed; bottom: 16px; right: 16px; z-index: 1000;
+      padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      backdrop-filter: blur(12px); transition: all 0.3s;
+    `;
+        document.body.appendChild(indicator);
+    }
+    if (connected) {
+        indicator.textContent = '🟢 Bağlı';
+        indicator.style.background = 'rgba(52, 211, 153, 0.15)';
+        indicator.style.color = '#34d399';
+        indicator.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+    } else {
+        indicator.textContent = '🔴 Bağlantı kesik';
+        indicator.style.background = 'rgba(244, 63, 94, 0.15)';
+        indicator.style.color = '#f43f5e';
+        indicator.style.border = '1px solid rgba(244, 63, 94, 0.3)';
+    }
+}
+
+function animatePulse() {
+    const indicator = document.getElementById('connectionStatus');
+    if (indicator) {
+        indicator.style.transform = 'scale(1.1)';
+        setTimeout(() => { indicator.style.transform = 'scale(1)'; }, 200);
+    }
+}
+
+// ══════════════════════════════════════
+// Render Functions
+// ══════════════════════════════════════
+
+function renderAll() {
+    renderStats();
+    renderAgents();
+    renderActivityFeed();
+    renderOrchestrationFlow();
+    renderCurrentPage();
+}
+
+// ── Stats Cards ──
+function renderStats() {
+    const stats = appState.stats || {};
+    const agents = appState.agents ? Object.values(appState.agents) : [];
+    const activeCount = agents.filter(a => a.status !== 'idle').length;
+    const totalDeploys = (appState.deployments || []).length;
+    const successDeploys = (appState.deployments || []).filter(d => d.status === 'success').length;
+    const cost = appState.finops?.currentCost || 0;
+    const healEvents = (appState.incidents || []).length;
+
+    setStatCard('stat-agents', `${activeCount}/${agents.length}`, 'Aktif Ajan');
+    setStatCard('stat-deploys', `${successDeploys}`, 'Başarılı Deploy');
+    setStatCard('stat-cost', `$${cost}`, 'Aylık Maliyet');
+    setStatCard('stat-heal', `${healEvents}`, 'Self-Heal');
+}
+
+function setStatCard(id, value, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const valEl = el.querySelector('.stat-value');
+    const lblEl = el.querySelector('.stat-label');
+    if (valEl) {
+        const oldVal = valEl.textContent;
+        valEl.textContent = value;
+        if (oldVal !== value) {
+            valEl.style.color = '#34d399';
+            setTimeout(() => { valEl.style.color = ''; }, 600);
+        }
+    }
+    if (lblEl) lblEl.textContent = label;
+}
+
+// ── Agent Status Cards on Dashboard ──
+function renderAgents() {
+    const container = document.getElementById('agentStatusList');
+    if (!container) return;
+    const agents = appState.agents ? Object.values(appState.agents) : [];
+
+    container.innerHTML = agents.map(agent => `
+    <div class="agent-card mini" data-agent="${agent.id}" style="border-left: 3px solid ${agent.color}">
+      <div class="agent-header">
+        <span class="agent-icon">${agent.icon}</span>
+        <span class="agent-name">${agent.name}</span>
+        <span class="agent-status-badge ${agent.status}">${statusBadge(agent.status)}</span>
+      </div>
+      ${agent.currentTask ? `<div class="agent-task">${agent.currentTask}</div>` : ''}
+      <div class="agent-meta">
+        <span>✅ ${agent.completedTasks || 0} görev</span>
+        ${agent.lastActivity ? `<span>🕐 ${timeAgo(agent.lastActivity)}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function statusBadge(status) {
+    const badges = {
+        idle: '⏸ Beklemede',
+        running: '▶ Çalışıyor',
+        error: '⚠ Hata',
+    };
+    return badges[status] || status;
+}
+
+// ── Activity Feed ──
 function renderActivityFeed() {
-    const feed = document.getElementById('activityFeed');
-    feed.innerHTML = ACTIVITIES.map(
-        (a) => `
-    <div class="feed-item">
-      <span class="feed-dot" style="background:${a.color}"></span>
-      <span class="feed-text">${a.icon} ${a.text}</span>
-      <span class="feed-time">${a.time}</span>
+    const container = document.getElementById('activityFeed');
+    if (!container) return;
+    const activities = appState.activities || [];
+    const recent = activities.slice(0, 20);
+
+    if (recent.length === 0) {
+        container.innerHTML = '<div class="empty-state">Henüz aktivite yok. Deploy başlatarak ajanları tetikleyin.</div>';
+        return;
+    }
+
+    container.innerHTML = recent.map((a, i) => `
+    <div class="activity-item ${i === 0 ? 'new' : ''}" style="animation-delay: ${i * 50}ms">
+      <span class="activity-icon" style="color: ${a.color || '#818cf8'}">${a.icon || '📌'}</span>
+      <div class="activity-content">
+        <span class="activity-text">${a.text}</span>
+        <span class="activity-time">${timeAgo(a.timestamp)}</span>
+      </div>
     </div>
-  `
-    ).join('');
+  `).join('');
 }
 
-// ══════════════════════════════════════
-// Sparklines (Canvas)
-// ══════════════════════════════════════
+// ── Orchestration Flow ──
+function renderOrchestrationFlow() {
+    const container = document.getElementById('orchestrationFlow');
+    if (!container) return;
+    const orch = appState.orchestration || {};
+    const nodes = orch.nodes || [];
 
-function drawSparkline(container, data, color) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 140;
-    canvas.height = 60;
-    container.innerHTML = '';
-    container.appendChild(canvas);
+    if (nodes.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aktif orkestrasyon akışı yok.</div>';
+        return;
+    }
 
-    const ctx = canvas.getContext('2d');
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const range = max - min || 1;
-    const step = canvas.width / (data.length - 1);
+    container.innerHTML = `
+    <div class="flow-pipeline">
+      ${nodes.map((node, i) => `
+        <div class="flow-node ${node.status}" key="${node.id}">
+          <div class="flow-icon">${node.icon}</div>
+          <div class="flow-label">${node.label}</div>
+          <div class="flow-status-dot ${node.status}"></div>
+        </div>
+        ${i < nodes.length - 1 ? '<div class="flow-arrow ' + (node.status === 'done' ? 'active' : '') + '">→</div>' : ''}
+      `).join('')}
+    </div>
+  `;
+}
 
-    // Gradient fill
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, color + '30');
-    gradient.addColorStop(1, color + '00');
+// ── Dashboard Page ──
+function renderDashboard() {
+    renderStats();
+    renderAgents();
+    renderActivityFeed();
+    renderOrchestrationFlow();
+}
 
-    // Path
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height);
-    data.forEach((val, i) => {
-        const x = i * step;
-        const y = canvas.height - ((val - min) / range) * canvas.height * 0.8 - 4;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+// ── Agents Detail Page ──
+function renderAgentsPage() {
+    const container = document.getElementById('agentsDetailGrid');
+    if (!container) return;
+    const agents = appState.agents ? Object.values(appState.agents) : [];
+
+    container.innerHTML = agents.map(agent => `
+    <div class="card agent-detail-card" style="--accent: ${agent.color}">
+      <div class="card-header">
+        <span class="agent-icon-lg">${agent.icon}</span>
+        <div>
+          <h3>${agent.name}</h3>
+          <span class="agent-status-badge ${agent.status}">${statusBadge(agent.status)}</span>
+        </div>
+      </div>
+      <p class="agent-desc">${agent.description}</p>
+      ${agent.currentTask ? `<div class="current-task"><strong>Aktif Görev:</strong> ${agent.currentTask}</div>` : ''}
+      <div class="agent-section">
+        <h4>🔌 MCP Sunucuları</h4>
+        <div class="tag-list">${agent.mcp.map(m => `<span class="tag">${m}</span>`).join('')}</div>
+      </div>
+      <div class="agent-section">
+        <h4>⚡ Yetenekler</h4>
+        <div class="tag-list">${agent.capabilities.map(c => `<span class="tag cap">${c}</span>`).join('')}</div>
+      </div>
+      <div class="agent-section">
+        <h4>🔐 IAM Rolü</h4>
+        <code>${agent.iam}</code>
+      </div>
+      <div class="agent-footer">
+        <span>✅ ${agent.completedTasks || 0} tamamlanan görev</span>
+        <button class="btn btn-sm" onclick="triggerAgent('${agent.id}')" ${agent.status === 'running' ? 'disabled' : ''}>
+          ${agent.status === 'running' ? '⏳ Çalışıyor...' : '▶ Tetikle'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function triggerAgent(agentId) {
+    const agent = appState.agents?.[agentId];
+    if (!agent) return;
+
+    const tasks = {
+        infra: 'Terraform plan — VPC ve kaynak kontrolü',
+        pipeline: 'Test suite yürütme ve coverage raporu',
+        finops: 'Maliyet optimizasyon taraması',
+        sre: 'Sağlık kontrolü ve metrik taraması',
+    };
+
+    await apiFetch(`/agents/${agentId}/trigger`, {
+        method: 'POST',
+        body: JSON.stringify({ task: tasks[agentId] || 'Manuel görev' }),
     });
 
-    // Fill area
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.lineTo(0, canvas.height);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    // Line
-    ctx.beginPath();
-    data.forEach((val, i) => {
-        const x = i * step;
-        const y = canvas.height - ((val - min) / range) * canvas.height * 0.8 - 4;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // End dot
-    const lastX = (data.length - 1) * step;
-    const lastY = canvas.height - ((data[data.length - 1] - min) / range) * canvas.height * 0.8 - 4;
-    ctx.beginPath();
-    ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
+    // 3-5 saniye sonra otomatik tamamla
+    setTimeout(async () => {
+        await apiFetch(`/agents/${agentId}/complete`, {
+            method: 'POST',
+            body: JSON.stringify({ success: true, output: { result: 'OK' } }),
+        });
+    }, 3000 + Math.random() * 2000);
 }
 
-function initSparklines() {
-    drawSparkline(document.getElementById('sparkAgents'), [4, 4, 3, 4, 4, 3, 4, 4, 4, 4], '#818cf8');
-    drawSparkline(document.getElementById('sparkDeploys'), [8, 6, 9, 7, 10, 8, 11, 9, 12, 12], '#34d399');
-    drawSparkline(document.getElementById('sparkCost'), [220, 235, 210, 240, 255, 230, 245, 238, 250, 247], '#fbbf24');
-    drawSparkline(document.getElementById('sparkHeal'), [1, 0, 2, 1, 0, 1, 0, 0, 1, 3], '#f43f5e');
+// ── Orchestration Page ──
+function renderOrchestrationPage() {
+    renderOrchestrationFlow();
+    renderClipboard();
 }
 
-// ══════════════════════════════════════
-// Agents Detail Page
-// ══════════════════════════════════════
+function renderClipboard() {
+    const container = document.getElementById('clipboardViewer');
+    if (!container) return;
+    const clipboard = appState.clipboard || {};
+    const keys = Object.keys(clipboard);
 
-function renderAgentsDetail() {
-    const grid = document.getElementById('agentsDetailGrid');
-    grid.innerHTML = AGENTS.map(
-        (a) => `
-    <div class="agent-detail-card" style="border-top: 2px solid ${a.color}">
-      <div class="agent-detail-header">
-        <span style="font-size:28px">${a.icon}</span>
-        <h3>${a.name}</h3>
-        <span class="badge">${a.status.toUpperCase()}</span>
-      </div>
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${a.description}</p>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px">IAM: <code style="color:var(--accent-cyan);font-family:var(--font-mono)">${a.iam}</code></div>
-      <div style="margin-top:10px">
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">MCP Sunucuları</div>
-        <div class="mcp-list">${a.mcp.map((m) => `<span class="mcp-tag">${m}</span>`).join('')}</div>
-      </div>
-      <div style="margin-top:10px">
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Yetenekler</div>
-        <div class="capability-list">${a.capabilities.map((c) => `<span class="cap-tag">${c}</span>`).join('')}</div>
-      </div>
+    if (keys.length === 0) {
+        container.innerHTML = '<div class="empty-state">Clipboard boş. Deploy başlatarak veri akışını görün.</div>';
+        return;
+    }
+
+    container.innerHTML = keys.map(key => `
+    <div class="clipboard-entry">
+      <div class="clipboard-key">${key}</div>
+      <pre class="clipboard-value">${JSON.stringify(clipboard[key]?.data || clipboard[key], null, 2)}</pre>
+      ${clipboard[key]?.updatedAt ? `<span class="clipboard-time">${timeAgo(clipboard[key].updatedAt)}</span>` : ''}
     </div>
-  `
-    ).join('');
+  `).join('');
 }
 
-// ══════════════════════════════════════
-// Pipeline Page
-// ══════════════════════════════════════
+// ── Pipeline Page ──
+function renderPipelinePage() {
+    renderDeployments();
+}
 
-function renderPipeline() {
-    const stages = document.getElementById('pipelineStages');
-    stages.innerHTML = PIPELINE_STAGES.map(
-        (s) => `
-    <div class="pipeline-stage">
-      <div class="stage-indicator ${s.status}">${s.icon}</div>
-      <div class="stage-name">${s.name}</div>
-      <div class="stage-time">${s.time}</div>
-    </div>
-  `
-    ).join('');
+function renderDeployments() {
+    const container = document.getElementById('deploymentsTable');
+    if (!container) return;
+    const deployments = appState.deployments || [];
 
-    const table = document.getElementById('deployTable');
-    table.innerHTML = `
-    <table>
+    if (deployments.length === 0) {
+        container.innerHTML = '<div class="empty-state">Henüz deploy yok. "Yeni Deploy" butonunu kullanın.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+    <table class="data-table">
       <thead>
         <tr>
-          <th>ID</th><th>Commit</th><th>Ortam</th><th>Durum</th><th>Zaman</th><th>Süre</th>
+          <th>ID</th>
+          <th>Proje</th>
+          <th>Ortam</th>
+          <th>Bölge</th>
+          <th>Durum</th>
+          <th>Süre</th>
+          <th>Tarih</th>
         </tr>
       </thead>
       <tbody>
-        ${DEPLOYMENTS.map(
-        (d) => `
-          <tr>
-            <td style="font-family:var(--font-mono);font-weight:600">${d.id}</td>
-            <td>${d.commit}</td>
-            <td><span style="font-size:11px;font-family:var(--font-mono)">${d.env}</span></td>
-            <td><span class="deploy-badge ${d.status}">${d.status === 'success' ? '✓ Başarılı' : d.status === 'failed' ? '✗ Başarısız' : '◉ Çalışıyor'}</span></td>
-            <td style="font-family:var(--font-mono);font-size:12px">${d.time}</td>
-            <td style="font-family:var(--font-mono);font-size:12px">${d.duration}</td>
+        ${deployments.map(d => `
+          <tr class="deploy-row ${d.status}">
+            <td><code>${d.deployId || d.id}</code></td>
+            <td>${d.projectName || '-'}</td>
+            <td><span class="env-badge ${d.environment}">${d.environment || '-'}</span></td>
+            <td>${d.region || '-'}</td>
+            <td><span class="status-pill ${d.status}">${deployStatusLabel(d.status)}</span></td>
+            <td>${d.duration || (d.status === 'running' ? '⏳' : '-')}</td>
+            <td>${d.timestamp ? new Date(d.timestamp).toLocaleTimeString('tr-TR') : '-'}</td>
           </tr>
-        `
-    ).join('')}
+        `).join('')}
       </tbody>
     </table>
   `;
 }
 
-// ══════════════════════════════════════
-// FinOps Page
-// ══════════════════════════════════════
+function deployStatusLabel(status) {
+    const labels = { running: '🔄 Çalışıyor', success: '✅ Başarılı', failed: '❌ Başarısız', pending: '⏳ Bekliyor' };
+    return labels[status] || status;
+}
+
+// ── FinOps Page ──
+function renderFinOpsPage() {
+    renderFinOps();
+}
 
 function renderFinOps() {
-    // Budget gauge
-    const totalCost = 247;
-    const budget = 500;
-    const pct = totalCost / budget;
-    const circumference = 2 * Math.PI * 52;
-    const circle = document.getElementById('gaugeCircle');
+    const container = document.getElementById('finopsContent');
+    if (!container) return;
+    const finops = appState.finops || {};
 
-    // Add gradient def
-    const svg = circle.closest('svg');
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-    grad.id = 'gaugeGradient';
-    grad.innerHTML = `
-    <stop offset="0%" stop-color="#34d399" />
-    <stop offset="50%" stop-color="#fbbf24" />
-    <stop offset="100%" stop-color="#f43f5e" />
-  `;
-    defs.appendChild(grad);
-    svg.insertBefore(defs, svg.firstChild);
+    const percent = finops.monthlyBudget > 0 ? Math.round((finops.currentCost / finops.monthlyBudget) * 100) : 0;
+    const gaugeColor = percent > 80 ? '#f43f5e' : percent > 60 ? '#fbbf24' : '#34d399';
 
-    setTimeout(() => {
-        circle.style.strokeDasharray = `${circumference * pct} ${circumference}`;
-    }, 300);
-
-    // Cost breakdown
-    const bars = document.getElementById('costBars');
-    bars.innerHTML = COST_BREAKDOWN.map(
-        (c) => `
-    <div class="cost-bar-item">
-      <span class="cost-bar-label">${c.label}</span>
-      <div class="cost-bar-track">
-        <div class="cost-bar-fill" style="width:0%;background:${c.color}" data-width="${(c.value / c.max) * 100}%"></div>
+    container.innerHTML = `
+    <div class="finops-grid">
+      <div class="card finops-gauge-card">
+        <h3>Bütçe Kullanımı</h3>
+        <div class="gauge-container">
+          <svg viewBox="0 0 200 120" class="gauge-svg">
+            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12" stroke-linecap="round"/>
+            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="${gaugeColor}" stroke-width="12" stroke-linecap="round"
+              stroke-dasharray="${percent * 2.51} 251" class="gauge-fill"/>
+            <text x="100" y="85" text-anchor="middle" fill="white" font-size="28" font-weight="bold">$${finops.currentCost || 0}</text>
+            <text x="100" y="105" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="12">/ $${finops.monthlyBudget || 500}</text>
+          </svg>
+          <div class="gauge-percent" style="color: ${gaugeColor}">${percent}%</div>
+        </div>
       </div>
-      <span class="cost-bar-value">$${c.value}</span>
-    </div>
-  `
-    ).join('');
 
-    // Animate bars
-    setTimeout(() => {
-        document.querySelectorAll('.cost-bar-fill').forEach((bar) => {
-            bar.style.width = bar.dataset.width;
+      <div class="card">
+        <h3>Servis Bazlı Maliyet</h3>
+        <div class="cost-bars">
+          ${(finops.costBreakdown || []).map(item => `
+            <div class="cost-bar-row">
+              <span class="cost-label">${item.service}</span>
+              <div class="cost-bar-track">
+                <div class="cost-bar-fill" style="width: ${finops.currentCost ? (item.cost / finops.currentCost * 100) : 0}%; background: ${gaugeColor}"></div>
+              </div>
+              <span class="cost-value">$${item.cost}</span>
+            </div>
+          `).join('')}
+          ${(finops.costBreakdown || []).length === 0 ? '<div class="empty-state">Maliyet verisi yok. Deploy sonrası güncellenecek.</div>' : ''}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>💡 Optimizasyon Önerileri</h3>
+        <div class="optimization-list">
+          ${(finops.optimizations || []).map(opt => `
+            <div class="optimization-item">
+              <div class="opt-header">
+                <span class="opt-title">${opt.title}</span>
+                <span class="opt-savings">-$${opt.savings}/ay</span>
+              </div>
+              <p class="opt-desc">${opt.desc}</p>
+            </div>
+          `).join('')}
+          ${(finops.optimizations || []).length === 0 ? '<div class="empty-state">Optimizasyon önerileri deploy sonrası oluşturulacak.</div>' : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Self-Heal Page ──
+function renderSelfHealPage() {
+    renderIncidents();
+}
+
+function renderIncidents() {
+    const container = document.getElementById('incidentsTimeline');
+    if (!container) return;
+    const incidents = appState.incidents || [];
+
+    if (incidents.length === 0) {
+        container.innerHTML = `
+      <div class="heal-cycle-visual">
+        <div class="cycle-node sense">🔍 Sense</div>
+        <div class="cycle-arrow">→</div>
+        <div class="cycle-node analyze">🧠 Analyze</div>
+        <div class="cycle-arrow">→</div>
+        <div class="cycle-node act">⚡ Act</div>
+        <div class="cycle-arrow">→</div>
+        <div class="cycle-node verify">✅ Verify</div>
+      </div>
+      <div class="empty-state">Henüz olay kaydı yok. Sistem sağlıklı çalışıyor.</div>
+    `;
+        return;
+    }
+
+    container.innerHTML = `
+    <div class="heal-cycle-visual">
+      <div class="cycle-node sense">🔍 Sense</div>
+      <div class="cycle-arrow">→</div>
+      <div class="cycle-node analyze">🧠 Analyze</div>
+      <div class="cycle-arrow">→</div>
+      <div class="cycle-node act">⚡ Act</div>
+      <div class="cycle-arrow">→</div>
+      <div class="cycle-node verify">✅ Verify</div>
+    </div>
+    <div class="incidents-list">
+      ${incidents.map(inc => `
+        <div class="incident-card ${inc.status}">
+          <div class="incident-header">
+            <span class="incident-icon">${inc.status === 'resolved' ? '✅' : '🚨'}</span>
+            <span class="incident-title">${inc.title || inc.alarm || 'Olay'}</span>
+            <span class="incident-status ${inc.status}">${inc.status === 'resolved' ? 'Çözüldü' : 'Aktif'}</span>
+          </div>
+          <p>${inc.description || ''}</p>
+          ${inc.resolution ? `<div class="resolution">🔧 ${inc.resolution}</div>` : ''}
+          <span class="incident-time">${timeAgo(inc.timestamp)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════
+// Deploy Modal
+// ══════════════════════════════════════
+
+function initDeployModal() {
+    const openBtn = document.getElementById('deployBtn');
+    const modal = document.getElementById('deployModal');
+    const closeBtn = document.getElementById('closeModal');
+    const form = document.getElementById('deployForm');
+
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            if (modal) modal.classList.add('active');
         });
-    }, 400);
+    }
 
-    // Optimizations
-    const optList = document.getElementById('optimizationList');
-    optList.innerHTML = OPTIMIZATIONS.map(
-        (o) => `
-    <div class="opt-item">
-      <span class="opt-icon">${o.icon}</span>
-      <div class="opt-info">
-        <div class="opt-title">${o.title}</div>
-        <div class="opt-desc">${o.desc}</div>
-      </div>
-      <span class="opt-savings">${o.savings}</span>
-    </div>
-  `
-    ).join('');
-}
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            if (modal) modal.classList.remove('active');
+        });
+    }
 
-// ══════════════════════════════════════
-// Self-Healing Page
-// ══════════════════════════════════════
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('active');
+        });
+    }
 
-function renderSelfHealing() {
-    const timeline = document.getElementById('incidentTimeline');
-    timeline.innerHTML = INCIDENTS.map(
-        (inc) => `
-    <div class="incident-item ${inc.status}">
-      <div class="incident-header">
-        <span class="incident-title">${inc.title}</span>
-        <span class="incident-time">${inc.time}</span>
-      </div>
-      <div class="incident-desc">${inc.desc}</div>
-      <div class="incident-action">${inc.action}</div>
-    </div>
-  `
-    ).join('');
-}
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const data = {
+                projectName: formData.get('projectName') || 'my-app',
+                region: formData.get('region') || 'eu-west-1',
+                environment: formData.get('environment') || 'production',
+                budget: parseInt(formData.get('budget')) || 500,
+            };
 
-// ══════════════════════════════════════
-// Orchestration — Clipboard Viewer
-// ══════════════════════════════════════
+            // Modal kapat
+            if (modal) modal.classList.remove('active');
 
-function renderClipboard() {
-    const content = document.getElementById('clipboardContent');
-    content.textContent = JSON.stringify(CLIPBOARD_STATE, null, 2);
-}
+            // Deploy API çağır
+            const result = await apiFetch('/deploy', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
 
-// ══════════════════════════════════════
-// Orchestration Flow Animation
-// ══════════════════════════════════════
-
-function startOrchestrationAnimation() {
-    const nodes = ['flowBootstrap', 'flowInfra', 'flowFinops', 'flowPipeline', 'flowSre'];
-    const connectors = ['conn1', 'conn2', 'conn3', 'conn4', 'conn5'];
-
-    // Reset
-    nodes.forEach((id) => {
-        const el = document.getElementById(id);
-        el.classList.remove('active', 'done');
-        const statusEl = el.querySelector('.node-status');
-        if (statusEl) statusEl.textContent = 'Bekliyor';
-    });
-    connectors.forEach((id) => {
-        document.getElementById(id).classList.remove('active');
-    });
-
-    // Start node
-    document.getElementById('flowStart').classList.add('done');
-    document.getElementById('conn1').classList.add('active');
-
-    const statuses = [
-        'Repo analizi yapılıyor...',
-        'Terraform üretiliyor...',
-        'Maliyet hesaplanıyor...',
-        'CI/CD kurulumu...',
-        'Monitoring kurulumu...',
-    ];
-
-    const doneStatuses = [
-        'Analiz tamamlandı ✓',
-        'IaC oluşturuldu ✓',
-        '$247/ay — OK ✓',
-        'Pipeline aktif ✓',
-        'Self-Heal aktif ✓',
-    ];
-
-    nodes.forEach((id, i) => {
-        // Activate node
-        setTimeout(() => {
-            const el = document.getElementById(id);
-            el.classList.add('active');
-            const statusEl = el.querySelector('.node-status');
-            if (statusEl) statusEl.textContent = statuses[i];
-
-            // Add new activity
-            addActivity(AGENTS[Math.min(i, 3)]?.icon || '📂', statuses[i], AGENTS[Math.min(i, 3)]?.color || '#818cf8');
-        }, (i + 1) * 2000);
-
-        // Complete node
-        setTimeout(() => {
-            const el = document.getElementById(id);
-            el.classList.remove('active');
-            el.classList.add('done');
-            const statusEl = el.querySelector('.node-status');
-            if (statusEl) statusEl.textContent = doneStatuses[i];
-
-            // Activate next connector
-            if (connectors[i + 1]) {
-                document.getElementById(connectors[i + 1]).classList.add('active');
+            if (result) {
+                console.log('🚀 Deploy başlatıldı:', result);
+                switchPage('dashboard'); // Dashboard'a geç
             }
-        }, (i + 1) * 2000 + 1500);
+        });
+    }
+}
+
+// ══════════════════════════════════════
+// Utilities
+// ══════════════════════════════════════
+
+function timeAgo(timestamp) {
+    if (!timestamp) return '';
+    const now = Date.now();
+    const then = new Date(timestamp).getTime();
+    const diff = Math.floor((now - then) / 1000);
+
+    if (diff < 5) return 'şimdi';
+    if (diff < 60) return `${diff}s önce`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}dk önce`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}sa önce`;
+    return `${Math.floor(diff / 86400)}g önce`;
+}
+
+// Zamanlayıcı — timeAgo'ları güncelle
+setInterval(() => {
+    document.querySelectorAll('.activity-time, .incident-time, .clipboard-time').forEach(el => {
+        // Zaten render'lamış olduğumuz için sadece feed'i tekrar render edelim
+    });
+    renderActivityFeed();
+}, 30000);
+
+// ══════════════════════════════════════
+// Sparkline Canvas (Stats Kartlarında)
+// ══════════════════════════════════════
+
+function initSparklines() {
+    document.querySelectorAll('.sparkline').forEach((canvas) => {
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = canvas.offsetHeight * 2;
+        ctx.scale(2, 2);
+        const w = canvas.offsetWidth;
+        const h = canvas.offsetHeight;
+
+        const data = Array.from({ length: 20 }, () => Math.random() * 0.6 + 0.2);
+        drawSparkline(ctx, data, w, h, canvas.dataset.color || '#818cf8');
     });
 }
 
-function addActivity(icon, text, color) {
-    const feed = document.getElementById('activityFeed');
-    const item = document.createElement('div');
-    item.className = 'feed-item';
-    item.innerHTML = `
-    <span class="feed-dot" style="background:${color}"></span>
-    <span class="feed-text">${icon} ${text}</span>
-    <span class="feed-time">Şimdi</span>
-  `;
-    feed.insertBefore(item, feed.firstChild);
-}
+function drawSparkline(ctx, data, w, h, color) {
+    ctx.clearRect(0, 0, w, h);
+    const step = w / (data.length - 1);
+    const pad = 4;
 
-// ══════════════════════════════════════
-// Self-Healing Cycle Animation
-// ══════════════════════════════════════
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, color + '40');
+    grad.addColorStop(1, color + '00');
 
-function animateHealCycle() {
-    const steps = document.querySelectorAll('.cycle-step');
-    let current = 0;
-
-    setInterval(() => {
-        steps.forEach((s) => s.classList.remove('active', 'done'));
-
-        for (let i = 0; i < current; i++) {
-            steps[i].classList.add('done');
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    data.forEach((v, i) => {
+        const x = i * step;
+        const y = h - pad - v * (h - pad * 2);
+        if (i === 0) ctx.lineTo(x, y);
+        else {
+            const px = (i - 1) * step;
+            const py = h - pad - data[i - 1] * (h - pad * 2);
+            const cx = (px + x) / 2;
+            ctx.bezierCurveTo(cx, py, cx, y, x, y);
         }
-        steps[current].classList.add('active');
-
-        current = (current + 1) % steps.length;
-    }, 3000);
-}
-
-// ══════════════════════════════════════
-// Sequential Pattern Animation
-// ══════════════════════════════════════
-
-function animateSequentialPattern() {
-    const nodes = document.querySelectorAll('.sequential .p-node');
-    let idx = 0;
-
-    setInterval(() => {
-        nodes.forEach((n) => n.classList.remove('p-active'));
-        nodes[idx].classList.add('p-active');
-        idx = (idx + 1) % nodes.length;
-    }, 1500);
-}
-
-// ══════════════════════════════════════
-// Live Counter Animation
-// ══════════════════════════════════════
-
-function animateCounters() {
-    const counters = [
-        { el: document.getElementById('activeAgents'), target: 4 },
-        { el: document.getElementById('deployCount'), target: 12 },
-        { el: document.getElementById('healEvents'), target: 3 },
-    ];
-
-    counters.forEach(({ el, target }) => {
-        let current = 0;
-        const step = Math.ceil(target / 20);
-        const interval = setInterval(() => {
-            current = Math.min(current + step, target);
-            el.textContent = current;
-            if (current >= target) clearInterval(interval);
-        }, 50);
     });
+    ctx.lineTo(w, h);
+    ctx.fillStyle = grad;
+    ctx.fill();
 
-    // Cost counter with $
-    const costEl = document.getElementById('monthlyCost');
-    let costVal = 0;
-    const costStep = Math.ceil(247 / 30);
-    const costInterval = setInterval(() => {
-        costVal = Math.min(costVal + costStep, 247);
-        costEl.textContent = `$${costVal}`;
-        if (costVal >= 247) clearInterval(costInterval);
-    }, 40);
+    // Line
+    ctx.beginPath();
+    data.forEach((v, i) => {
+        const x = i * step;
+        const y = h - pad - v * (h - pad * 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else {
+            const px = (i - 1) * step;
+            const py = h - pad - data[i - 1] * (h - pad * 2);
+            const cx = (px + x) / 2;
+            ctx.bezierCurveTo(cx, py, cx, y, x, y);
+        }
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 }
 
 // ══════════════════════════════════════
-// Initialize
+// Init
 // ══════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
-    renderActivityFeed();
+    initNavigation();
+    initDeployModal();
     initSparklines();
-    renderAgentsDetail();
-    renderPipeline();
-    renderFinOps();
-    renderSelfHealing();
-    renderClipboard();
-    animateCounters();
+    connectWebSocket();
 
-    // Start animations with delay
-    setTimeout(() => animateHealCycle(), 1000);
-    setTimeout(() => animateSequentialPattern(), 2000);
-
-    // Simulated live updates
-    setInterval(() => {
-        const randomActivity = ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)];
-        addActivity(randomActivity.icon, randomActivity.text, randomActivity.color);
-    }, 15000);
+    // Fallback: WebSocket bağlanamazsa polling
+    setTimeout(async () => {
+        if (!isConnected) {
+            console.log('⚡ Polling fallback — API\'den veri çekiliyor');
+            const data = await apiFetch('/state');
+            if (data) {
+                appState = data;
+                renderAll();
+            }
+        }
+    }, 3000);
 });

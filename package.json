@@ -1,0 +1,15 @@
+{
+    "name": "autonomous-devops-platform",
+    "version": "1.0.0",
+    "description": "Otonom DevOps & Self-Healing Platform — Mission Control",
+    "main": "server/index.js",
+    "scripts": {
+        "start": "node server/index.js",
+        "dev": "node server/index.js"
+    },
+    "dependencies": {
+        "express": "^4.21.0",
+        "ws": "^8.18.0",
+        "cors": "^2.8.5"
+    }
+}
