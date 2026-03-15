@@ -1,15 +1,19 @@
 {
     "name": "autonomous-devops-platform",
-    "version": "1.0.0",
-    "description": "Otonom DevOps & Self-Healing Platform — Mission Control",
-    "main": "server/index.js",
+    "version": "3.0.0",
+    "description": "Autonomous DevOps & Self-Healing Platform — Mission Control SaaS",
+    "private": true,
     "scripts": {
-        "start": "node server/index.js",
-        "dev": "node server/index.js"
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "dev:backend": "cd backend && npm run start:dev",
+        "dev:frontend": "cd frontend && npm run dev",
+        "build": "cd backend && npm run build && cd ../frontend && npm run build",
+        "db:migrate": "cd backend && npx prisma migrate dev",
+        "db:generate": "cd backend && npx prisma generate",
+        "docker:up": "docker compose up -d",
+        "docker:down": "docker compose down"
     },
-    "dependencies": {
-        "express": "^4.21.0",
-        "ws": "^8.18.0",
-        "cors": "^2.8.5"
+    "devDependencies": {
+        "concurrently": "^8.2.0"
     }
 }

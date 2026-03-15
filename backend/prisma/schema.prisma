@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────
+
+enum Plan {
+  free
+  pro
+  enterprise
+}
+
+enum DeployStatus {
+  pending
+  running
+  success
+  failed
+  cancelled
+}
+
+enum IncidentStatus {
+  active
+  investigating
+  resolved
+}
+
+// ─── Models ──────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String   @default("User")
+  avatar       String?
+  company      String?
+  plan         Plan     @default(free)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  agentConfigs AgentConfig[]
+  apiKeys      ApiKey[]
+  deployments  Deployment[]
+  activities   Activity[]
+  incidents    Incident[]
+
+  @@map("users")
+}
+
+model AgentConfig {
+  id           String  @id @default(uuid())
+  userId       String  @map("user_id")
+  agentId      String  @map("agent_id")
+  model        String  @default("gpt-4o-mini")
+  temperature  Float   @default(0.7)
+  maxTokens    Int     @default(4096) @map("max_tokens")
+  customPrompt String? @map("custom_prompt")
+  enabled      Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+  @@map("agent_configs")
+}
+
+model ApiKey {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  provider     String
+  encryptedKey String   @map("encrypted_key")
+  label        String   @default("")
+  isValid      Boolean  @default(true) @map("is_valid")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+model Deployment {
+  id          String       @id @default(uuid())
+  userId      String       @map("user_id")
+  projectId   String?      @map("project_id")
+  deployId    String       @unique @map("deploy_id")
+  projectName String       @map("project_name")
+  status      DeployStatus @default(pending)
+  region      String       @default("us-east-1")
+  environment String       @default("production")
+  budget      Float        @default(0)
+  cost        Float        @default(0)
+  duration    Int          @default(0)
+  stages      String?      @db.Text
+  completedAt DateTime?    @map("completed_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("deployments")
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  text      String
+  color     String   @default("#818cf8")
+  type      String   @default("info")
+  deployId  String?  @map("deploy_id")
+  agentId   String?  @map("agent_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("activities")
+}
+
+model Incident {
+  id          String         @id @default(uuid())
+  userId      String         @map("user_id")
+  title       String
+  description String         @default("")
+  alarm       String?
+  status      IncidentStatus @default(active)
+  resolution  String?
+  resolvedAt  DateTime?      @map("resolved_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("incidents")
+}
