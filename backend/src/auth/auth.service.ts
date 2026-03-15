@@ -75,6 +75,19 @@ export class AuthService {
         return this.sanitizeUser(user);
     }
 
+    async upgradePlan(userId: string, plan: string) {
+        const validPlans = ['free', 'pro', 'enterprise'];
+        if (!validPlans.includes(plan)) {
+            throw new ConflictException('Invalid plan: ' + plan);
+        }
+        const user = await this.prisma.user.update({
+            where: { id: userId },
+            data: { plan: plan as any },
+        });
+        const token = this.generateToken(user);
+        return { token, user: this.sanitizeUser(user) };
+    }
+
     private generateToken(user: { id: string; email: string; plan: string }) {
         return this.jwt.sign({
             sub: user.id,

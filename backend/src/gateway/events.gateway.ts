@@ -40,10 +40,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             const payload = this.jwtService.verify(token as string);
             const userId = payload.sub;
 
-            // Store userId on socket
             (client as any).userId = userId;
-
-            // Join user-specific room
             client.join(`user:${userId}`);
 
             if (!this.userSockets.has(userId)) {
@@ -71,36 +68,42 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage('ping')
-    handlePing(client: Socket) {
+    handlePing() {
         return { event: 'pong', data: { time: Date.now() } };
     }
 
-    // Event listeners for broadcasting to user rooms
+    // Safe emit helper — prevents crash if server not initialized
+    private emitToUser(userId: string, event: string, data: any) {
+        if (this.server) {
+            this.server.to(`user:${userId}`).emit(event, data);
+        }
+    }
+
     @OnEvent('agent.updated')
     handleAgentUpdated(data: { userId: string; agent: any }) {
-        this.server.to(`user:${data.userId}`).emit('AGENT_UPDATED', data.agent);
+        this.emitToUser(data.userId, 'AGENT_UPDATED', data.agent);
     }
 
     @OnEvent('activity.new')
     handleNewActivity(data: { userId: string;[key: string]: any }) {
         const { userId, ...activityData } = data;
-        this.server.to(`user:${userId}`).emit('NEW_ACTIVITY', activityData);
+        this.emitToUser(userId, 'NEW_ACTIVITY', activityData);
     }
 
     @OnEvent('orchestration.updated')
     handleOrchestrationUpdated(data: { userId: string;[key: string]: any }) {
         const { userId, ...orchestrationData } = data;
-        this.server.to(`user:${userId}`).emit('ORCHESTRATION_UPDATED', orchestrationData);
+        this.emitToUser(userId, 'ORCHESTRATION_UPDATED', orchestrationData);
     }
 
     @OnEvent('deploy.completed')
     handleDeployCompleted(data: { userId: string;[key: string]: any }) {
         const { userId, ...deployData } = data;
-        this.server.to(`user:${userId}`).emit('DEPLOY_COMPLETED', deployData);
+        this.emitToUser(userId, 'DEPLOY_COMPLETED', deployData);
     }
 
     @OnEvent('error.new')
     handleErrorEvent(data: { userId: string; error: any }) {
-        this.server.to(`user:${data.userId}`).emit('ERROR', data.error);
+        this.emitToUser(data.userId, 'ERROR', data.error);
     }
 }

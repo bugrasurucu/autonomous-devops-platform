@@ -1,4 +1,13 @@
-const API_BASE = '/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+        this.name = 'ApiError';
+    }
+}
 
 async function request(url: string, options: RequestInit = {}) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -12,10 +21,12 @@ async function request(url: string, options: RequestInit = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE}${url}`, {
-        ...options,
-        headers,
-    });
+    let res: Response;
+    try {
+        res = await fetch(`${API_BASE}${url}`, { ...options, headers });
+    } catch (err) {
+        throw new ApiError('Network error — server unreachable', 0);
+    }
 
     if (res.status === 401) {
         if (typeof window !== 'undefined') {
@@ -23,12 +34,12 @@ async function request(url: string, options: RequestInit = {}) {
             localStorage.removeItem('user');
             window.location.href = '/login';
         }
-        throw new Error('Unauthorized');
+        throw new ApiError('Session expired', 401);
     }
 
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || data.error || `Request failed: ${res.status}`);
+        throw new ApiError(data.message || data.error || `Request failed: ${res.status}`, res.status);
     }
 
     return res.json();
@@ -46,6 +57,9 @@ export const api = {
 
     updateProfile: (data: { name?: string; company?: string }) =>
         request('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
+
+    upgradePlan: (plan: string) =>
+        request('/auth/plan', { method: 'PUT', body: JSON.stringify({ plan }) }),
 
     // Stats
     getStats: () => request('/stats'),

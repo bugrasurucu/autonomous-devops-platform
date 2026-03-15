@@ -44,4 +44,13 @@ export class AuthController {
     ) {
         return this.authService.updateProfile(req.user.userId, body);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Put('plan')
+    async upgradePlan(
+        @Request() req: any,
+        @Body() body: { plan: string },
+    ) {
+        return this.authService.upgradePlan(req.user.userId, body.plan);
+    }
 }
