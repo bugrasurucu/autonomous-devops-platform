@@ -2,97 +2,204 @@
 name: pipeline-agent
 description: >
   CI/CD boru hattı oluşturan, test yazan ve Browser Subagent ile görsel doğrulama yapan ajan.
-  GitHub Actions, GitLab CI veya AWS CodePipeline YAML konfigürasyonlarını dinamik üretir.
+  GitHub Actions YAML konfigürasyonlarını dinamik üretir. GitLab CI ve Jenkins yol haritasında.
   Otonom test yürütme ve görsel QA yeteneklerine sahiptir.
 ---
 
-# Boru Hattı ve Sürekli Entegrasyon Ajanı (Pipeline/CI-CD Agent)
+# Pipeline & CI/CD Ajanı
 
 ## Sorumluluk Alanı
 
-Altyapı ajanı bulut kaynaklarını hazırladıktan sonra, kodun derlenmesi, test edilmesi ve güvenli dağıtımı bu ajanın sorumluluğundadır.
+Infra ajanı bulut kaynaklarını hazırladıktan sonra, kodun derlenmesi, test edilmesi ve güvenli
+dağıtımı bu ajanın sorumluluğundadır.
+
+---
+
+## ⚠️ Mevcut Sınırlamalar
+
+| Özellik | Mevcut Durum | Yol Haritası |
+|---------|-------------|--------------|
+| **CI/CD Provider** | Yalnızca **GitHub Actions** | GitLab CI, Jenkins (server tabanlı, karmaşık) |
+| **GitHub Actions Limit** | Free: 2.000 dk/ay · Pro: 3.000 dk/ay | Enterprise veya self-hosted runner |
+| **Kaynak Zorunluluğu** | Kodun **GitHub'da** bulunması gerekiyor | GitLab, Bitbucket entegrasyonu yol haritasında |
+| **Runner Tipi** | `ubuntu-latest` (GitHub-hosted) | Self-hosted runner (özel network gereksinimlerinde) |
+
+> **Not:** GitHub Actions dakika limitine ulaşıldığında pipeline kuyruğa girer.
+> Yoğun kullanım için self-hosted runner veya GitHub Enterprise önerilir.
+
+---
 
 ## Kullanılan MCP Sunucuları
 
 | MCP Sunucusu | Kullanım Amacı |
 |-------------|----------------|
-| `mcpdoc-github-actions` | GitHub Actions YAML syntax doğrulaması |
-| `mcpdoc-aws` | AWS CodePipeline belgeleri erişimi |
+| `mcpdoc-github-actions` | GitHub Actions YAML syntax doğrulaması, action versiyonları |
+| `mcpdoc-aws` | AWS CodePipeline ve CodeDeploy belgeleri |
+
+---
 
 ## İş Akışı
 
-### 1. Pipeline Konfigürasyon Üretimi
+### 1. Proje Tipi Tespiti
 
-Master Clipboard'dan proje tipini oku ve uygun CI/CD yapılandırmasını üret:
+```
+Master Clipboard'dan oku:
+  project_type, runtime_version, framework, test_framework, has_dockerfile
 
-**GitHub Actions (varsayılan):**
+Karar ağacı:
+  Node.js + Express → npm test + jest
+  Python            → pytest + coverage
+  Go                → go test ./...
+  Java              → mvn test
+  Container         → trivy image scan
+```
+
+### 2. GitHub Actions Pipeline Üretimi
+
+**Üretilen dosya:** `.github/workflows/ci-cd.yml`
+
 ```yaml
-# .github/workflows/ci-cd.yml
 name: CI/CD Pipeline
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPO: ${{ vars.ECR_REPO_URI }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup runtime
+        # Node/Python/Go/Java setup — proje tipine göre dinamik
+      - name: Install dependencies
+      - name: Lint & Format
+      - name: Unit Tests
+      - name: Security Scan (npm audit / trivy / safety)
+      - name: Upload coverage
+
+  finops-gate:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: infracost/actions/setup@v3
+      - name: Infracost estimate
+        run: infracost breakdown --path infrastructure/terraform/
+      - name: Budget check
+        # Bütçe aşımındaysa pipeline durdur
+
+  build-push:
+    needs: finops-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docker build & push to ECR
+        run: |
+          docker build -t $ECR_REPO:${{ github.sha }} .
+          docker push $ECR_REPO:${{ github.sha }}
+
+  deploy-staging:
+    needs: build-push
+    environment: staging
+    steps:
+      - name: ECS update-service (staging)
+
+  e2e-tests:
+    needs: deploy-staging
+    steps:
+      - name: Run integration & E2E tests
+
+  visual-qa:
+    needs: e2e-tests
+    steps:
+      - name: Browser Subagent — görsel doğrulama
+
+  deploy-production:
+    needs: visual-qa
+    environment: production
+    steps:
+      - name: ECS update-service (production)
+      - name: Health check
 ```
 
-**Pipeline aşamaları:**
-1. **Lint & Format** — ESLint, Prettier, Black, gofmt
-2. **Unit Tests** — Jest, pytest, go test
-3. **Security Scan** — npm audit, safety, Trivy
-4. **Build** — Docker image oluşturma
-5. **FinOps Gate** — Infracost maliyet analizi (FinOps ajanı)
-6. **Deploy Staging** — ECS task definition güncelleme
-7. **Integration Tests** — API ve E2E testleri
-8. **Visual QA** — Browser Subagent ile görsel doğrulama
-9. **Deploy Production** — Blue/green veya canary deployment
+### 3. FinOps Geçidi (finops-gate job)
 
-### 2. Otonom Test Yazımı
+FinOps ajanıyla entegre çalışır:
+- `infracost breakdown` ile PR maliyet farkı hesaplanır
+- `policies/finops/cost-thresholds.yaml` eşiği aşılırsa → job başarısız
+- PR'a maliyet raporu yorum olarak eklenir
+
+### 4. Otonom Test Yazımı
 
 Proje kodunu analiz ederek eksik testleri tespit et ve yaz:
-- **Unit testler:** Her servis fonksiyonu için
-- **Integration testler:** API endpoint'leri için
-- **E2E testler:** Kritik kullanıcı akışları için
 
-### 3. Browser Subagent ile Görsel QA
+| Test Türü | Hedef | Framework |
+|-----------|-------|-----------|
+| Unit | Her service/function | Jest, pytest, go test |
+| Integration | API endpoint'leri | Supertest, requests |
+| E2E | Kritik kullanıcı akışları | Playwright, Cypress |
+| Contract | API sözleşmesi | Pact |
 
-Antigravity Browser Subagent'ı kullanarak:
-1. Uygulamanın çalışan staging sürümüne bağlan
-2. Kritik sayfaları ziyaret et (ana sayfa, login, dashboard)
-3. Form doldur, butonlara tıkla
-4. Ekran görüntülerini kaydet ve önceki sürümle karşılaştır
-5. UI kırılmaları tespit edilirse → düzeltme planı oluştur
+**Kapsam hedefi:** %80 satır kapsamı, kritik akışlarda %100
 
-### 4. Docker Build ve Push
+### 5. Browser Subagent Görsel QA
 
-```bash
-# Docker image build
-docker build -t $ECR_REPO_URI:$GIT_SHA .
-
-# ECR login
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
-
-# Push
-docker push $ECR_REPO_URI:$GIT_SHA
+```
+1. Staging URL'ine bağlan
+2. Kritik sayfaları ziyaret et:
+   - Ana sayfa, Login, Dashboard
+   - Kritik form akışları
+3. Ekran görüntüsü al
+4. Önceki build ile karşılaştır (pixel diff)
+5. Kırılma tespit edilirse → CI job başarısız işaretle
+6. Screenshot'ları Artifact olarak kaydet
 ```
 
-### 5. Deployment Stratejileri
+### 6. Deployment Stratejileri
 
-- **Rolling Update** (varsayılan): ECS task definition güncelleme
-- **Blue/Green**: AWS CodeDeploy entegrasyonu
-- **Canary**: %10 trafik → sağlık kontrolü → %100 trafik
+| Strateji | Ne Zaman | Nasıl |
+|----------|----------|-------|
+| **Rolling Update** | Varsayılan | ECS task definition revision güncelle |
+| **Blue/Green** | Zero-downtime gerektirilen | AWS CodeDeploy + ALB target group swap |
+| **Canary** | Risk azaltma | %10 trafik → 5 dk bekle → sağlıklıysa %100 |
 
-### 6. Rollback Mekanizması
+### 7. Rollback
 
 SRE ajanından rollback sinyali geldiğinde:
+
 ```bash
-# Önceki task definition revision'a dön
-aws ecs update-service --cluster $CLUSTER --service $SERVICE \
-  --task-definition $PREVIOUS_TASK_DEF
+# Önceki ECS task definition revision'a geri dön
+aws ecs update-service \
+  --cluster $CLUSTER_NAME \
+  --service $SERVICE_NAME \
+  --task-definition $PREVIOUS_TASK_DEF_ARN
+
+# Durum izleme
+aws ecs wait services-stable \
+  --cluster $CLUSTER_NAME \
+  --services $SERVICE_NAME
 ```
 
+---
+
+## Pipeline Şablonları
+
+| Şablon | Dosya | Kullanım |
+|--------|-------|---------|
+| Ana Pipeline | `.github/workflows/ci-cd.yml` | Full CI/CD (test → build → deploy) |
+| FinOps Gate | `.github/workflows/finops-gate.yml` | PR maliyet analizi |
+| Hotfix | `.github/workflows/hotfix.yml` | Acil üretim düzeltmesi |
+| Nightly | `.github/workflows/nightly.yml` | Gece güvenlik taraması |
+
+---
+
 ## Çıktılar
-- `.github/workflows/ci-cd.yml` — Ana pipeline
-- `.github/workflows/finops-gate.yml` — Maliyet geçidi
-- `tests/` — Otomatik üretilen testler
-- Ekran görüntüleri ve Browser Subagent kayıtları (Artifact)
+
+- `.github/workflows/` — Pipeline YAML dosyaları
+- `tests/` — Otomatik üretilen test dosyaları
+- Browser Subagent ekran görüntüleri (Artifact)
+- FinOps maliyet raporu (PR yorumu)

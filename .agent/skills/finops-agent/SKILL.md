@@ -12,6 +12,18 @@ description: >
 
 Altyapı ajanı ile Pipeline ajanı arasına yerleşen bu ajan, dağıtım öncesi maliyet analizi yaparak bütçe koruma duvarı oluşturur.
 
+---
+
+## ⚠️ Mevcut Sınırlamalar
+
+| Özellik | Mevcut Durum | Yol Haritası |
+|---------|-------------|--------------|
+| **Pricing API** | Yalnızca **AWS Pricing** | Azure Cost Management, GCP Billing |
+| **IaC Analizi** | Yalnızca **Terraform** (Infracost) | CDK, Pulumi maliyet analizi |
+| **Gerçek Zamanlı** | Dağıtım öncesi statik analiz | AWS Cost Anomaly Detection entegrasyonu |
+| **Para Birimi** | USD | Çoklu para birimi desteği |
+
+
 ## Kullanılan MCP Sunucuları
 
 | MCP Sunucusu | Kullanım Amacı |

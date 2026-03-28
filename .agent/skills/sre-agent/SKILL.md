@@ -12,6 +12,19 @@ description: >
 
 7/24 çalışan bu ajan, sistemdeki anormalliklere insan müdahalesi olmadan tepki verir. Self-healing döngüsü: **Sense → Analyze → Act → Verify**
 
+---
+
+## ⚠️ Mevcut Sınırlamalar
+
+| Özellik | Mevcut Durum | Yol Haritası |
+|---------|-------------|--------------|
+| **Monitoring** | Yalnızca **AWS CloudWatch** | Datadog, Grafana, Prometheus |
+| **Tetikleme** | EventBridge + Lambda Webhook | PagerDuty, OpsGenie entegrasyonu |
+| **Otomatik Aksiyon** | Saatte maks. 5 iyileştirme | Yapılandırılabilir throttle |
+| **On-call Escalation** | Log + bildirim | Slack, PagerDuty webhook |
+| **RAG Kök Neden** | Bedrock Knowledge Base (AWS) | Açık kaynak embedding alternatifi |
+
+
 ## Kullanılan MCP Sunucuları
 
 | MCP Sunucusu | Kullanım Amacı |
