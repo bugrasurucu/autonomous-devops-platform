@@ -11,6 +11,7 @@ datasource db {
 
 enum Plan {
   free
+  starter
   pro
   enterprise
 }
@@ -32,21 +33,24 @@ enum IncidentStatus {
 // ─── Models ──────────────────────────────────────
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  name         String   @default("User")
-  avatar       String?
-  company      String?
-  plan         Plan     @default(free)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String   @map("password_hash")
+  name             String   @default("User")
+  avatar           String?
+  company          String?
+  plan             Plan     @default(free)
+  githubToken      String?  @map("github_token") @db.Text
+  githubUsername   String?  @map("github_username")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  agentConfigs AgentConfig[]
-  apiKeys      ApiKey[]
-  deployments  Deployment[]
-  activities   Activity[]
-  incidents    Incident[]
+  agentConfigs     AgentConfig[]
+  apiKeys          ApiKey[]
+  deployments      Deployment[]
+  activities       Activity[]
+  incidents        Incident[]
+  agentExecutions  AgentExecution[]
 
   @@map("users")
 }
@@ -87,6 +91,8 @@ model Deployment {
   projectId   String?      @map("project_id")
   deployId    String       @unique @map("deploy_id")
   projectName String       @map("project_name")
+  githubRepo  String?      @map("github_repo")
+  githubBranch String?     @map("github_branch")
   status      DeployStatus @default(pending)
   region      String       @default("us-east-1")
   environment String       @default("production")
@@ -134,4 +140,54 @@ model Incident {
 
   @@index([userId])
   @@map("incidents")
+}
+
+// ─── Agentic AI Models ────────────────────────────
+
+model AgentExecution {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  agentId     String   @map("agent_id")
+  task        String   @db.Text
+  status      String   @default("running") // running | completed | failed
+  steps       String   @default("[]") @db.Text  // JSON array of ReAct steps
+  toolCalls   String   @default("[]") @db.Text  // JSON array of tool calls
+  result      String?  @db.Text
+  durationMs  Int      @default(0) @map("duration_ms")
+  createdAt   DateTime @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, agentId])
+  @@map("agent_executions")
+}
+
+model SystemMetrics {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  cpuPercent   Float    @default(0) @map("cpu_percent")
+  memPercent   Float    @default(0) @map("mem_percent")
+  reqPerSec    Float    @default(0) @map("req_per_sec")
+  errorRate    Float    @default(0) @map("error_rate")
+  activeConns  Int      @default(0) @map("active_conns")
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  @@index([userId, recordedAt])
+  @@map("system_metrics")
+}
+
+model ScalingEvent {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  action      String   // scale-up-ecs | scale-down-ecs | increase-rds | reduce-cache
+  reason      String
+  beforeValue Int      @default(1) @map("before_value")
+  afterValue  Int      @default(2) @map("after_value")
+  appliedBy   String   @default("agent") @map("applied_by") // agent | user
+  cost        Float    @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("scaling_events")
 }

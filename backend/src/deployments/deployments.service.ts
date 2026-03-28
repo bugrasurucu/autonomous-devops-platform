@@ -27,6 +27,8 @@ export class DeploymentsService {
             region?: string;
             environment?: string;
             budget?: number;
+            githubRepo?: string;
+            githubBranch?: string;
         },
     ) {
         const deployId = `DEP-${Date.now()}`;
@@ -42,12 +44,14 @@ export class DeploymentsService {
                 budget: data.budget || 0,
                 status: 'running',
                 stages: JSON.stringify(flowNodes),
+                githubRepo: data.githubRepo,
+                githubBranch: data.githubBranch,
             },
         });
 
         this.eventEmitter.emit('activity.new', {
             userId,
-            text: `Deploy started: ${data.projectName} [${deployId}]`,
+            text: `Deploy started: ${data.projectName}${data.githubRepo ? ` (${data.githubRepo})` : ''} [${deployId}]`,
             color: '#818cf8',
             type: 'deploy_start',
             deployId,

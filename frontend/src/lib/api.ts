@@ -97,7 +97,34 @@ export const api = {
         request(`/settings/api-keys/${id}`, { method: 'DELETE' }),
     getUsage: () => request('/settings/usage'),
 
+    // GitHub Integration
+    github: {
+        getOAuthUrl: () => request('/github/oauth-url'),
+        getStatus: () => request('/github/status'),
+        listRepos: (search?: string) => request(`/github/repos${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+        disconnect: () => request('/github/disconnect', { method: 'DELETE' }),
+    },
+
+    // Cost Monitor
+    cost: {
+        getTiers: () => request('/cost/tiers'),
+        getFreeTier: () => request('/cost/free-tier'),
+        getEstimates: () => request('/cost/estimates'),
+        getUsage: () => request('/cost/usage'),
+        getMetrics: () => request('/cost/metrics'),
+        getSuggestions: () => request('/cost/suggestions'),
+        getScalingHistory: () => request('/cost/scaling/history'),
+        scale: (action: string) => request('/cost/scale', { method: 'POST', body: JSON.stringify({ action }) }),
+    },
+
+    // Agent executions
+    getAgentExecutions: (agentId: string, limit?: number) =>
+        request(`/agents/${agentId}/executions?limit=${limit || 10}`),
+    getAgentExecutionSteps: (agentId: string, execId: string) =>
+        request(`/agents/${agentId}/executions/${execId}`),
+
     // Errors
     getErrors: (count?: number) => request(`/errors?count=${count || 20}`),
     clearErrors: () => request('/errors', { method: 'DELETE' }),
 };
+

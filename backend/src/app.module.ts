@@ -10,6 +10,8 @@ import { FinopsModule } from './finops/finops.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { GatewayModule } from './gateway/events.module';
 import { LoggerModule } from './logger/logger.module';
+import { GithubModule } from './github/github.module';
+import { CostMonitorModule } from './cost-monitor/cost-monitor.module';
 import { StatsController } from './stats.controller';
 import { StatsService } from './stats.service';
 
@@ -26,6 +28,8 @@ import { StatsService } from './stats.service';
     IncidentsModule,
     GatewayModule,
     LoggerModule,
+    GithubModule,
+    CostMonitorModule,
   ],
   controllers: [StatsController],
   providers: [StatsService],

@@ -4,6 +4,7 @@ import {
     Post,
     Param,
     Body,
+    Query,
     UseGuards,
     Request,
 } from '@nestjs/common';
@@ -32,6 +33,24 @@ export class AgentsController {
         @Body() body: { task?: string },
     ) {
         return this.agentsService.triggerAgent(req.user.userId, id, body.task);
+    }
+
+    @Get(':id/executions')
+    getExecutions(
+        @Request() req: any,
+        @Param('id') id: string,
+        @Query('limit') limit?: string,
+    ) {
+        return this.agentsService.getExecutions(req.user.userId, id, limit ? parseInt(limit) : 10);
+    }
+
+    @Get(':id/executions/:execId')
+    getExecutionSteps(
+        @Request() req: any,
+        @Param('id') id: string,
+        @Param('execId') execId: string,
+    ) {
+        return this.agentsService.getExecutionSteps(req.user.userId, execId);
     }
 
     @Post(':id/complete')
