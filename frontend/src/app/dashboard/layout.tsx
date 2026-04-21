@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { api } from '@/lib/api';
 
 const NAV_ITEMS = [
     { href: '/dashboard', label: 'Dashboard', icon: '⬡' },
@@ -12,6 +13,9 @@ const NAV_ITEMS = [
     { href: '/dashboard/pipeline', label: 'Pipeline', icon: '▸▸' },
     { href: '/dashboard/finops', label: 'FinOps', icon: '◈' },
     { href: '/dashboard/self-healing', label: 'Self-Healing', icon: '↻' },
+    { href: '/dashboard/token-usage', label: 'Token Usage', icon: '⬡' },
+    { href: '/dashboard/team', label: 'Team', icon: '⊞' },
+    { href: '/dashboard/billing', label: 'Billing', icon: '◎' },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙' },
 ];
 
@@ -21,6 +25,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [kagentAvailable, setKagentAvailable] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        api.kagent?.getStatus().then((s: any) => setKagentAvailable(s?.available ?? false)).catch(() => setKagentAvailable(false));
+    }, []);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -44,18 +53,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const sidebarContent = (
         <>
             {/* Logo */}
-            <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid rgba(0,212,255,0.1)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                     <div style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #006a80, #00d4ff)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 16, color: 'white',
-                    }}>M</div>
+                        fontWeight: 800, fontSize: 18, color: '#020c1b',
+                        boxShadow: '0 0 16px rgba(0,212,255,0.3)',
+                    }}>⊙</div>
                     <div>
-                        <div style={{ fontWeight: 700, fontSize: 14 }}>Mission Control</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>DevOps Platform</div>
+                        <div style={{ fontWeight: 900, fontSize: 14, letterSpacing: '-0.3px', color: '#e2eeff',
+                            background: 'linear-gradient(135deg,#00d4ff,#00ff88)',
+                            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                        }}>ORBITRON</div>
+                        <div style={{ fontSize: 10, color: '#3d5a7a', letterSpacing: '0.08em', fontFamily: 'JetBrains Mono, monospace' }}>DEVOPS AI PLATFORM</div>
                     </div>
+                </div>
+                {/* kagent badge */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '4px 8px', borderRadius: 6,
+                    background: kagentAvailable === null ? 'rgba(100,116,139,0.1)'
+                        : kagentAvailable ? 'rgba(52,211,153,0.08)' : 'rgba(99,102,241,0.08)',
+                    border: `1px solid ${kagentAvailable === null ? 'rgba(100,116,139,0.2)'
+                        : kagentAvailable ? 'rgba(52,211,153,0.25)' : 'rgba(99,102,241,0.2)'}`,
+                }}>
+                    <div style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: kagentAvailable === null ? '#64748b'
+                            : kagentAvailable ? '#34d399' : '#818cf8',
+                        boxShadow: kagentAvailable ? '0 0 6px #34d399' : 'none',
+                    }} />
+                    <span style={{
+                        fontSize: 10, fontWeight: 600,
+                        color: kagentAvailable === null ? '#64748b'
+                            : kagentAvailable ? '#34d399' : '#818cf8',
+                    }}>
+                        {kagentAvailable === null ? 'kagent: checking'
+                            : kagentAvailable ? 'kagent: live ☸' : 'kagent: simulated'}
+                    </span>
                 </div>
             </div>
 
@@ -68,8 +105,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             display: 'flex', alignItems: 'center', gap: 10,
                             padding: '10px 12px', borderRadius: 10, marginBottom: 2,
                             fontSize: 14, fontWeight: isActive ? 600 : 400,
-                            color: isActive ? 'var(--accent-light)' : 'var(--text-secondary)',
-                            background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                            color: isActive ? '#00d4ff' : '#7a9cc0',
+                            background: isActive ? 'rgba(0,212,255,0.08)' : 'transparent',
                             textDecoration: 'none', transition: 'all 0.2s',
                         }}>
                             <span style={{ fontSize: 16, width: 20, textAlign: 'center' }}>{item.icon}</span>

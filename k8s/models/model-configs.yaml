@@ -1,0 +1,39 @@
+---
+# Tier 1: Haiku — analiz, monitoring, cost calc, pipeline ($0.80/$4 per MTok)
+apiVersion: kagent.dev/v1alpha1
+kind: ModelConfig
+metadata:
+  name: haiku-model
+  namespace: kagent
+spec:
+  provider: Anthropic
+  model: claude-haiku-4-5-20251001
+  apiKeySecretRef:
+    name: anthropic-secret
+    key: api-key
+---
+# Tier 2: Sonnet — IaC kod üretimi, incident RCA ($3/$15 per MTok)
+apiVersion: kagent.dev/v1alpha1
+kind: ModelConfig
+metadata:
+  name: sonnet-model
+  namespace: kagent
+spec:
+  provider: Anthropic
+  model: claude-sonnet-4-6
+  apiKeySecretRef:
+    name: anthropic-secret
+    key: api-key
+---
+# Tier 3: GPT-4.1 Mini — basit K8s ops ($0.40/$1.60 per MTok)
+apiVersion: kagent.dev/v1alpha1
+kind: ModelConfig
+metadata:
+  name: mini-model
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: gpt-4.1-mini
+  apiKeySecretRef:
+    name: openai-secret
+    key: api-key

@@ -25,36 +25,38 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             }}>
                 <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
                     <div style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: 'linear-gradient(135deg,#006a80,#00d4ff)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 18, color: '#fff',
-                    }}>M</div>
+                        fontWeight: 800, fontSize: 18, color: '#020c1b',
+                        boxShadow: '0 0 16px rgba(0,212,255,0.3)',
+                    }}>⊙</div>
                     <span style={{
-                        fontSize: 18, fontWeight: 700,
-                        background: 'linear-gradient(135deg,#818cf8,#a78bfa)',
+                        fontSize: 18, fontWeight: 900, letterSpacing: '-0.5px',
+                        background: 'linear-gradient(135deg,#00d4ff,#00ff88)',
                         WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                    }}>Mission Control</span>
+                    }}>ORBITRON</span>
                 </Link>
 
-                {/* Desktop links */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="nav-desktop">
-                    <a href="#features" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Features</a>
-                    <a href="#pricing" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Pricing</a>
-                    <a href="#agents" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Agents</a>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="nav-desktop">
+                    <a href="#agents" style={{ color: '#7a9cc0', textDecoration: 'none', fontSize: 14, fontWeight: 500, transition: 'color 0.2s' }}>Agents</a>
+                    <a href="#k8s" style={{ color: '#7a9cc0', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Why K8s?</a>
+                    <a href="#stack" style={{ color: '#7a9cc0', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Stack</a>
+                    <a href="#pricing" style={{ color: '#7a9cc0', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Pricing</a>
                     {user ? (
                         <Link href="/dashboard" style={{
                             padding: '8px 20px', borderRadius: 8,
-                            background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-                            color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 600,
+                            background: 'linear-gradient(135deg,#006a80,#00d4ff)',
+                            color: '#020c1b', textDecoration: 'none', fontSize: 14, fontWeight: 700,
                         }}>Dashboard →</Link>
                     ) : (
-                        <div style={{ display: 'flex', gap: 12 }}>
-                            <Link href="/login" style={{ padding: '8px 16px', color: '#c4b5fd', textDecoration: 'none', fontSize: 14 }}>Sign In</Link>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <Link href="/login" style={{ padding: '8px 16px', color: '#7a9cc0', textDecoration: 'none', fontSize: 14 }}>Sign In</Link>
                             <Link href="/login" style={{
                                 padding: '8px 20px', borderRadius: 8,
-                                background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-                                color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 600,
+                                background: 'linear-gradient(135deg,#006a80,#00d4ff)',
+                                color: '#020c1b', textDecoration: 'none', fontSize: 14, fontWeight: 700,
+                                boxShadow: '0 0 20px rgba(0,212,255,0.2)',
                             }}>Get Started Free</Link>
                         </div>
                     )}
@@ -71,16 +73,17 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             {menuOpen && (
                 <div style={{
                     position: 'fixed', top: 68, left: 0, right: 0, bottom: 0, zIndex: 99,
-                    background: 'rgba(10,10,25,0.98)', padding: 24,
+                    background: 'rgba(2,12,27,0.98)', padding: 24,
                     display: 'flex', flexDirection: 'column', gap: 20,
                 }}>
-                    <a href="#features" onClick={() => setMenuOpen(false)} style={{ color: '#e2e8f0', fontSize: 18, textDecoration: 'none' }}>Features</a>
-                    <a href="#pricing" onClick={() => setMenuOpen(false)} style={{ color: '#e2e8f0', fontSize: 18, textDecoration: 'none' }}>Pricing</a>
-                    <a href="#agents" onClick={() => setMenuOpen(false)} style={{ color: '#e2e8f0', fontSize: 18, textDecoration: 'none' }}>Agents</a>
+                    <a href="#agents" onClick={() => setMenuOpen(false)} style={{ color: '#e2eeff', fontSize: 18, textDecoration: 'none' }}>Agents</a>
+                    <a href="#k8s" onClick={() => setMenuOpen(false)} style={{ color: '#e2eeff', fontSize: 18, textDecoration: 'none' }}>Why Kubernetes?</a>
+                    <a href="#stack" onClick={() => setMenuOpen(false)} style={{ color: '#e2eeff', fontSize: 18, textDecoration: 'none' }}>Tech Stack</a>
+                    <a href="#pricing" onClick={() => setMenuOpen(false)} style={{ color: '#e2eeff', fontSize: 18, textDecoration: 'none' }}>Pricing</a>
                     <Link href="/login" onClick={() => setMenuOpen(false)} style={{
                         marginTop: 16, padding: '12px 24px', borderRadius: 8, textAlign: 'center' as const,
-                        background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff',
-                        textDecoration: 'none', fontSize: 16, fontWeight: 600,
+                        background: 'linear-gradient(135deg,#006a80,#00d4ff)', color: '#020c1b',
+                        textDecoration: 'none', fontSize: 16, fontWeight: 700,
                     }}>{user ? 'Dashboard →' : 'Get Started Free'}</Link>
                 </div>
             )}
@@ -104,38 +107,41 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                                 <div style={{
-                                    width: 28, height: 28, borderRadius: 7,
+                                    width: 28, height: 28, borderRadius: '50%',
                                     background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     fontWeight: 800, fontSize: 14, color: '#fff',
-                                }}>M</div>
-                                <span style={{ fontWeight: 700, color: '#e2e8f0' }}>Mission Control</span>
+                                }}>⊙</div>
+                                <span style={{ fontWeight: 800, color: '#818cf8', letterSpacing: '-0.3px' }}>ORBITRON</span>
                             </div>
-                            <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6 }}>
-                                AI-powered autonomous DevOps platform. Deploy, monitor, optimize, and self-heal.
+                            <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.7, maxWidth: 240 }}>
+                                Your infrastructure, in orbit.
+                                AI-powered autonomous DevOps with Kubernetes-native agents.
                             </p>
                         </div>
                         <div>
-                            <h4 style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Product</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {['Features', 'Pricing', 'Agents', 'Documentation'].map((l) => (
-                                    <a key={l} href="#" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>{l}</a>
-                                ))}
+                            <h4 style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 700, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Platform</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <a href="#agents" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>AI Agents</a>
+                                <a href="#k8s" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>Why Kubernetes</a>
+                                <a href="#pricing" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>Pricing</a>
+                                <a href="/login" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>Dashboard</a>
                             </div>
                         </div>
                         <div>
-                            <h4 style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Company</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {['About', 'Blog', 'Careers', 'Contact'].map((l) => (
-                                    <a key={l} href="#" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>{l}</a>
-                                ))}
+                            <h4 style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 700, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Get Started</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <a href="/login" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>Free Plan</a>
+                                <a href="/login" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>Pro Trial</a>
+                                <a href="/login" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>Enterprise</a>
+                                <a href="/login" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>Sign In</a>
                             </div>
                         </div>
                         <div>
-                            <h4 style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Legal</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {['Privacy', 'Terms', 'Security', 'SLA'].map((l) => (
-                                    <a key={l} href="#" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>{l}</a>
+                            <h4 style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 700, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tech Stack</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                {['Kubernetes', 'kagent CRD', 'Terraform', 'GitHub Actions'].map((t) => (
+                                    <span key={t} style={{ color: '#64748b', fontSize: 14 }}>{t}</span>
                                 ))}
                             </div>
                         </div>
@@ -146,11 +152,18 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         flexWrap: 'wrap', gap: 12,
                     }}>
-                        <span style={{ color: '#475569', fontSize: 13 }}>© 2026 Mission Control. All rights reserved.</span>
-                        <div style={{ display: 'flex', gap: 16 }}>
-                            {['GitHub', 'Twitter', 'Discord'].map((s) => (
-                                <a key={s} href="#" style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>{s}</a>
-                            ))}
+                        <span style={{ color: '#475569', fontSize: 13 }}>© 2026 Orbitron. All rights reserved.</span>
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                            <a href="https://github.com" target="_blank" rel="noopener noreferrer"
+                               style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>GitHub</a>
+                            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer"
+                               style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>Twitter</a>
+                            <a href="/login" style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>Sign In</a>
+                            <a href="/login" style={{
+                                padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                                background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)',
+                                color: '#818cf8', textDecoration: 'none',
+                            }}>Get Started</a>
                         </div>
                     </div>
                 </div>

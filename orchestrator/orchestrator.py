@@ -1,16 +1,16 @@
 """
-Otonom DevOps Platformu — Çoklu Ajan Orkestratörü
+Otonom DevOps Platformu — kagent Orkestratörü
 
-Bu modül, uzman ajanlar (Infra, Pipeline, FinOps, SRE) arasındaki
-iletişimi ve görev dağıtımını yönetir. Sıralı, eşzamanlı ve
-devir teslim (handoff) orkestrasyon desenlerini destekler.
-
-Google ADK ve A2A protokolü üzerinden çalışır.
+NestJS backend tarafından tetiklenir veya standalone çalışır.
+kagent API üzerinden gerçek AI ajanlarını koordine eder.
+Sıralı, eşzamanlı ve devir teslim (handoff) desenlerini destekler.
 """
 
 import asyncio
 import json
 import logging
+import os
+import httpx
 from datetime import datetime, timezone
 from enum import Enum
 from dataclasses import dataclass, field
@@ -20,37 +20,36 @@ from shared_state import SharedState, MasterClipboard
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(levelname)s: %(message)s')
 logger = logging.getLogger("orchestrator")
 
+KAGENT_API_URL = os.getenv("KAGENT_API_URL", "http://kagent-controller.kagent.svc.cluster.local:8083")
+KAGENT_NAMESPACE = os.getenv("KAGENT_NAMESPACE", "kagent")
+
 
 class AgentRole(Enum):
-    """Uzman ajan rolleri"""
-    INFRA = "infra-agent"
-    PIPELINE = "pipeline-agent"
-    FINOPS = "finops-agent"
-    SRE = "sre-agent"
-    BOOTSTRAP = "auto-bootstrap"
+    INFRA     = "infra-agent"
+    PIPELINE  = "pipeline-agent"
+    FINOPS    = "finops-agent"
+    SRE       = "sre-agent"
+    BOOTSTRAP = "bootstrap-agent"
 
 
 class OrchestrationPattern(Enum):
-    """Orkestrasyon desenleri"""
-    SEQUENTIAL = "sequential"      # Sıralı zincir
-    CONCURRENT = "concurrent"      # Eşzamanlı
-    HANDOFF = "handoff"           # Devir teslim
-    CIRCUIT_BREAKER = "circuit_breaker"  # Devre kesici
+    SEQUENTIAL    = "sequential"
+    CONCURRENT    = "concurrent"
+    HANDOFF       = "handoff"
+    CIRCUIT_BREAKER = "circuit_breaker"
 
 
 class TaskStatus(Enum):
-    """Görev durumları"""
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    BLOCKED = "blocked"
+    PENDING    = "pending"
+    RUNNING    = "running"
+    COMPLETED  = "completed"
+    FAILED     = "failed"
+    BLOCKED    = "blocked"
     ROLLED_BACK = "rolled_back"
 
 
 @dataclass
 class AgentTask:
-    """Bir ajana atanan görev"""
     task_id: str
     agent_role: AgentRole
     description: str
@@ -66,7 +65,6 @@ class AgentTask:
 
 @dataclass
 class CircuitBreakerConfig:
-    """Devre kesici konfigürasyonu"""
     max_retries: int = 3
     retry_backoff_seconds: list = field(default_factory=lambda: [5, 15, 60])
     finops_monthly_budget_usd: float = 500.0
@@ -75,67 +73,104 @@ class CircuitBreakerConfig:
     sre_escalation_after_failures: int = 2
 
 
+class KagentClient:
+    """kagent REST API istemcisi"""
+
+    def __init__(self, base_url: str = KAGENT_API_URL):
+        self.base_url = base_url
+        self.client = httpx.AsyncClient(timeout=300.0)
+
+    async def invoke_agent(
+        self,
+        agent_id: str,
+        task: str,
+        namespace: str = KAGENT_NAMESPACE,
+        model: Optional[str] = None,
+        max_tokens: int = 4096,
+    ) -> dict:
+        """kagent agent'ını çağır ve sonucu döndür"""
+        session_id = f"sess-{int(datetime.now().timestamp() * 1000)}"
+        url = f"{self.base_url}/api/v1/namespaces/{namespace}/agents/{agent_id}/sessions/{session_id}/messages"
+
+        payload: dict = {"content": task, "max_tokens": max_tokens}
+        if model:
+            payload["model_config"] = {"model": model}
+
+        logger.info(f"  kagent → {agent_id} (session={session_id})")
+
+        try:
+            response = await self.client.post(url, json=payload)
+            response.raise_for_status()
+
+            # Collect SSE stream
+            steps = []
+            result_text = ""
+            usage = {"model": model or "unknown", "input_tokens": 0, "output_tokens": 0}
+
+            async for line in response.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                try:
+                    event = json.loads(line[6:])
+                    if event.get("type") in ("thought", "reasoning"):
+                        steps.append({"type": "reason", "content": event.get("content", "")})
+                    elif event.get("type") == "tool_call":
+                        steps.append({"type": "act", "tool": event.get("tool_name"), "output": event.get("result")})
+                    elif event.get("type") == "observation":
+                        steps.append({"type": "observe", "content": event.get("content", "")})
+                    if event.get("result"):
+                        result_text = event["result"]
+                    if event.get("usage"):
+                        usage.update(event["usage"])
+                except Exception:
+                    pass
+
+            return {
+                "session_id": session_id,
+                "agent_id": agent_id,
+                "status": "completed",
+                "steps": steps,
+                "result": result_text,
+                "usage": usage,
+            }
+
+        except httpx.HTTPStatusError as e:
+            raise RuntimeError(f"kagent API error {e.response.status_code}: {e.response.text}") from e
+        except httpx.ConnectError:
+            raise RuntimeError(f"kagent API unreachable at {self.base_url}")
+
+    async def close(self):
+        await self.client.aclose()
+
+
 class AgentOrchestrator:
     """
-    Çoklu Ajan Orkestratörü
-    
-    A2A protokolü üzerinden uzman ajanları koordine eder.
-    Master Clipboard (paylaşılan durum) üzerinden veri akışını yönetir.
+    Çoklu Ajan Orkestratörü — kagent API üzerinden çalışır.
+    NestJS DeploymentsService bu sınıfı dolaylı olarak kullanır.
+    Standalone test için main() fonksiyonu bulunur.
     """
 
-    def __init__(self, circuit_breaker_config: Optional[CircuitBreakerConfig] = None):
+    def __init__(
+        self,
+        circuit_breaker_config: Optional[CircuitBreakerConfig] = None,
+        kagent_namespace: str = KAGENT_NAMESPACE,
+    ):
         self.shared_state = SharedState()
         self.clipboard = MasterClipboard()
         self.circuit_breaker = circuit_breaker_config or CircuitBreakerConfig()
         self.task_history: list[AgentTask] = []
-        self.agents: dict[AgentRole, dict] = {}
-        self._register_default_agents()
-        logger.info("🎯 Orkestratör başlatıldı")
-
-    def _register_default_agents(self):
-        """Varsayılan ajan kayıtları"""
-        for role in AgentRole:
-            self.agents[role] = {
-                "role": role.value,
-                "status": "idle",
-                "capabilities": self._get_agent_capabilities(role),
-                "mcp_servers": self._get_agent_mcp_servers(role),
-            }
-
-    def _get_agent_capabilities(self, role: AgentRole) -> list[str]:
-        """Her ajanın yeteneklerini döndür"""
-        capabilities = {
-            AgentRole.BOOTSTRAP: ["repo_research", "architecture_analysis", "agent_dispatch"],
-            AgentRole.INFRA: ["terraform_generate", "cdk_generate", "checkov_scan", "resource_provision"],
-            AgentRole.PIPELINE: ["cicd_config", "test_generation", "visual_qa", "docker_build", "deployment"],
-            AgentRole.FINOPS: ["cost_estimation", "budget_validation", "optimization_recommendations"],
-            AgentRole.SRE: ["monitoring_setup", "anomaly_detection", "rca_analysis", "auto_remediation", "rollback"],
-        }
-        return capabilities.get(role, [])
-
-    def _get_agent_mcp_servers(self, role: AgentRole) -> list[str]:
-        """Her ajanın kullandığı MCP sunucularını döndür"""
-        mcp_mapping = {
-            AgentRole.BOOTSTRAP: ["aws-cloud-control", "aws-iac", "mcpdoc-aws"],
-            AgentRole.INFRA: ["aws-cloud-control", "aws-iac", "aws-terraform", "mcpdoc-aws"],
-            AgentRole.PIPELINE: ["mcpdoc-github-actions", "mcpdoc-aws"],
-            AgentRole.FINOPS: ["aws-pricing", "mcpdoc-aws"],
-            AgentRole.SRE: ["aws-cloudwatch", "mcpdoc-aws"],
-        }
-        return mcp_mapping.get(role, [])
+        self.kagent = KagentClient()
+        self.namespace = kagent_namespace
+        logger.info("🎯 Orkestratör başlatıldı (kagent modu)")
 
     async def execute_sequential(self, tasks: list[AgentTask]) -> list[AgentTask]:
-        """
-        Sıralı Orkestrasyon — Ajanlar doğrusal zincirde çalışır.
-        Her aşamanın başarısı bir sonrakini tetikler.
-        """
-        logger.info(f"📋 Sıralı orkestrasyon başlıyor: {len(tasks)} görev")
+        """Sıralı zincir — her başarı bir sonrakini tetikler."""
+        logger.info(f"📋 Sıralı orkestrasyon: {len(tasks)} görev")
         results = []
 
         for i, task in enumerate(tasks):
-            logger.info(f"  [{i+1}/{len(tasks)}] {task.agent_role.value}: {task.description}")
-            
-            # Önceki görevin çıktısını girdi olarak aktar
+            logger.info(f"  [{i+1}/{len(tasks)}] {task.agent_role.value}: {task.description[:60]}")
+
             if results and results[-1].status == TaskStatus.COMPLETED:
                 task.input_data.update(results[-1].output_data)
                 self.clipboard.write(task.agent_role.value, results[-1].output_data)
@@ -143,173 +178,144 @@ class AgentOrchestrator:
             result = await self._execute_agent_task(task)
             results.append(result)
 
-            if result.status == TaskStatus.FAILED:
-                logger.error(f"  ❌ {task.agent_role.value} başarısız: {result.error}")
-                # Devre kesici — kalan görevleri iptal et
-                for remaining in tasks[i+1:]:
+            if result.status in (TaskStatus.FAILED, TaskStatus.BLOCKED):
+                logger.warning(f"  ⏹ Stopping orchestration: {task.agent_role.value} → {result.status.value}")
+                for remaining in tasks[i + 1:]:
                     remaining.status = TaskStatus.BLOCKED
                     results.append(remaining)
-                break
-
-            if result.status == TaskStatus.BLOCKED:
-                logger.warning(f"  ⏸️ {task.agent_role.value} bloklandı (bütçe/güvenlik)")
                 break
 
         return results
 
     async def execute_concurrent(self, tasks: list[AgentTask]) -> list[AgentTask]:
-        """
-        Eşzamanlı Orkestrasyon — Aynı girdi birden fazla ajana gönderilir.
-        Hız kritik durumlarda (olay müdahalesi) kullanılır.
-        """
-        logger.info(f"⚡ Eşzamanlı orkestrasyon başlıyor: {len(tasks)} görev")
-        
+        """Eşzamanlı — aynı anda birden fazla ajan."""
+        logger.info(f"⚡ Eşzamanlı orkestrasyon: {len(tasks)} görev")
         coroutines = [self._execute_agent_task(task) for task in tasks]
-        results = await asyncio.gather(*coroutines, return_exceptions=True)
-        
+        raw = await asyncio.gather(*coroutines, return_exceptions=True)
+
         processed = []
-        for result in results:
-            if isinstance(result, Exception):
-                task = AgentTask(
-                    task_id="error",
-                    agent_role=AgentRole.BOOTSTRAP,
-                    description="Error",
-                    status=TaskStatus.FAILED,
-                    error=str(result)
-                )
-                processed.append(task)
+        for i, r in enumerate(raw):
+            if isinstance(r, Exception):
+                tasks[i].status = TaskStatus.FAILED
+                tasks[i].error = str(r)
+                processed.append(tasks[i])
             else:
-                processed.append(result)
-        
+                processed.append(r)
         return processed
 
     async def execute_handoff(self, task: AgentTask, routing_rules: dict) -> AgentTask:
-        """
-        Devir Teslim (Handoff) — Görev içeriğine göre dinamik yönlendirme.
-        Merkezi orkestratör, görev içeriğini analiz ederek uygun ajana devreder.
-        """
-        logger.info(f"🔄 Devir teslim analizi: {task.description}")
-        
-        # Görev içeriğini analiz et ve uygun ajanı seç
+        """İçeriğe göre dinamik ajan yönlendirmesi."""
         target_role = self._route_task(task, routing_rules)
         task.agent_role = target_role
-        
-        logger.info(f"  → Yönlendirme: {target_role.value}")
+        logger.info(f"🔄 Handoff → {target_role.value}: {task.description[:60]}")
         return await self._execute_agent_task(task)
 
-    def _route_task(self, task: AgentTask, rules: dict) -> AgentRole:
-        """Görev içeriğine göre ajan yönlendirmesi"""
-        description_lower = task.description.lower()
-        
-        # Anahtar kelime tabanlı yönlendirme
+    def _route_task(self, task: AgentTask, rules: dict = {}) -> AgentRole:  # noqa: ARG002
+        desc = task.description.lower()
         routing = {
-            AgentRole.SRE: ["alarm", "down", "error", "crash", "memory", "cpu", "latency", "incident"],
-            AgentRole.INFRA: ["vpc", "ecs", "rds", "s3", "terraform", "infrastructure", "provision"],
-            AgentRole.FINOPS: ["cost", "budget", "pricing", "expensive", "optimize", "maliyet"],
+            AgentRole.SRE:      ["alarm", "down", "error", "crash", "memory", "cpu", "latency", "incident"],
+            AgentRole.INFRA:    ["vpc", "ecs", "rds", "s3", "terraform", "infrastructure", "provision"],
+            AgentRole.FINOPS:   ["cost", "budget", "pricing", "expensive", "optimize", "maliyet"],
             AgentRole.PIPELINE: ["deploy", "build", "test", "ci", "cd", "pipeline", "release"],
         }
-        
         for role, keywords in routing.items():
-            if any(kw in description_lower for kw in keywords):
+            if any(kw in desc for kw in keywords):
                 return role
-        
-        # Varsayılan: Bootstrap
         return AgentRole.BOOTSTRAP
 
     async def _execute_agent_task(self, task: AgentTask) -> AgentTask:
-        """
-        Tek bir ajan görevini yürüt (devre kesici mantığı ile).
-        Gerçek implementasyonda bu, ilgili Antigravity skill'ini tetikler.
-        """
         task.status = TaskStatus.RUNNING
-        self.agents[task.agent_role]["status"] = "running"
-        
+
         try:
-            # Simüle edilmiş ajan yürütmesi
-            # Gerçek implementasyonda: Antigravity Agent Manager API çağrısı
-            logger.info(f"    🤖 {task.agent_role.value} çalıştırılıyor...")
-            
-            # FinOps devre kesici kontrolü
+            # FinOps devre kesici
             if task.agent_role == AgentRole.FINOPS:
-                cost_result = task.input_data.get("estimated_cost", 0)
-                if cost_result > self.circuit_breaker.finops_monthly_budget_usd:
+                cost = task.input_data.get("estimated_cost", 0)
+                if cost > self.circuit_breaker.finops_per_deploy_max_usd:
                     task.status = TaskStatus.BLOCKED
-                    task.error = f"Bütçe aşımı: ${cost_result} > ${self.circuit_breaker.finops_monthly_budget_usd}"
-                    logger.warning(f"    🛑 FinOps devre kesici tetiklendi: {task.error}")
+                    task.error = f"Per-deploy budget exceeded: ${cost} > ${self.circuit_breaker.finops_per_deploy_max_usd}"
+                    logger.warning(f"    🛑 FinOps circuit breaker: {task.error}")
                     return task
 
-            # Görev çıktısını Shared State'e yaz
+            # kagent API çağrısı
+            kagent_result = await self.kagent.invoke_agent(
+                agent_id=task.agent_role.value,
+                task=task.description,
+                namespace=self.namespace,
+                max_tokens=8192 if task.agent_role == AgentRole.INFRA else 4096,
+            )
+
             task.output_data = {
                 "agent": task.agent_role.value,
                 "status": "success",
+                "result": kagent_result.get("result", ""),
+                "steps_count": len(kagent_result.get("steps", [])),
+                "usage": kagent_result.get("usage", {}),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             task.status = TaskStatus.COMPLETED
             task.completed_at = datetime.now(timezone.utc).isoformat()
-            
+
             self.clipboard.write(task.agent_role.value, task.output_data)
-            self.shared_state.append_log(task.agent_role.value, f"Görev tamamlandı: {task.description}")
-            
+            self.shared_state.append_log(task.agent_role.value, f"Completed: {task.description[:60]}")
+
         except Exception as e:
             task.retries += 1
             if task.retries >= task.max_retries:
                 task.status = TaskStatus.FAILED
                 task.error = str(e)
-                logger.error(f"    ❌ Maksimum deneme aşıldı: {e}")
+                logger.error(f"    ❌ Max retries exceeded: {e}")
             else:
                 backoff = self.circuit_breaker.retry_backoff_seconds[
                     min(task.retries - 1, len(self.circuit_breaker.retry_backoff_seconds) - 1)
                 ]
-                logger.warning(f"    🔄 Tekrar deneniyor ({task.retries}/{task.max_retries}), bekleme: {backoff}s")
+                logger.warning(f"    🔄 Retry {task.retries}/{task.max_retries}, backoff {backoff}s")
                 await asyncio.sleep(backoff)
                 return await self._execute_agent_task(task)
-        
+
         finally:
-            self.agents[task.agent_role]["status"] = "idle"
             self.task_history.append(task)
-        
+
         return task
 
     async def deploy_project(self, project_research: dict) -> dict:
         """
-        Uçtan uca otonom dağıtım — "Drop and Deploy" ana iş akışı.
-        
-        Orkestrasyon sırası:
-        1. Infra Agent → Altyapı kodu üret ve provizyonla
-        2. FinOps Agent → Maliyet analizi ve bütçe doğrulama
-        3. Pipeline Agent → CI/CD yapılandır ve ilk dağıtımı yap
-        4. SRE Agent → Monitoring ve self-healing kur
+        Uçtan uca otonom dağıtım — Drop & Deploy akışı.
+        Bootstrap → Infra → FinOps → Pipeline → SRE (sıralı)
         """
         logger.info("🚀 Otonom dağıtım başlıyor...")
         self.clipboard.write("project_research", project_research)
 
         tasks = [
             AgentTask(
+                task_id="bootstrap-001",
+                agent_role=AgentRole.BOOTSTRAP,
+                description=f"Analyze project '{project_research.get('project_name', 'app')}' and determine AWS architecture",
+                input_data=project_research,
+            ),
+            AgentTask(
                 task_id="infra-001",
                 agent_role=AgentRole.INFRA,
-                description="AWS altyapısını kodla ve provizyonla (VPC, ECS, RDS)",
-                input_data=project_research,
+                description=f"Generate Terraform infrastructure for '{project_research.get('project_name', 'app')}' in {project_research.get('region', 'us-east-1')}",
             ),
             AgentTask(
                 task_id="finops-001",
                 agent_role=AgentRole.FINOPS,
-                description="Terraform planının maliyet analizini yap ve bütçeyi doğrula",
+                description=f"Estimate costs and validate against ${project_research.get('budget', 50)}/deploy budget",
             ),
             AgentTask(
                 task_id="pipeline-001",
                 agent_role=AgentRole.PIPELINE,
-                description="CI/CD pipeline yapılandır ve ilk dağıtımı gerçekleştir",
+                description=f"Generate GitHub Actions CI/CD pipeline for {project_research.get('github_repo', 'the project')}",
             ),
             AgentTask(
                 task_id="sre-001",
                 agent_role=AgentRole.SRE,
-                description="CloudWatch monitoring ve self-healing altyapısını kur",
+                description=f"Set up CloudWatch monitoring and self-healing for {project_research.get('project_name', 'app')}",
             ),
         ]
 
         results = await self.execute_sequential(tasks)
 
-        # Sonuç raporu
         report = {
             "deployment_id": f"DEP-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}",
             "status": "success" if all(t.status == TaskStatus.COMPLETED for t in results) else "failed",
@@ -319,6 +325,7 @@ class AgentOrchestrator:
                     "agent": t.agent_role.value,
                     "status": t.status.value,
                     "error": t.error,
+                    "usage": t.output_data.get("usage"),
                 }
                 for t in results
             ],
@@ -326,34 +333,31 @@ class AgentOrchestrator:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        logger.info(f"📊 Dağıtım sonucu: {report['status']}")
+        logger.info(f"📊 Dağıtım: {report['status']}")
+        await self.kagent.close()
         return report
 
     async def handle_incident(self, incident_data: dict) -> dict:
-        """
-        Olay müdahalesi — SRE ve Pipeline ajanları eşzamanlı çalışır.
-        
-        SRE: Kök neden analizi + otomatik iyileştirme
-        Pipeline: Gerekirse rollback hazırlığı
-        """
-        logger.info(f"🚨 Olay müdahalesi başlıyor: {incident_data.get('alarm_name', 'unknown')}")
+        """Olay müdahalesi — SRE ve Pipeline eşzamanlı."""
+        logger.info(f"🚨 Olay: {incident_data.get('alarm_name', 'unknown')}")
 
         tasks = [
             AgentTask(
                 task_id="sre-incident-001",
                 agent_role=AgentRole.SRE,
-                description="Kök neden analizi yap ve otomatik iyileştirme uygula",
+                description=f"RCA and auto-remediation for: {incident_data.get('alarm_name', 'unknown')} - {incident_data.get('description', '')}",
                 input_data=incident_data,
             ),
             AgentTask(
                 task_id="pipeline-rollback-001",
                 agent_role=AgentRole.PIPELINE,
-                description="Rollback hazırlığı yap (gerekirse önceki sürüme dön)",
+                description=f"Assess rollback necessity for: {incident_data.get('service', 'unknown')}",
                 input_data=incident_data,
             ),
         ]
 
         results = await self.execute_concurrent(tasks)
+        await self.kagent.close()
 
         return {
             "incident_id": incident_data.get("incident_id", "unknown"),
@@ -364,29 +368,25 @@ class AgentOrchestrator:
         }
 
 
-# Ana giriş noktası
 async def main():
-    """Orkestratör demo çalışması"""
-    orchestrator = AgentOrchestrator()
+    """Standalone test — kagent cluster'ı gerektirir."""
+    orchestrator = AgentOrchestrator(
+        kagent_namespace=os.getenv("KAGENT_NAMESPACE", "kagent")
+    )
 
-    # Örnek proje araştırma çıktısı
     project_research = {
+        "project_name": "my-api",
         "project_type": "nodejs",
         "framework": "express",
-        "database": "mongodb",
+        "database": "postgresql",
         "has_dockerfile": True,
         "port": 3000,
-        "env_vars": ["MONGO_URI", "JWT_SECRET", "PORT"],
-        "test_framework": "jest",
-        "estimated_resources": {
-            "compute": "ECS Fargate",
-            "database": "DocumentDB",
-            "networking": "VPC + ALB",
-            "storage": "S3",
-        },
+        "github_repo": "myorg/my-api",
+        "region": "us-east-1",
+        "environment": "production",
+        "budget": 50,
     }
 
-    # Uçtan uca dağıtım
     result = await orchestrator.deploy_project(project_research)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 

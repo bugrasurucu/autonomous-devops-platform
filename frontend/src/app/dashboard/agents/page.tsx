@@ -1,11 +1,22 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
 
 const STEP_ICONS: Record<string, string> = { reason: '🤔', act: '🔧', observe: '👁' };
 const STEP_COLORS: Record<string, string> = { reason: '#818cf8', act: '#fbbf24', observe: '#34d399' };
 const STEP_LABELS: Record<string, string> = { reason: 'REASON', act: 'ACT', observe: 'OBSERVE' };
+
+// Backend returns `capabilities` array; UI expects tool objects with `.name`
+function getTools(agent: any): { name: string }[] {
+    if (Array.isArray(agent.tools) && agent.tools.length > 0) {
+        return agent.tools.map((t: any) => (typeof t === 'string' ? { name: t } : t));
+    }
+    if (Array.isArray(agent.capabilities)) {
+        return agent.capabilities.map((c: string) => ({ name: c }));
+    }
+    return [];
+}
 
 export default function AgentsPage() {
     const [agents, setAgents] = useState<any[]>([]);
@@ -16,22 +27,35 @@ export default function AgentsPage() {
     const [customTask, setCustomTask] = useState('');
     const [triggering, setTriggering] = useState(false);
 
-    const loadAgents = useCallback(async () => {
-        try {
-            const data = await api.getAgents();
-            setAgents(data);
-            if (selected) {
-                const updated = data.find((a: any) => a.id === selected.id);
-                if (updated) setSelected(updated);
-            }
-        } catch { }
-    }, [selected]);
+    // Use a ref for selected so the polling interval doesn't depend on it
+    const selectedRef = useRef<any>(null);
+    selectedRef.current = selected;
 
+    // Load agents on mount; poll every 4 s — never re-creates due to stale closure
     useEffect(() => {
-        loadAgents();
-        const interval = setInterval(loadAgents, 4000);
-        return () => clearInterval(interval);
-    }, [loadAgents]);
+        let cancelled = false;
+
+        const load = async () => {
+            try {
+                const data = await api.getAgents();
+                if (cancelled) return;
+                setAgents(data);
+                // Sync the selected agent state without causing a re-render loop
+                const cur = selectedRef.current;
+                if (cur) {
+                    const updated = data.find((a: any) => a.id === cur.id);
+                    if (updated) setSelected(updated);
+                }
+            } catch { /* ignore */ }
+        };
+
+        load();
+        const interval = setInterval(load, 4000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, []); // ← empty deps: runs once, no infinite loop
 
     const selectAgent = async (agent: any) => {
         setSelected(agent);
@@ -44,40 +68,44 @@ export default function AgentsPage() {
     };
 
     const triggerAgent = async () => {
-        if (!selected) return;
+        const cur = selectedRef.current;
+        if (!cur) return;
         setTriggering(true);
         setLiveSteps([]);
         setActiveExec(null);
         try {
-            await api.triggerAgent(selected.id, customTask || undefined);
+            await api.triggerAgent(cur.id, customTask || undefined);
             setCustomTask('');
-            // Simulate live step streaming
-            const allTools = selected.tools || [];
+            const tools = getTools(cur);
             const stepDefs = [
                 { type: 'reason', content: `Analyzing task: "${customTask || 'Standard check'}". Planning tool usage sequence...` },
-                ...(allTools.slice(0, 3).map((t: any) => ({ type: 'act', tool: t.name, content: `Calling ${t.name}...`, output: '{"status": "ok", "result": "✓ completed"}' }))),
+                ...tools.slice(0, 3).map((t) => ({
+                    type: 'act', tool: t.name,
+                    content: `Calling ${t.name}...`,
+                    output: '{"status": "ok", "result": "✓ completed"}',
+                })),
                 { type: 'observe', content: 'All tools executed successfully. Synthesizing results and updating memory.' },
             ];
             for (let i = 0; i < stepDefs.length; i++) {
                 await new Promise(r => setTimeout(r, 1800 + Math.random() * 800));
                 setLiveSteps(prev => [...prev, { ...stepDefs[i], id: `live-${i}`, timestamp: new Date().toISOString() }]);
             }
-            loadAgents();
-            // Refresh executions
+            // Refresh executions after a short delay
             setTimeout(async () => {
-                try { setExecutions(await api.getAgentExecutions(selected.id, 5)); } catch { }
+                try { setExecutions(await api.getAgentExecutions(cur.id, 5)); } catch { /* ignore */ }
             }, 2000);
         } catch (e: any) { alert(e.message); }
         finally { setTriggering(false); }
     };
 
     const viewExecution = async (exec: any) => {
+        const cur = selectedRef.current;
         setActiveExec(exec);
         setLiveSteps([]);
         try {
-            const detail = await api.getAgentExecutionSteps(selected.id, exec.id);
+            const detail = await api.getAgentExecutionSteps(cur?.id, exec.id);
             if (detail?.steps) setLiveSteps(detail.steps);
-        } catch { }
+        } catch { /* ignore */ }
     };
 
     return (
@@ -123,7 +151,7 @@ export default function AgentsPage() {
                                 }} />
                             </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 8, fontSize: 11, color: 'var(--text-secondary)' }}>
-                                <span>🔧 {(agent.tools || []).length} tools</span>
+                                <span>🔧 {getTools(agent).length} tools</span>
                                 <span>📊 {agent.stats?.totalRuns || 0} runs</span>
                                 <span style={{ color: '#34d399' }}>✓ {agent.stats?.successRate || 100}%</span>
                             </div>
@@ -177,7 +205,7 @@ export default function AgentsPage() {
                             <div style={{ marginBottom: 14 }}>
                                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tool Registry</div>
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                    {(selected.tools || []).map((t: any) => (
+                                    {getTools(selected).map((t) => (
                                         <span key={t.name} style={{
                                             fontSize: 11, padding: '3px 9px', borderRadius: 6,
                                             background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)',

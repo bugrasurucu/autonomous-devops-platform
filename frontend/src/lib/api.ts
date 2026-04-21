@@ -126,5 +126,32 @@ export const api = {
     // Errors
     getErrors: (count?: number) => request(`/errors?count=${count || 20}`),
     clearErrors: () => request('/errors', { method: 'DELETE' }),
+
+    // Token Usage
+    getTokenUsage: () => request('/token-usage'),
+
+    // Tenants / Team
+    tenant: {
+        getMe: () => request('/tenants/me'),
+        getMembers: (orgId: string) => request(`/tenants/${orgId}/members`),
+        invite: (orgId: string, userId: string, role: string) =>
+            request(`/tenants/${orgId}/members`, { method: 'POST', body: JSON.stringify({ userId, role }) }),
+        remove: (orgId: string, userId: string) =>
+            request(`/tenants/${orgId}/members/${userId}`, { method: 'DELETE' }),
+    },
+
+    // Billing
+    billing: {
+        getPlans: () => request('/billing/plans'),
+        checkout: (plan: string, returnUrl: string) =>
+            request('/billing/checkout', { method: 'POST', body: JSON.stringify({ plan, returnUrl }) }),
+        portal: (returnUrl: string) =>
+            request('/billing/portal', { method: 'POST', body: JSON.stringify({ returnUrl }) }),
+    },
+
+    // kagent / K8s status
+    kagent: {
+        getStatus: () => request('/kagent/status'),
+    },
 };
 

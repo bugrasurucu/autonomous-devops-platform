@@ -2,29 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* ═══════════════════════════════════════════════
+   ORBITRON — Electric Cyan · DevOps AI Palette
+   Why cyan? Kubernetes, Docker, GitHub Actions
+   all use blue-to-cyan as their primary tone.
+   Neon green = terminal/alive/healthy systems.
+   Deep navy = the infinite cloud infrastructure.
+═══════════════════════════════════════════════ */
 :root {
-    --bg-primary: #020617;
-    --bg-secondary: #0f172a;
-    --bg-card: rgba(15, 23, 42, 0.8);
-    --bg-card-hover: rgba(30, 41, 59, 0.8);
-    --border-color: rgba(99, 102, 241, 0.15);
-    --border-glow: rgba(99, 102, 241, 0.3);
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --accent: #6366f1;
-    --accent-light: #818cf8;
-    --success: #34d399;
-    --warning: #fbbf24;
-    --danger: #f87171;
+    /* Backgrounds — layered depth */
+    --bg-primary:   #020c1b;
+    --bg-secondary: #0a1628;
+    --bg-tertiary:  #0f2035;
+    --bg-card:      rgba(10, 22, 40, 0.9);
+    --bg-card-hover:rgba(15, 32, 55, 0.95);
+
+    /* Electric Cyan — primary accent
+       Kubernetes uses #326CE5·teal, Docker uses #2496ED·cyan.
+       We blend them into a unique electric #00d4ff  */
+    --accent:       #00d4ff;
+    --accent-dim:   rgba(0, 212, 255, 0.15);
+    --accent-glow:  rgba(0, 212, 255, 0.3);
+    --accent-light: #38e4ff;
+
+    /* Neon Green — alive/healthy/success
+       Terminal green + modern SaaS active state  */
+    --success:      #00ff88;
+    --success-dim:  rgba(0, 255, 136, 0.12);
+    --success-glow: rgba(0, 255, 136, 0.3);
+
+    /* Supporting palette */
+    --warning:      #f59e0b;
+    --danger:       #ff4d6d;
+    --orange:       #fb923c;
+
+    /* Borders */
+    --border-color: rgba(0, 212, 255, 0.1);
+    --border-glow:  rgba(0, 212, 255, 0.3);
+
+    /* Typography */
+    --text-primary:   #e2eeff;
+    --text-secondary: #7a9cc0;
+    --text-muted:     #3d5a7a;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
     font-family: 'Inter', system-ui, sans-serif;
@@ -34,133 +58,142 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
+/* — Scrollbar ——————————————————————————————— */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.4); }
 
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.3);
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.5);
-}
-
-/* Glass card */
+/* — Glass cards ————————————————————————————— */
 .glass-card {
     background: var(--bg-card);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border-color);
     border-radius: 16px;
-    transition: all 0.3s ease;
+    transition: border-color 0.25s, box-shadow 0.25s;
 }
-
 .glass-card:hover {
     border-color: var(--border-glow);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.08);
+    box-shadow: 0 0 28px rgba(0,212,255,0.06), inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
-/* Gradient text */
+/* — Gradient text ——————————————————————————— */
 .gradient-text {
-    background: linear-gradient(135deg, #818cf8, #6366f1, #4f46e5);
+    background: linear-gradient(135deg, #00d4ff 0%, #38e4ff 50%, #00ff88 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.gradient-text-warm {
+    background: linear-gradient(135deg, #fb923c, #f59e0b);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
-/* Status dots */
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-}
+/* — Status dots ————————————————————————————— */
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.status-dot.active  { background: var(--success); box-shadow: 0 0 10px var(--success-glow); animation: pulse 2s infinite; }
+.status-dot.idle    { background: var(--text-muted); }
+.status-dot.working { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); animation: pulse 1.5s infinite; }
+.status-dot.error   { background: var(--danger); box-shadow: 0 0 8px rgba(255,77,109,0.5); }
 
-.status-dot.active {
-    background: var(--success);
-    box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
-    animation: pulse 2s infinite;
-}
-
-.status-dot.idle {
-    background: var(--text-secondary);
-}
-
-.status-dot.working {
-    background: var(--accent-light);
-    box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
-    animation: pulse 1.5s infinite;
-}
-
-.status-dot.error {
-    background: var(--danger);
-    box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
-}
-
-/* Button base */
+/* — Buttons ————————————————————————————————— */
 .btn-primary {
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 14px;
+    background: linear-gradient(135deg, #006a80, #00d4ff);
+    color: #020c1b;
+    border: none; padding: 10px 20px; border-radius: 10px;
+    font-weight: 700; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    font-size: 14px; display: inline-flex; align-items: center; gap: 6px;
 }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,212,255,0.4); opacity: 0.95; }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 
-.btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-}
-
-.btn-primary:active {
-    transform: translateY(0);
-}
-
-.btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Inputs */
-.input-field {
-    width: 100%;
-    padding: 12px 16px;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-size: 14px;
-    transition: border-color 0.2s;
-    outline: none;
-}
-
-.input-field:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-.input-field::placeholder {
+.btn-ghost {
+    background: transparent;
     color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 10px 20px; border-radius: 10px;
+    font-weight: 600; cursor: pointer; font-size: 14px;
+    transition: border-color 0.2s, color 0.2s;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* — Inputs ——————————————————————————————————— */
+.input-field {
+    width: 100%; padding: 12px 16px;
+    background: rgba(2, 12, 27, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 10px; color: var(--text-primary);
+    font-size: 14px; transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none; font-family: inherit;
+}
+.input-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
+.input-field::placeholder { color: var(--text-muted); }
+
+/* — Code / terminal ————————————————————————— */
+.mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: var(--success); }
+.terminal-block {
+    background: rgba(2, 12, 27, 0.95);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 10px; padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--success);
+    line-height: 1.9;
+}
+.terminal-block .cmd { color: var(--accent); }
+.terminal-block .comment { color: var(--text-muted); }
+
+/* — Tags ————————————————————————————————————— */
+.tag-pill {
+    padding: 3px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(0,212,255,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.18);
+    white-space: nowrap;
+}
+.tag-pill.green { background: rgba(0,255,136,0.08); color: var(--success); border-color: rgba(0,255,136,0.18); }
+.tag-pill.orange { background: rgba(251,146,60,0.08); color: var(--orange); border-color: rgba(251,146,60,0.18); }
+
+/* — Orbit loader ————————————————————————————— */
+.orbit-loader {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid rgba(0,212,255,0.15);
+    border-top-color: var(--accent);
+    animation: spin 0.75s linear infinite;
 }
 
-/* Page transitions */
-.page-enter {
-    animation: fadeIn 0.3s ease-out, slideUp 0.3s ease-out;
+/* — Animations —————————————————————————————— */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideUp { from{transform:translateY(14px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+@keyframes scanline {
+    0%   { top: -4px; }
+    100% { top: 100%; }
+}
+
+.page-enter { animation: fadeIn 0.3s ease-out, slideUp 0.3s ease-out; }
+.float-anim { animation: float 4s ease-in-out infinite; }
+
+/* — Grid bg utility ———————————————————————— */
+.grid-bg {
+    background-image: radial-gradient(circle at 1px 1px, rgba(0,212,255,0.05) 1px, transparent 0);
+    background-size: 36px 36px;
+}
+
+/* — Cyber border glow ——————————————————————— */
+.cyber-border {
+    border: 1px solid rgba(0,212,255,0.25) !important;
+    box-shadow: 0 0 20px rgba(0,212,255,0.08), inset 0 0 20px rgba(0,212,255,0.02);
 }
 
 @layer utilities {
-    .text-balance {
-        text-wrap: balance;
-    }
+    .text-balance { text-wrap: balance; }
 }

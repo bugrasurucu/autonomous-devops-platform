@@ -96,7 +96,7 @@ export default function DashboardPage() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Mission Control</span></h1>
+                    <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Orbitron</span> <span style={{color:'var(--text-secondary)', fontWeight: 400}}>Command</span></h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
                         {usage && <span>Plan: <strong style={{ color: usage.tier?.color }}>{usage.tier?.name}</strong> · </span>}
                         Real-time DevOps overview

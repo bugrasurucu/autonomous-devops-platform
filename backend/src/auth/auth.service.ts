@@ -7,6 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 
 const SALT_ROUNDS = 10;
 
@@ -21,6 +22,7 @@ export class AuthService {
     constructor(
         private prisma: PrismaService,
         private jwt: JwtService,
+        private email: EmailService,
     ) { }
 
     async register(email: string, password: string, name: string) {
@@ -35,6 +37,8 @@ export class AuthService {
         });
 
         const token = this.generateToken(user);
+        // Fire welcome email (non-blocking)
+        this.email.sendWelcome(user.email, user.name ?? 'there').catch(() => null);
         return {
             token,
             user: this.sanitizeUser(user),

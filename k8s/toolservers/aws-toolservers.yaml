@@ -1,0 +1,135 @@
+---
+# Terraform + Checkov IaC security scanning
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: aws-terraform-tools
+  namespace: kagent
+spec:
+  description: "Terraform code generation and Checkov security scanning"
+  transport:
+    stdio:
+      command: uvx
+      args: ["awslabs.terraform-mcp-server@latest"]
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        - name: AWS_DEFAULT_REGION
+          value: "us-east-1"
+---
+# AWS Cloud Control API — 1200+ resource types (CRUDL)
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: aws-cloud-control-tools
+  namespace: kagent
+spec:
+  description: "AWS Cloud Control API for 1200+ resource operations"
+  transport:
+    stdio:
+      command: uvx
+      args: ["awslabs.aws-cloud-control-mcp-server@latest"]
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+---
+# AWS CloudWatch — metrics, logs, alarms, RCA
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: aws-cloudwatch-tools
+  namespace: kagent
+spec:
+  description: "CloudWatch metrics, logs insights, alarm management"
+  transport:
+    stdio:
+      command: uvx
+      args: ["awslabs.aws-cloudwatch-mcp-server@latest"]
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+---
+# AWS Pricing API — cost estimation
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: aws-pricing-tools
+  namespace: kagent
+spec:
+  description: "AWS Pricing API for cost estimation and Infracost integration"
+  transport:
+    stdio:
+      command: uvx
+      args: ["awslabs.aws-pricing-mcp-server@latest"]
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+---
+# AWS IaC — CDK + CloudFormation template generation
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: aws-iac-tools
+  namespace: kagent
+spec:
+  description: "CDK and CloudFormation template generation"
+  transport:
+    stdio:
+      command: uvx
+      args: ["awslabs.aws-iac-mcp-server@latest"]
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+---
+# AWS Docs — prevents LLM hallucinations with official AWS/Terraform docs
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: aws-docs-tools
+  namespace: kagent
+spec:
+  description: "Official AWS and Terraform documentation (llms.txt)"
+  transport:
+    stdio:
+      command: uvx
+      args: ["awslabs.aws-documentation-mcp-server@latest"]

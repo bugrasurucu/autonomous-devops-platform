@@ -4,9 +4,9 @@ import { AuthProvider } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/Toast';
 
 export const metadata: Metadata = {
-    title: 'Mission Control — Autonomous DevOps Platform',
-    description: 'Enterprise-grade autonomous DevOps platform with AI-powered multi-agent architecture. Deploy, monitor, optimize, and self-heal your cloud infrastructure.',
-    keywords: ['DevOps', 'SaaS', 'AI', 'automation', 'cloud', 'infrastructure', 'self-healing', 'FinOps'],
+    title: 'Orbitron — Autonomous DevOps Platform',
+    description: 'Your infrastructure, in orbit. Enterprise-grade autonomous DevOps platform with AI-powered multi-agent architecture — deploy, monitor, optimize, and self-heal your cloud infrastructure.',
+    keywords: ['DevOps', 'SaaS', 'AI', 'automation', 'cloud', 'Kubernetes', 'kagent', 'self-healing', 'FinOps', 'Orbitron'],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

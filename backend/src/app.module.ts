@@ -14,6 +14,11 @@ import { GithubModule } from './github/github.module';
 import { CostMonitorModule } from './cost-monitor/cost-monitor.module';
 import { StatsController } from './stats.controller';
 import { StatsService } from './stats.service';
+import { TenantsModule } from './tenants/tenants.module';
+import { TokenBudgetModule } from './token-budget/token-budget.module';
+import { KagentBridgeModule } from './kagent-bridge/kagent-bridge.module';
+import { EmailModule } from './email/email.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -30,6 +35,11 @@ import { StatsService } from './stats.service';
     LoggerModule,
     GithubModule,
     CostMonitorModule,
+    TenantsModule,
+    TokenBudgetModule,
+    KagentBridgeModule,
+    BillingModule,
+    EmailModule,
   ],
   controllers: [StatsController],
   providers: [StatsService],

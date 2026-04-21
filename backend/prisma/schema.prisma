@@ -16,6 +16,23 @@ enum Plan {
   enterprise
 }
 
+enum OrgRole {
+  owner
+  admin
+  member
+  viewer
+}
+
+enum AgentTaskType {
+  analysis
+  iac_generation
+  k8s_ops
+  cost_calc
+  incident_rca
+  monitoring
+  pipeline
+}
+
 enum DeployStatus {
   pending
   running
@@ -51,8 +68,62 @@ model User {
   activities       Activity[]
   incidents        Incident[]
   agentExecutions  AgentExecution[]
+  orgMemberships   OrganizationMember[]
 
   @@map("users")
+}
+
+// ─── Multi-Tenancy ────────────────────────────────
+
+model Organization {
+  id                  String   @id @default(uuid())
+  name                String
+  slug                String   @unique
+  plan                Plan     @default(free)
+  k8sNamespace        String   @unique @map("k8s_namespace")
+  monthlyTokenBudget  Int      @default(50000) @map("monthly_token_budget")
+  stripeCustomerId    String?  @map("stripe_customer_id")
+  stripeSubId         String?  @map("stripe_sub_id")
+  awsRegion           String   @default("us-east-1") @map("aws_region")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  members      OrganizationMember[]
+  tokenUsages  TokenUsage[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id        String   @id @default(uuid())
+  orgId     String   @map("org_id")
+  userId    String   @map("user_id")
+  role      OrgRole  @default(member)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@map("organization_members")
+}
+
+model TokenUsage {
+  id           String   @id @default(uuid())
+  orgId        String   @map("org_id")
+  agentId      String   @map("agent_id")
+  taskType     AgentTaskType @map("task_type")
+  model        String
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  costUsd      Float    @default(0) @map("cost_usd")
+  executionId  String?  @map("execution_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@map("token_usages")
 }
 
 model AgentConfig {
