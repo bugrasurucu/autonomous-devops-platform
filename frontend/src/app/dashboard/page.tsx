@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
+import dynamic from 'next/dynamic';
+
+const MetricsWidget = dynamic(() => import('@/components/dashboard/MetricsWidget'), { ssr: false });
+const TerminalLogger = dynamic(() => import('@/components/dashboard/TerminalLogger'), { ssr: false });
 
 const PRIORITY_COLORS: Record<string, string> = {
     critical: '#f87171', high: '#fb923c', medium: '#fbbf24', low: '#34d399',
@@ -210,6 +214,10 @@ export default function DashboardPage() {
                 ))}
             </div>
 
+            {/* Observability UI */}
+            <MetricsWidget />
+            <TerminalLogger />
+
             {/* Metrics + Suggestions */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 {/* System metrics */}
@@ -270,11 +278,11 @@ export default function DashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {/* Suggestions */}
                 <div className="glass-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>💡 Öneriler</h3>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>💡 Recommendations</h3>
                     {otherSuggestions.length === 0 && criticalSuggestions.length === 0 ? (
-                        <div style={{ color: '#34d399', fontSize: 13 }}>✅ Tüm metrikler normal aralıkta!</div>
+                        <div style={{ color: '#34d399', fontSize: 13 }}>✅ All metrics are within normal range!</div>
                     ) : otherSuggestions.length === 0 ? (
-                        <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Kritik öneriler yukarıda gösteriliyor.</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Critical suggestions are shown above.</div>
                     ) : (
                         otherSuggestions.map(sug => (
                             <div key={sug.id} style={{
@@ -292,9 +300,9 @@ export default function DashboardPage() {
 
                 {/* Recent deployments */}
                 <div className="glass-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>🚀 Son Deploylar</h3>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>🚀 Recent Deployments</h3>
                     {deployments.length === 0 ? (
-                        <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Henüz deploy yok</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No deployments yet</div>
                     ) : deployments.map((d: any) => (
                         <div key={d.id} style={{
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',

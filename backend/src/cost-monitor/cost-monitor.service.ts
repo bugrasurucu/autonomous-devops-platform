@@ -9,7 +9,7 @@ export const PRICING_TIERS = [
         name: 'Free',
         price: 0,
         currency: 'USD',
-        description: 'Bireysel kullanım ve deneme',
+        description: 'Personal use and evaluation',
         color: '#34d399',
         limits: {
             deploysPerMonth: 3,
@@ -20,17 +20,17 @@ export const PRICING_TIERS = [
             retentionDays: 7,
         },
         features: [
-            '3 deploy/ay',
-            '10 ajan çalıştırma',
-            '1 GB depolama',
-            'GitHub entegrasyonu',
-            'Topluluk destek',
+            '3 deploys/mo',
+            '10 agent runs',
+            '1 GB storage',
+            'GitHub integration',
+            'Community support',
         ],
         notIncluded: [
-            'Özel alan adı',
-            'SLA garantisi',
-            'Öncelikli destek',
-            'Çoklu ortam',
+            'Custom domain',
+            'SLA guarantee',
+            'Priority support',
+            'Multi-environment',
         ],
     },
     {
@@ -38,7 +38,7 @@ export const PRICING_TIERS = [
         name: 'Starter',
         price: 10,
         currency: 'USD',
-        description: 'Küçük takımlar için ideal',
+        description: 'Ideal for small teams',
         color: '#818cf8',
         popular: false,
         limits: {
@@ -50,16 +50,16 @@ export const PRICING_TIERS = [
             retentionDays: 30,
         },
         features: [
-            '20 deploy/ay',
-            '100 ajan çalıştırma',
-            '10 GB depolama',
-            '3 ekip üyesi',
-            '$50 AWS bütçe',
-            'E-posta destek',
+            '20 deploys/mo',
+            '100 agent runs',
+            '10 GB storage',
+            '3 team members',
+            '$50 AWS budget',
+            'Email support',
         ],
         notIncluded: [
-            'Özel alan adı',
-            'SLA garantisi',
+            'Custom domain',
+            'SLA guarantee',
         ],
     },
     {
@@ -67,7 +67,7 @@ export const PRICING_TIERS = [
         name: 'Pro',
         price: 49,
         currency: 'USD',
-        description: 'Büyüyen şirketler için',
+        description: 'For growing companies',
         color: '#fbbf24',
         popular: true,
         limits: {
@@ -79,23 +79,23 @@ export const PRICING_TIERS = [
             retentionDays: 90,
         },
         features: [
-            'Sınırsız deploy',
-            '500 ajan çalıştırma',
-            '50 GB depolama',
-            '10 ekip üyesi',
-            '$500 AWS bütçe',
-            'Self-healing otomasyonu',
-            'Öncelikli destek',
-            'Özel alan adı',
+            'Unlimited deploys',
+            '500 agent runs',
+            '50 GB storage',
+            '10 team members',
+            '$500 AWS budget',
+            'Self-healing automation',
+            'Priority support',
+            'Custom domain',
         ],
-        notIncluded: ['SLA garantisi'],
+        notIncluded: ['SLA guarantee'],
     },
     {
         id: 'enterprise',
         name: 'Enterprise',
         price: null,
         currency: 'USD',
-        description: 'Kurumsal ve özel çözümler',
+        description: 'Enterprise and custom solutions',
         color: '#f87171',
         limits: {
             deploysPerMonth: -1,
@@ -106,12 +106,12 @@ export const PRICING_TIERS = [
             retentionDays: 365,
         },
         features: [
-            'Sınırsız her şey',
-            'Özel SLA',
-            'Dedicated destek',
-            'On-premise seçeneği',
-            'Azure & GCP desteği',
-            'Özel entegrasyonlar',
+            'Unlimited everything',
+            'Custom SLA',
+            'Dedicated support',
+            'On-premise option',
+            'Azure & GCP support',
+            'Custom integrations',
         ],
         notIncluded: [],
     },
@@ -119,21 +119,21 @@ export const PRICING_TIERS = [
 
 // ─── AWS Free Tier Info ──────────────────────────────────────────
 export const AWS_FREE_TIER = [
-    { service: 'EC2 t2.micro', limit: '750 saat/ay', note: 'İlk 12 ay' },
-    { service: 'RDS db.t3.micro', limit: '750 saat/ay', note: 'İlk 12 ay' },
-    { service: 'S3', limit: '5 GB depolama', note: 'Süresiz' },
-    { service: 'Lambda', limit: '1M istek/ay', note: 'Süresiz' },
-    { service: 'CloudWatch', limit: '10 metrik', note: 'Süresiz' },
-    { service: 'ECR', limit: '500 MB/ay', note: 'Süresiz' },
-    { service: 'CloudFront', limit: '1 TB transfer', note: 'İlk 12 ay' },
-    { service: 'SQS', limit: '1M istek/ay', note: 'Süresiz' },
+    { service: 'EC2 t2.micro', limit: '750 hrs/mo', note: 'First 12 months' },
+    { service: 'RDS db.t3.micro', limit: '750 hrs/mo', note: 'First 12 months' },
+    { service: 'S3', limit: '5 GB storage', note: 'Always free' },
+    { service: 'Lambda', limit: '1M requests/mo', note: 'Always free' },
+    { service: 'CloudWatch', limit: '10 metrics', note: 'Always free' },
+    { service: 'ECR', limit: '500 MB/mo', note: 'Always free' },
+    { service: 'CloudFront', limit: '1 TB transfer', note: 'First 12 months' },
+    { service: 'SQS', limit: '1M requests/mo', note: 'Always free' },
 ];
 
 // ─── Cost Estimate Templates ─────────────────────────────────────
 const MONTHLY_COST_ESTIMATES = {
-    tiny: { label: 'Küçük Proje', ecs: 8, rds: 14, alb: 18, misc: 5, total: 45 },
+    tiny: { label: 'Small Project', ecs: 8, rds: 14, alb: 18, misc: 5, total: 45 },
     small: { label: 'Startup', ecs: 25, rds: 28, alb: 18, misc: 10, total: 81 },
-    medium: { label: 'Büyüyen Şirket', ecs: 90, rds: 85, alb: 25, misc: 30, total: 230 },
+    medium: { label: 'Growing Company', ecs: 90, rds: 85, alb: 25, misc: 30, total: 230 },
     large: { label: 'Enterprise', ecs: 400, rds: 300, alb: 60, misc: 100, total: 860 },
 };
 
@@ -245,9 +245,9 @@ export class CostMonitorService {
                 type: 'warning',
                 priority: 'critical',
                 icon: '🚨',
-                title: 'Deploy limiti dolmak üzere!',
-                description: `Aylık limitin %${usage.usage.deploys.pct}'ini kullandın (${usage.usage.deploys.used}/${usage.usage.deploys.limit} deploy).`,
-                action: 'Planı Yükselt',
+                title: 'Deploy limit almost reached!',
+                description: `You've used ${usage.usage.deploys.pct}% of your monthly limit (${usage.usage.deploys.used}/${usage.usage.deploys.limit} deploys).`,
+                action: 'Upgrade Plan',
                 actionType: 'upgrade',
             });
         } else if (usage.usage.deploys.pct >= 70) {
@@ -256,9 +256,9 @@ export class CostMonitorService {
                 type: 'info',
                 priority: 'medium',
                 icon: '⚠️',
-                title: 'Deploy limitinin %70\'ine ulaştın',
-                description: `${usage.usage.deploys.limit - usage.usage.deploys.used} deploy hakkın kaldı.`,
-                action: 'Planı Gör',
+                title: 'Reached 70% of deploy limit',
+                description: `${usage.usage.deploys.limit - usage.usage.deploys.used} deploys remaining.`,
+                action: 'View Plan',
                 actionType: 'view-plan',
             });
         }
@@ -270,8 +270,8 @@ export class CostMonitorService {
                 type: 'action',
                 priority: 'critical',
                 icon: '🔥',
-                title: `CPU %${Math.round(metrics.cpuPercent)} — Ölçeklendirme gerekli`,
-                description: 'ECS task sayısını 2\'den 4\'e çıkararak yükü dağıtabilirsin. Tahmini ek maliyet: $3/gün.',
+                title: `CPU ${Math.round(metrics.cpuPercent)}% — Scaling required`,
+                description: 'Scale ECS tasks from 2 to 4 to distribute the load. Estimated extra cost: $3/day.',
                 action: '⚡ Scale Up',
                 actionType: 'scale-up-ecs',
                 metric: { current: Math.round(metrics.cpuPercent), threshold: 85, unit: '%' },
@@ -282,9 +282,9 @@ export class CostMonitorService {
                 type: 'warning',
                 priority: 'medium',
                 icon: '📈',
-                title: `CPU %${Math.round(metrics.cpuPercent)} — İzlenmeye değer`,
-                description: 'CPU kullanımı artıyor. Yük testi yapıyorsan normaldir, değilse incelemeye değer.',
-                action: 'İncele',
+                title: `CPU ${Math.round(metrics.cpuPercent)}% — Worth monitoring`,
+                description: 'CPU usage is increasing. Normal if load testing, otherwise worth investigating.',
+                action: 'Investigate',
                 actionType: 'view-metrics',
                 metric: { current: Math.round(metrics.cpuPercent), threshold: 70, unit: '%' },
             });
@@ -297,9 +297,9 @@ export class CostMonitorService {
                 type: 'action',
                 priority: 'critical',
                 icon: '💾',
-                title: `Bellek %${Math.round(metrics.memPercent)} — Kritik!`,
-                description: 'Bellek neredeyse dolu. ECS task\'a 512MB daha eklemek önerilir.',
-                action: '⚡ Bellek Artır',
+                title: `Memory ${Math.round(metrics.memPercent)}% — Critical!`,
+                description: 'Memory is nearly full. Recommended to add 512MB to ECS task.',
+                action: '⚡ Increase Memory',
                 actionType: 'scale-mem-ecs',
                 metric: { current: Math.round(metrics.memPercent), threshold: 90, unit: '%' },
             });
@@ -312,9 +312,9 @@ export class CostMonitorService {
                 type: 'saving',
                 priority: 'low',
                 icon: '💰',
-                title: 'Graviton\'a geç, %30 tasarruf et',
-                description: `x86 instance\'lardan Graviton2\'ye geçerek tahminen $${Math.round(usage.estimatedCost * 0.3)}/ay tasarruf edebilirsin.`,
-                action: 'Analizi Gör',
+                title: 'Switch to Graviton, save ~30%',
+                description: `Migrate from x86 to Graviton2 instances to save an estimated $${Math.round(usage.estimatedCost * 0.3)}/mo.`,
+                action: 'View Analysis',
                 actionType: 'cost-analysis',
             });
         }
@@ -326,9 +326,9 @@ export class CostMonitorService {
                 type: 'info',
                 priority: 'low',
                 icon: '🆓',
-                title: 'AWS Free Tier kullanabilirsin',
-                description: 'EC2 t2.micro, RDS db.t3.micro (750 saat/ay) ve Lambda (1M istek/ay) ücretsiz!',
-                action: 'Rehberi Gör',
+                title: 'Use AWS Free Tier',
+                description: 'EC2 t2.micro, RDS db.t3.micro (750 hrs/mo) and Lambda (1M requests/mo) are free!',
+                action: 'View Guide',
                 actionType: 'view-free-tier',
             });
         }
@@ -340,9 +340,9 @@ export class CostMonitorService {
                 type: 'warning',
                 priority: 'high',
                 icon: '🐛',
-                title: `Hata oranı %${Math.round(metrics.errorRate)} — Yüksek!`,
-                description: 'Son 15 dakikada hata oranı normalin üstüne çıktı. SRE ajanını çalıştır.',
-                action: '🤖 SRE Ajan\'ı Tetikle',
+                title: `Error rate ${Math.round(metrics.errorRate)}% — High!`,
+                description: 'Error rate exceeded normal levels in the last 15 minutes. Run the SRE agent.',
+                action: '🤖 Trigger SRE Agent',
                 actionType: 'trigger-sre',
             });
         }
@@ -354,9 +354,9 @@ export class CostMonitorService {
 
     async applyScaling(userId: string, action: string) {
         const actionMap: Record<string, { before: number; after: number; cost: number; label: string }> = {
-            'scale-up-ecs': { before: 2, after: 4, cost: 3.2, label: 'ECS task sayısı 2 → 4' },
-            'scale-down-ecs': { before: 4, after: 2, cost: -3.2, label: 'ECS task sayısı 4 → 2' },
-            'scale-mem-ecs': { before: 1024, after: 2048, cost: 1.5, label: 'ECS bellek 1024MB → 2048MB' },
+            'scale-up-ecs': { before: 2, after: 4, cost: 3.2, label: 'ECS tasks 2 → 4' },
+            'scale-down-ecs': { before: 4, after: 2, cost: -3.2, label: 'ECS tasks 4 → 2' },
+            'scale-mem-ecs': { before: 1024, after: 2048, cost: 1.5, label: 'ECS memory 1024MB → 2048MB' },
             'increase-rds': { before: 1, after: 2, cost: 14, label: 'RDS db.t3.micro → db.t3.small' },
         };
 
