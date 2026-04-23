@@ -42,7 +42,7 @@ export default function BillingPage() {
             setPlans(plansData ?? []);
             setCurrentPlan(orgData?.plan ?? 'free');
         }).catch((e: any) => {
-            setError(e?.message ?? 'Veriler yüklenemedi');
+            setError(e?.message ?? 'Failed to load data');
         }).finally(() => setLoading(false));
     }, []);
 
@@ -52,7 +52,7 @@ export default function BillingPage() {
             const res: any = await api.billing.checkout(plan, window.location.origin + '/dashboard/billing');
             if (res?.url) window.location.href = res.url;
         } catch (err: any) {
-            alert(err?.message ?? 'Checkout başlatılamadı');
+            alert(err?.message ?? 'Failed to start checkout');
         } finally {
             setCheckoutLoading(null);
         }
@@ -63,7 +63,7 @@ export default function BillingPage() {
             const res: any = await api.billing.portal(window.location.origin + '/dashboard/billing');
             if (res?.url) window.location.href = res.url;
         } catch {
-            alert('Billing portalı açılamadı');
+            alert('Failed to open billing portal');
         }
     }
 

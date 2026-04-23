@@ -39,7 +39,7 @@ export default function TeamPage() {
             setOrg(data);
             setError(null);
         } catch (e: any) {
-            setError(e?.message ?? 'Ekip bilgisi yüklenemedi');
+            setError(e?.message ?? 'Failed to load team data');
         } finally {
             setLoading(false);
         }
@@ -58,7 +58,7 @@ export default function TeamPage() {
             setInviteEmail('');
             await fetchOrg();
         } catch (err: any) {
-            alert(err?.message ?? 'Davet gönderilemedi');
+            alert(err?.message ?? 'Failed to send invitation');
         } finally {
             setInviting(false);
         }
@@ -66,23 +66,23 @@ export default function TeamPage() {
 
     async function handleRemove(userId: string) {
         if (!org) return;
-        if (!confirm('Bu üyeyi ekipten çıkarmak istiyor musun?')) return;
+        if (!confirm('Are you sure you want to remove this member?')) return;
         try {
             await api.tenant.remove(org.id, userId);
             await fetchOrg();
         } catch (err: any) {
-            alert(err?.message ?? 'Üye çıkarılamadı');
+            alert(err?.message ?? 'Failed to remove member');
         }
     }
 
     if (loading) return (
-        <div style={{ color: 'var(--text-secondary)', fontSize: 13, padding: 24 }}>Yükleniyor...</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 13, padding: 24 }}>Loading...</div>
     );
 
     if (error) return (
         <div style={{ maxWidth: 700 }}>
             <div style={{ marginBottom: 24 }}>
-                <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Ekip Yönetimi</span></h1>
+                <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Team Management</span></h1>
             </div>
             <div className="glass-card" style={{ padding: 20, color: '#f87171', fontSize: 13 }}>
                 ❌ {error}
@@ -95,20 +95,20 @@ export default function TeamPage() {
     return (
         <div style={{ maxWidth: 700 }}>
             <div style={{ marginBottom: 24 }}>
-                <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Ekip Yönetimi</span></h1>
+                <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Team Management</span></h1>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    {org?.name} · {members.length} üye
+                    {org?.name} · {members.length} members
                 </p>
             </div>
 
             {/* Üye listesi */}
             <div className="glass-card" style={{ marginBottom: 16, overflow: 'hidden' }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Üyeler
+                    Members
                 </div>
                 {members.length === 0 && (
                     <div style={{ padding: '20px', fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center' }}>
-                        Henüz üye yok
+                        No members yet
                     </div>
                 )}
                 {members.map(m => (
@@ -143,7 +143,7 @@ export default function TeamPage() {
                                     background: 'transparent', border: 'none',
                                     color: '#f87171', fontSize: 11, cursor: 'pointer', padding: '2px 6px',
                                 }}>
-                                    Çıkar
+                                    Remove
                                 </button>
                             )}
                         </div>
@@ -154,7 +154,7 @@ export default function TeamPage() {
             {/* Davet formu */}
             <div className="glass-card" style={{ padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 14 }}>
-                    Üye Davet Et
+                    Invite Member
                 </div>
                 <form onSubmit={handleInvite} style={{ display: 'flex', gap: 10 }}>
                     <input
@@ -177,7 +177,7 @@ export default function TeamPage() {
                         <option value="viewer">viewer</option>
                     </select>
                     <button type="submit" className="btn-primary" disabled={inviting} style={{ whiteSpace: 'nowrap' }}>
-                        {inviting ? '...' : '+ Davet Et'}
+                        {inviting ? '...' : '+ Invite'}
                     </button>
                 </form>
             </div>

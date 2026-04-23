@@ -19,6 +19,7 @@ import { TokenBudgetModule } from './token-budget/token-budget.module';
 import { KagentBridgeModule } from './kagent-bridge/kagent-bridge.module';
 import { EmailModule } from './email/email.module';
 import { BillingModule } from './billing/billing.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { BillingModule } from './billing/billing.module';
     KagentBridgeModule,
     BillingModule,
     EmailModule,
+    HealthModule,
   ],
   controllers: [StatsController],
   providers: [StatsService],

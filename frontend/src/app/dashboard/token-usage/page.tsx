@@ -50,7 +50,7 @@ export default function TokenUsagePage() {
     useEffect(() => {
         api.getTokenUsage()
             .then((r: any) => setData(r))
-            .catch((e: any) => setError(e?.message ?? 'Veri yüklenemedi'))
+            .catch((e: any) => setError(e?.message ?? 'Failed to load data'))
             .finally(() => setLoading(false));
     }, []);
 
@@ -174,9 +174,9 @@ export default function TokenUsagePage() {
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}>
                             <div>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>Token bütçesi dolmak üzere</div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>Token budget is running out</div>
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                                    Planı yükselterek daha fazla token ve deployment kapasitesi al
+                                    Upgrade your plan for more tokens and deployment capacity
                                 </div>
                             </div>
                             <a href="/dashboard/billing" style={{
@@ -184,7 +184,7 @@ export default function TokenUsagePage() {
                                 borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none',
                                 whiteSpace: 'nowrap',
                             }}>
-                                Planı Yükselt
+                                Upgrade Plan
                             </a>
                         </div>
                     )}
