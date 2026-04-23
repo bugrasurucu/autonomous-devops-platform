@@ -74,28 +74,68 @@ export default function AgentsPage() {
         setLiveSteps([]);
         setActiveExec(null);
         try {
-            await api.triggerAgent(cur.id, customTask || undefined);
+            const triggerResult = await api.triggerAgent(cur.id, customTask || undefined);
             setCustomTask('');
-            const tools = getTools(cur);
-            const stepDefs = [
-                { type: 'reason', content: `Analyzing task: "${customTask || 'Standard check'}". Planning tool usage sequence...` },
-                ...tools.slice(0, 3).map((t) => ({
-                    type: 'act', tool: t.name,
-                    content: `Calling ${t.name}...`,
-                    output: '{"status": "ok", "result": "✓ completed"}',
-                })),
-                { type: 'observe', content: 'All tools executed successfully. Synthesizing results and updating memory.' },
-            ];
-            for (let i = 0; i < stepDefs.length; i++) {
-                await new Promise(r => setTimeout(r, 1800 + Math.random() * 800));
-                setLiveSteps(prev => [...prev, { ...stepDefs[i], id: `live-${i}`, timestamp: new Date().toISOString() }]);
-            }
-            // Refresh executions after a short delay
-            setTimeout(async () => {
-                try { setExecutions(await api.getAgentExecutions(cur.id, 5)); } catch { /* ignore */ }
-            }, 2000);
-        } catch (e: any) { alert(e.message); }
-        finally { setTriggering(false); }
+
+            // Poll for real execution steps from the backend
+            let attempts = 0;
+            const maxAttempts = 15; // ~30 seconds max
+            const pollInterval = 2000;
+
+            const poll = async () => {
+                attempts++;
+                try {
+                    const execs = await api.getAgentExecutions(cur.id, 1);
+                    if (execs.length > 0) {
+                        const latest = execs[0];
+                        // Try to get detailed steps from the execution
+                        const detail = await api.getAgentExecutionSteps(cur.id, latest.id);
+                        if (detail && Array.isArray(detail.steps) && detail.steps.length > 0) {
+                            setLiveSteps(detail.steps.map((s: any, i: number) => ({
+                                ...s,
+                                id: `live-${i}`,
+                                timestamp: s.timestamp || new Date().toISOString(),
+                            })));
+                        }
+                        if (latest.status === 'completed' || latest.status === 'failed') {
+                            // Execution finished — show final result
+                            if (detail && (!detail.steps || detail.steps.length === 0)) {
+                                // No detailed steps from backend, show summary
+                                setLiveSteps([{
+                                    id: 'summary',
+                                    type: latest.status === 'completed' ? 'observe' : 'reason',
+                                    content: latest.result || `Agent ${latest.status}.`,
+                                    timestamp: latest.completedAt || new Date().toISOString(),
+                                }]);
+                            }
+                            setExecutions(await api.getAgentExecutions(cur.id, 5));
+                            setTriggering(false);
+                            return;
+                        }
+                    }
+                } catch { /* backend may be catching up */ }
+
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, pollInterval);
+                } else {
+                    // Timeout — show what we have
+                    setLiveSteps(prev => prev.length > 0 ? prev : [{
+                        id: 'timeout',
+                        type: 'observe',
+                        content: 'Agent is still processing. Check back shortly.',
+                        timestamp: new Date().toISOString(),
+                    }]);
+                    try { setExecutions(await api.getAgentExecutions(cur.id, 5)); } catch {}
+                    setTriggering(false);
+                }
+            };
+
+            // Start polling after a brief delay to let the backend create the execution
+            setTimeout(poll, 1500);
+        } catch (e: any) {
+            alert(e.message);
+            setTriggering(false);
+        }
     };
 
     const viewExecution = async (exec: any) => {

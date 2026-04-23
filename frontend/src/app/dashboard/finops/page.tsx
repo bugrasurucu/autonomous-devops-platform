@@ -11,7 +11,7 @@ function UsageBar({ used, limit, color }: { used: number; limit: number; color: 
     return (
         <div style={{ marginTop: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>
-                <span>{used} kullanıldı</span>
+                <span>{used} used</span>
                 <span>{limit === -1 ? '∞' : limit} limit</span>
             </div>
             <div style={{ height: 5, borderRadius: 3, background: 'rgba(30,41,59,0.8)', overflow: 'hidden' }}>
@@ -23,7 +23,7 @@ function UsageBar({ used, limit, color }: { used: number; limit: number; color: 
                     }} />
                 )}
             </div>
-            {pct >= 90 && <div style={{ fontSize: 10, color: '#f87171', marginTop: 2 }}>⚠ %{pct} — limit dolmak üzere</div>}
+            {pct >= 90 && <div style={{ fontSize: 10, color: '#f87171', marginTop: 2 }}>⚠ {pct}% — approaching limit</div>}
         </div>
     );
 }
@@ -56,10 +56,10 @@ export default function FinOpsPage() {
     const budgetPct = finopsData?.budgetUsage || 0;
 
     const TABS = [
-        { id: 'overview', label: '📊 Genel Bakış' },
-        { id: 'tiers', label: '💎 Planlar' },
-        { id: 'free-tier', label: '🆓 AWS Ücretsiz' },
-        { id: 'estimates', label: '🧮 Maliyet Tahmini' },
+        { id: 'overview', label: '📊 Overview' },
+        { id: 'tiers', label: '💎 Plans' },
+        { id: 'free-tier', label: '🆓 AWS Free Tier' },
+        { id: 'estimates', label: '🧮 Cost Estimates' },
     ];
 
     return (
@@ -67,7 +67,7 @@ export default function FinOpsPage() {
             <div style={{ marginBottom: 24 }}>
                 <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">FinOps Dashboard</span></h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-                    Maliyet analizi, kullanım limitleri ve platform planları
+                    Cost analysis, usage limits and platform plans
                 </p>
             </div>
 
@@ -128,7 +128,7 @@ export default function FinOpsPage() {
                         {/* Usage limits */}
                         <div className="glass-card" style={{ padding: 24 }}>
                             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                                Plan Kullanımı — <strong style={{ color: usage?.tier?.color }}>{usage?.tier?.name || 'Free'}</strong>
+                                Plan Usage — <strong style={{ color: usage?.tier?.color }}>{usage?.tier?.name || 'Free'}</strong>
                             </div>
                             {usage && (
                                 <>
@@ -137,11 +137,11 @@ export default function FinOpsPage() {
                                         <UsageBar used={usage.usage.deploys.used} limit={usage.usage.deploys.limit} color="#818cf8" />
                                     </div>
                                     <div style={{ marginBottom: 12 }}>
-                                        <div style={{ fontSize: 12, fontWeight: 500 }}>🤖 Ajan Çalıştırma</div>
+                                        <div style={{ fontSize: 12, fontWeight: 500 }}>🤖 Agent Runs</div>
                                         <UsageBar used={usage.usage.agentRuns.used} limit={usage.usage.agentRuns.limit} color="#34d399" />
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 12, fontWeight: 500 }}>💾 Depolama</div>
+                                        <div style={{ fontSize: 12, fontWeight: 500 }}>💾 Storage</div>
                                         <UsageBar used={usage.usage.storage.used} limit={usage.usage.storage.limit} color="#fbbf24" />
                                     </div>
                                 </>
@@ -203,31 +203,31 @@ export default function FinOpsPage() {
                                     position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
                                     background: tier.color, color: '#0f172a', fontSize: 10, fontWeight: 800,
                                     padding: '2px 10px', borderRadius: 20,
-                                }}>EN POPÜLER</div>
+                                }}>MOST POPULAR</div>
                             )}
                             {usage?.plan === tier.id && (
                                 <div style={{
                                     position: 'absolute', top: 10, right: 10,
                                     background: tier.color + '20', color: tier.color, fontSize: 10, fontWeight: 700,
                                     padding: '2px 7px', borderRadius: 6,
-                                }}>Mevcut plan</div>
+                                }}>Current plan</div>
                             )}
                             <div style={{ textAlign: 'center', paddingBottom: 16, marginBottom: 16, borderBottom: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: 22, fontWeight: 800, color: tier.color }}>{tier.name}</div>
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>{tier.description}</div>
                                 <div style={{ fontSize: 28, fontWeight: 800 }}>
-                                    {tier.price === null ? 'Özel' : tier.price === 0 ? 'Ücretsiz' : `$${tier.price}`}
+                                    {tier.price === null ? 'Custom' : tier.price === 0 ? 'Free' : `$${tier.price}`}
                                 </div>
-                                {tier.price > 0 && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>/ay</div>}
+                                {tier.price > 0 && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>/mo</div>}
                             </div>
 
                             <div style={{ marginBottom: 14 }}>
                                 {[
-                                    { key: 'deploysPerMonth', label: '🚀 Deploy', suffix: '/ay' },
-                                    { key: 'agentRunsPerMonth', label: '🤖 Ajan', suffix: '/ay' },
-                                    { key: 'storageGB', label: '💾 Depolama', suffix: 'GB' },
-                                    { key: 'teamMembers', label: '👥 Ekip', suffix: ' üye' },
-                                    { key: 'awsBudgetUSD', label: '☁️ AWS Bütçe', prefix: '$' },
+                                    { key: 'deploysPerMonth', label: '🚀 Deploys', suffix: '/mo' },
+                                    { key: 'agentRunsPerMonth', label: '🤖 Agent Runs', suffix: '/mo' },
+                                    { key: 'storageGB', label: '💾 Storage', suffix: 'GB' },
+                                    { key: 'teamMembers', label: '👥 Team', suffix: ' members' },
+                                    { key: 'awsBudgetUSD', label: '☁️ AWS Budget', prefix: '$' },
                                 ].map(item => (
                                     <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 0', borderBottom: '1px solid rgba(30,41,59,0.5)' }}>
                                         <span style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
@@ -254,8 +254,8 @@ export default function FinOpsPage() {
             {tab === 'free-tier' && (
                 <div>
                     <div style={{ padding: '14px 18px', borderRadius: 12, marginBottom: 20, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#34d399', marginBottom: 6 }}>🆓 AWS Free Tier ile ücretsiz başla</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>İlk 12 ay veya süresiz ücretsiz hizmetlerle altyapıyı sıfır maliyetle test edebilirsin.</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#34d399', marginBottom: 6 }}>🆓 Start free with AWS Free Tier</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Test your infrastructure at zero cost with services that are free for the first 12 months or indefinitely.</div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                         {freeTier.map((item: any) => (
@@ -283,7 +283,7 @@ export default function FinOpsPage() {
                         <div key={key} className="glass-card" style={{ padding: 22 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                                 <h3 style={{ fontSize: 15, fontWeight: 600 }}>{est.label}</h3>
-                                <span style={{ fontSize: 20, fontWeight: 800, color: '#818cf8' }}>${est.total}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)' }}>/ay</span></span>
+                                <span style={{ fontSize: 20, fontWeight: 800, color: '#818cf8' }}>${est.total}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)' }}>/mo</span></span>
                             </div>
                             {[
                                 { label: '⚡ ECS Fargate', value: est.ecs },
@@ -293,7 +293,7 @@ export default function FinOpsPage() {
                             ].map(item => (
                                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '6px 0', borderBottom: '1px solid rgba(30,41,59,0.5)' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
-                                    <strong>${item.value}/ay</strong>
+                                    <strong>${item.value}/mo</strong>
                                 </div>
                             ))}
                         </div>

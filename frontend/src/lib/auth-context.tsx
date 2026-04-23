@@ -40,12 +40,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const savedToken = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
-        if (savedToken && savedUser) {
-            setToken(savedToken);
-            setUser(JSON.parse(savedUser));
+        if (!savedToken) {
+            setLoading(false);
+            return;
         }
-        setLoading(false);
+        setToken(savedToken);
+        // Validate token against backend
+        api.getMe()
+            .then((userData) => {
+                setUser(userData);
+                localStorage.setItem('user', JSON.stringify(userData));
+            })
+            .catch(() => {
+                // Token expired or invalid — clear state
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                setToken(null);
+                setUser(null);
+            })
+            .finally(() => setLoading(false));
     }, []);
 
     const login = async (email: string, password: string) => {

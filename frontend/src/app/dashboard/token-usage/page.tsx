@@ -59,14 +59,14 @@ export default function TokenUsagePage() {
     return (
         <div style={{ maxWidth: 900 }}>
             <div style={{ marginBottom: 24 }}>
-                <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Token Kullanımı</span></h1>
+                <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Token Usage</span></h1>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    Bu aylık AI model token tüketimi ve maliyet dağılımı
+                    Monthly AI model token consumption and cost breakdown
                 </p>
             </div>
 
             {loading && (
-                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Yükleniyor...</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Loading...</div>
             )}
 
             {error && (
@@ -77,7 +77,7 @@ export default function TokenUsagePage() {
 
             {!loading && !error && !data && (
                 <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
-                    Henüz token kullanımı bulunmuyor
+                    No token usage recorded yet
                 </div>
             )}
 
@@ -87,7 +87,7 @@ export default function TokenUsagePage() {
                     <div className="glass-card" style={{ padding: 20, marginBottom: 16 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                             <div>
-                                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Aylık Bütçe</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Monthly Budget</div>
                                 <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)' }}>
                                     {data.usedTokens.toLocaleString()}
                                     <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 400 }}>
@@ -96,7 +96,7 @@ export default function TokenUsagePage() {
                                 </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Toplam Maliyet</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Total Cost</div>
                                 <div style={{ fontSize: 22, fontWeight: 700, color: '#34d399' }}>
                                     ${data.costUsd.toFixed(4)}
                                 </div>
@@ -104,9 +104,9 @@ export default function TokenUsagePage() {
                         </div>
                         <Bar value={data.usedTokens} max={data.monthlyBudgetTokens} color="#818cf8" />
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                            <span>%{usagePct} kullanıldı</span>
+                            <span>{usagePct}% used</span>
                             {usagePct >= 80 && (
-                                <span style={{ color: '#fbbf24' }}>⚠ Bütçe dolmak üzere — planı yükselt</span>
+                                <span style={{ color: '#fbbf24' }}>⚠ Approaching budget limit — consider upgrading</span>
                             )}
                         </div>
                     </div>
@@ -115,11 +115,11 @@ export default function TokenUsagePage() {
                         {/* Model bazında kullanım */}
                         <div className="glass-card" style={{ padding: 20 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-                                Model Dağılımı
+                                Model Distribution
                             </div>
                             {data.byModel.length === 0 ? (
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', padding: '20px 0' }}>
-                                    Henüz kullanım yok
+                                    No usage yet
                                 </div>
                             ) : (
                                 data.byModel.map(m => {
@@ -141,11 +141,11 @@ export default function TokenUsagePage() {
                         {/* Ajan bazında kullanım */}
                         <div className="glass-card" style={{ padding: 20 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-                                Ajan Dağılımı
+                                Agent Distribution
                             </div>
                             {data.byAgent.length === 0 ? (
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', padding: '20px 0' }}>
-                                    Henüz kullanım yok
+                                    No usage yet
                                 </div>
                             ) : (
                                 data.byAgent.map(a => {

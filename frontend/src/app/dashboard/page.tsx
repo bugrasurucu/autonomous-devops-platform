@@ -122,7 +122,7 @@ export default function DashboardPage() {
                         <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: usage.tier?.color }}>
                                 {usage.tier?.name} Plan
-                                {usage.plan === 'free' && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>· Ücretsiz</span>}
+                                {usage.plan === 'free' && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>· Free</span>}
                                 {usage.tier?.price > 0 && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>· ${usage.tier.price}/ay</span>}
                             </div>
                             <div style={{ display: 'flex', gap: 16, marginTop: 3 }}>
@@ -137,7 +137,7 @@ export default function DashboardPage() {
                                     </strong>
                                 </span>
                                 <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                                    Tahmini: <strong style={{ color: '#34d399' }}>${usage.estimatedCost}/ay</strong>
+                                    Estimated: <strong style={{ color: '#34d399' }}>${usage.estimatedCost}/mo</strong>
                                 </span>
                             </div>
                         </div>
@@ -147,7 +147,7 @@ export default function DashboardPage() {
                             fontSize: 12, padding: '6px 12px', borderRadius: 8, fontWeight: 600,
                             background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
                             color: '#818cf8', textDecoration: 'none',
-                        }}>Planları Karşılaştır →</a>
+                        }}>Compare Plans →</a>
                     )}
                 </div>
             )}
@@ -217,9 +217,9 @@ export default function DashboardPage() {
                     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>📊 System Metrics</h3>
                     {metrics ? (
                         <>
-                            <MetricBar label="CPU Kullanımı" value={metrics.cpuPercent} color="#818cf8" />
-                            <MetricBar label="Bellek Kullanımı" value={metrics.memPercent} color="#34d399" />
-                            <MetricBar label="Hata Oranı" value={metrics.errorRate} unit="%" color="#34d399" warning={3} critical={8} />
+                            <MetricBar label="CPU Usage" value={metrics.cpuPercent} color="#818cf8" />
+                            <MetricBar label="Memory Usage" value={metrics.memPercent} color="#34d399" />
+                            <MetricBar label="Error Rate" value={metrics.errorRate} unit="%" color="#34d399" warning={3} critical={8} />
                             <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 12, color: 'var(--text-secondary)' }}>
                                 <span>⚡ {Math.round(metrics.reqPerSec)} req/s</span>
                                 <span>🔗 {metrics.activeConns} conns</span>
@@ -232,7 +232,7 @@ export default function DashboardPage() {
 
                 {/* Usage limits */}
                 <div className="glass-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>📈 Kullanım Limitleri</h3>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>📈 Usage Limits</h3>
                     {usage ? (
                         <>
                             <MetricBar
@@ -241,12 +241,12 @@ export default function DashboardPage() {
                                 color="#818cf8"
                             />
                             <MetricBar
-                                label={`Ajan Çalıştırma (${usage.usage.agentRuns.used}/${usage.usage.agentRuns.limit === -1 ? '∞' : usage.usage.agentRuns.limit})`}
+                                label={`Agent Runs (${usage.usage.agentRuns.used}/${usage.usage.agentRuns.limit === -1 ? '∞' : usage.usage.agentRuns.limit})`}
                                 value={usage.usage.agentRuns.pct}
                                 color="#34d399"
                             />
                             <MetricBar
-                                label={`Depolama (${usage.usage.storage.used} GB / ${usage.usage.storage.limit === -1 ? '∞' : usage.usage.storage.limit} GB)`}
+                                label={`Storage (${usage.usage.storage.used} GB / ${usage.usage.storage.limit === -1 ? '∞' : usage.usage.storage.limit} GB)`}
                                 value={usage.usage.storage.pct}
                                 color="#fbbf24"
                             />
@@ -256,7 +256,7 @@ export default function DashboardPage() {
                                     background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
                                     color: '#34d399',
                                 }}>
-                                    🆓 AWS Free Tier ile ücretsiz başlayabilirsin → <a href="/dashboard/finops" style={{ color: '#34d399', fontWeight: 600 }}>Detaylar</a>
+                                    🆓 Start free with AWS Free Tier → <a href="/dashboard/finops" style={{ color: '#34d399', fontWeight: 600 }}>Details</a>
                                 </div>
                             )}
                         </>
