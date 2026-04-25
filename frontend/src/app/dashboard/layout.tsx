@@ -5,6 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { LoadingSpinner } from '@/components/LoadingSkeleton';
 
 const NAV_ITEMS = [
     { href: '/dashboard', label: 'Dashboard', icon: '⬡' },
@@ -43,11 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, [pathname]);
 
     if (loading || !user) {
-        return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-                <div className="gradient-text" style={{ fontSize: 20, fontWeight: 700 }}>Loading...</div>
-            </div>
-        );
+        return <LoadingSpinner text="Loading Orbitron..." />;
     }
 
     const sidebarContent = (
@@ -186,7 +184,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Main content */}
             <main style={{ flex: 1, overflow: 'auto', padding: 24, background: 'var(--bg-primary)' }}>
-                <div className="page-enter">{children}</div>
+                <div className="page-enter">
+                    <ErrorBoundary>
+                        {children}
+                    </ErrorBoundary>
+                </div>
             </main>
 
             <style>{`
