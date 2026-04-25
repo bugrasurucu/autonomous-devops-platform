@@ -1,22 +1,25 @@
-# 🚀 Autonomous DevOps Platform — Mission Control
+# 🚀 Orbitron — Autonomous DevOps AI Platform
 
-Çoklu ajan mimarisi (MAS) ile AWS altyapısını otomatik kuran, CI/CD pipeline'ı yöneten, maliyetleri takip eden ve servis kesintilerini kendi kendine iyileştiren tam yığın DevOps platformu.
+[![CI](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/ci.yml)
+[![CD](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/cd.yml/badge.svg)](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/cd.yml)
 
-> **Tech Stack:** NestJS (Backend) · Next.js (Frontend) · PostgreSQL · Prisma · Redis · RabbitMQ · Docker
+Multi-agent AI platform that autonomously provisions AWS infrastructure, manages CI/CD pipelines, tracks cloud costs, and self-heals production incidents.
+
+> **Tech Stack:** NestJS · Next.js 14 · PostgreSQL · Prisma · Redis · RabbitMQ · Docker · Kubernetes
 
 ---
 
-## 🏗 Mimari Genel Bakış
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    MISSION CONTROL  (Web UI)                        │
-│           Next.js 14 · WebSocket Real-time · Shadcn + Tailwind      │
+│                    ORBITRON WEB UI  (Next.js 14)                     │
+│              Dashboard · FinOps · Agents · Pipeline · SRE           │
 └───────────────────────────┬─────────────────────────────────────────┘
                             │ REST / WebSocket
 ┌───────────────────────────▼─────────────────────────────────────────┐
-│                  NestJS BACKEND  (Port 3001)                         │
-│  Auth · Agents · Deployments · GitHub Integration · FinOps · SRE    │
+│                  NestJS API  (Port 3001)                             │
+│  Auth · Agents · Deployments · GitHub · FinOps · SRE · Billing      │
 │  PostgreSQL (Prisma) · Redis · RabbitMQ · JWT · WebSocket Gateway   │
 └──────┬───────────────┬───────────────┬──────────────┬───────────────┘
        │               │               │              │
@@ -28,7 +31,7 @@
   │CDK/CFn  │    │Pricing   │   │Actions │    │EventBrg  │
   │Checkov  │    │OPA/Rego  │   │Browser │    │Lambda    │
   └────┬────┘    └────┬─────┘   └───┬────┘    └─────┬────┘
-       └───────────────┴────────────┴────────────────┘
+       └──────────────┴─────────────┴───────────────┘
                             │
               ┌─────────────▼─────────────┐
               │       AWS MCP SERVERS      │
@@ -39,164 +42,143 @@
 
 ---
 
-## 📂 Proje Yapısı
+## Quick Start
 
-```
-autonomous-devops-platform/
-├── backend/                          # NestJS API
-│   ├── src/
-│   │   ├── agents/                   # Agent state & orchestration
-│   │   ├── auth/                     # JWT auth, bcrypt
-│   │   ├── deployments/              # Deploy trigger & flow
-│   │   ├── github/                   # GitHub OAuth + repo API
-│   │   ├── finops/                   # Cost analytics
-│   │   ├── incidents/                # Self-healing incidents
-│   │   ├── gateway/                  # WebSocket events
-│   │   └── settings/                 # API keys, agent models
-│   └── prisma/schema.prisma          # PostgreSQL ORM schema
-├── frontend/                         # Next.js 14 Dashboard
-│   └── src/app/dashboard/
-│       ├── page.tsx                  # Ana panel (stats, deploy modal)
-│       ├── repositories/             # GitHub repo browser
-│       ├── agents/                   # Agent status & trigger
-│       ├── pipeline/                 # CI/CD pipeline view
-│       ├── finops/                   # Maliyet analizi
-│       ├── self-healing/             # Incident yönetimi
-│       └── settings/                 # Modeller, API anahtarları
-├── .agent/
-│   ├── rules/                        # Güvenlik kuralları ve guardrails
-│   ├── skills/                       # Uzman ajan yetenekleri
-│   │   ├── auto-bootstrap/           # Orkestratör — Drop & Deploy
-│   │   ├── infra-agent/              # Platform & Altyapı Ajanı
-│   │   ├── pipeline-agent/           # CI/CD Boru Hattı Ajanı
-│   │   ├── finops-agent/             # FinOps Maliyet Ajanı
-│   │   └── sre-agent/               # SRE & Self-Healing Ajanı
-│   └── workflows/                    # /deploy-aws, /bootstrap, /self-heal
-├── orchestrator/                     # Python A2A orkestrasyon motoru
-├── infrastructure/
-│   ├── terraform/modules/            # VPC, ECS, RDS, Monitoring
-│   ├── lambda/                       # Self-healing webhook
-│   └── iam/                          # Ajan IAM rolleri
-├── policies/finops/                  # Maliyet politikaları (YAML)
-├── templates/github-actions/         # CI/CD şablonları
-├── docker-compose.yml                # PostgreSQL + Redis + RabbitMQ
-└── mcp_config.json                   # MCP sunucu yapılandırması
-```
-
----
-
-## ⚡ Hızlı Başlangıç
-
-### Gereksinimler
-
-- Docker Desktop
-- Node.js v20+
-- PostgreSQL (Docker ile otomatik)
-
-### 1. Altyapıyı Başlat
+### Option 1: Docker Compose (Recommended)
 
 ```bash
-docker-compose up -d           # PostgreSQL + Redis + RabbitMQ
+cp .env.example .env              # Configure environment variables
+docker compose up --build -d      # Start all 5 services
+# → Frontend: http://localhost:3000
+# → API:      http://localhost:3001
+# → RabbitMQ:  http://localhost:15672
 ```
 
-### 2. Backend
+### Option 2: Local Development
 
 ```bash
+# 1. Start infrastructure
+docker compose up postgres redis rabbitmq -d
+
+# 2. Backend
 cd backend
-cp .env.example .env           # Düzenle: DATABASE_URL, JWT_SECRET
-npx prisma db push             # Şemayı uygula
 npm install
+npx prisma db push
 npm run start:dev              # http://localhost:3001
-```
 
-### 3. Frontend
-
-```bash
+# 3. Frontend
 cd frontend
-cp .env.example .env           # NEXT_PUBLIC_API_URL=http://localhost:3001/api
 npm install
 npm run dev                    # http://localhost:3000
 ```
 
-### 4. GitHub Entegrasyonu (Opsiyonel)
+### GitHub OAuth (Optional)
 
-[github.com/settings/developers](https://github.com/settings/developers) → New OAuth App:
-- Homepage: `http://localhost:3000`
-- Callback: `http://localhost:3001/api/github/callback`
-
-```bash
-# backend/.env
-GITHUB_CLIENT_ID="..."
-GITHUB_CLIENT_SECRET="..."
-```
-
-### 5. Otonom Dağıtım (Ajan Workflow)
-
-```bash
-/deploy-aws     # Drop & Deploy — tüm ajanları sıralı tetikler
-/bootstrap      # Yalnızca analiz ve planlama
-/self-heal      # CloudWatch alarmı sonrası otonom iyileştirme
-```
+1. Create an OAuth App at [github.com/settings/developers](https://github.com/settings/developers)
+2. Homepage: `http://localhost:3000`
+3. Callback: `http://localhost:3001/api/github/callback`
+4. Add `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to your `.env`
 
 ---
 
-## 🌐 API Endpoint'leri
+## API Endpoints
 
-| Yöntem | Endpoint | Açıklama |
-|--------|----------|----------|
-| POST | `/api/auth/register` | Kayıt |
-| POST | `/api/auth/login` | Giriş (JWT) |
-| GET | `/api/stats` | Platform istatistikleri |
-| GET | `/api/agents` | Ajan listesi |
-| POST | `/api/deploy` | Deploy tetikle |
-| GET | `/api/deployments` | Geçmiş deploylar |
-| GET | `/api/github/status` | GitHub bağlantı durumu |
-| GET | `/api/github/repos` | Repo listesi |
-| GET | `/api/finops` | Maliyet verileri |
-| GET | `/api/incidents` | Aktif olaylar |
-
----
-
-## 🤖 Ajan Rolleri
-
-| Ajan | Sorumluluk | Araçlar |
-|------|-----------|---------|
-| **Auto-Bootstrap** | Repo analizi & ajan koordinasyonu | Tüm MCP'ler |
-| **Infra** | Terraform/CDK/CFn altyapı kodu üretimi | Cloud Control, IaC, Checkov |
-| **Pipeline** | CI/CD yapılandırması, test, görsel QA | GitHub Actions, mcpdoc |
-| **FinOps** | Maliyet analizi, bütçe geçidi | AWS Pricing, Infracost |
-| **SRE** | Anomali tespiti, RCA, otonom iyileştirme | CloudWatch, EventBridge |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create account |
+| POST | `/api/auth/login` | Login (returns JWT) |
+| GET | `/api/auth/me` | Validate current session |
+| GET | `/api/health` | Liveness probe |
+| GET | `/api/health/ready` | Readiness probe (DB check) |
+| GET | `/api/stats` | Platform statistics |
+| GET | `/api/agents` | List agents |
+| POST | `/api/deploy` | Trigger deployment |
+| GET | `/api/deployments` | Deployment history |
+| GET | `/api/github/status` | GitHub connection status |
+| GET | `/api/github/repos` | List repositories |
+| GET | `/api/finops` | Cost analytics |
+| GET | `/api/incidents` | Active incidents |
 
 ---
 
-## ⚠️ Mevcut Sınırlamalar
+## Agent Fleet
 
-| Alan | Mevcut Durum | Yol Haritası |
-|------|-------------|--------------|
-| **Cloud Provider** | Sadece **AWS** | Azure, GCP (kredi bulunursa) |
-| **CI/CD** | Sadece **GitHub Actions** | GitLab CI, Jenkins (server tabanlı olduğundan karmaşık) |
-| **GitHub Actions Limiti** | Free/Pro'da dakika sınırı var | Enterprise plan veya self-hosted runner |
-| **IaC** | Terraform, CDK, CloudFormation | Pulumi |
-| **Kod Dili** | Dile bağımsız (Dockerfile ile çalışır) | — |
-
----
-
-## 🛡 Güvenlik
-
-- **Minimum Ayrıcalık:** Her ajan kendi IAM rolüne sahip
-- **Allow/Deny Listeleri**: Yıkıcı komutlar insan onayı gerektirir
-- **Şifreleme:** API key'ler ve GitHub token'lar AES-256 ile şifrelenir
-- **Devre Kesici:** Bütçe aşımında pipeline otomatik durur
-- **Artifact İnceleme:** Tüm Terraform planları dağıtım öncesi onaylanır
+| Agent | Responsibility | Tools |
+|-------|---------------|-------|
+| **Auto-Bootstrap** | Repo analysis & agent coordination | All MCP servers |
+| **Infra** | Terraform/CDK/CFn infrastructure code generation | Cloud Control, IaC, Checkov |
+| **Pipeline** | CI/CD configuration, testing, visual QA | GitHub Actions, mcpdoc |
+| **FinOps** | Cost analysis, budget gate | AWS Pricing, Infracost |
+| **SRE** | Anomaly detection, RCA, autonomous remediation | CloudWatch, EventBridge |
 
 ---
 
-## 📖 Belgeler
+## Dashboard Pages
 
-- [Güvenlik Kuralları](.agent/rules/security-guardrails.md)
+| Page | Description |
+|------|-------------|
+| **Dashboard** | System stats, MetricsWidget charts, TerminalLogger, recommendations |
+| **Agents** | Agent fleet overview, trigger executions, real-time step polling |
+| **FinOps** | Cost breakdown, pricing tiers, AWS Free Tier info, smart suggestions |
+| **Pipeline** | Deployment history table with status, region, cost, duration |
+| **Self-Healing** | SAAV heal cycle visualization, incident timeline |
+| **Repositories** | GitHub OAuth, repo browser, one-click deploy |
+| **Token Usage** | Monthly budget tracking, model & agent distribution |
+| **Billing** | Plan comparison, Stripe checkout integration |
+| **Team** | Member management, invite system, role assignments |
+| **Settings** | Profile, AI models, API key management |
+
+---
+
+## Environment Variables
+
+See [`.env.example`](.env.example) for the full list. Key variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | (required) |
+| `JWT_SECRET` | JWT signing key | (required) |
+| `FRONTEND_URL` | CORS origin | `http://localhost:3000` |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App ID | (optional) |
+| `STRIPE_PRICE_*` | Stripe Price IDs | placeholder |
+
+---
+
+## CI/CD
+
+- **CI** (`ci.yml`): Runs on push/PR to `main` — backend type-check + build (with Postgres), frontend type-check + build
+- **CD** (`cd.yml`): Runs on push to `main` or version tags — builds and pushes Docker images to GitHub Container Registry (GHCR)
+
+---
+
+## Security
+
+- **Least Privilege**: Each agent has its own IAM role
+- **Allow/Deny Lists**: Destructive commands require human approval
+- **Encryption**: API keys and GitHub tokens encrypted with AES-256
+- **Circuit Breaker**: Pipeline halts on budget overrun
+- **Artifact Review**: All Terraform plans reviewed before deployment
+
+---
+
+## Current Limitations
+
+| Area | Current | Roadmap |
+|------|---------|---------|
+| Cloud Provider | AWS only | Azure, GCP |
+| CI/CD | GitHub Actions only | GitLab CI, Jenkins |
+| Auth | Custom JWT | NextAuth.js / Auth0 |
+| IaC | Terraform, CDK, CFn | Pulumi |
+
+---
+
+## Documentation
+
+- [Security Guardrails](.agent/rules/security-guardrails.md)
 - [Auto-Bootstrap SKILL](.agent/skills/auto-bootstrap/SKILL.md)
 - [Infra Agent SKILL](.agent/skills/infra-agent/SKILL.md)
 - [Pipeline Agent SKILL](.agent/skills/pipeline-agent/SKILL.md)
 - [FinOps Agent SKILL](.agent/skills/finops-agent/SKILL.md)
 - [SRE Agent SKILL](.agent/skills/sre-agent/SKILL.md)
-- [A2A Ajan Kartı](.well-known/agent.json)
+- [Production Plan](ORBITRON_PRODUCTION_PLAN.md)
+- [Product Overview](ORBITRON_PRODUCT_OVERVIEW.md)
