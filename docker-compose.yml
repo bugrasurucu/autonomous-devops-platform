@@ -1,67 +1,121 @@
 services:
-  # PostgreSQL Database
+  # ─── Infrastructure ─────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: devops-postgres
+    container_name: orbitron-postgres
     environment:
       POSTGRES_DB: devops_platform
       POSTGRES_USER: devops_user
-      POSTGRES_PASSWORD: devops_secret_2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devops_secret_2026}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U devops_user -d devops_platform" ]
+      test: ["CMD-SHELL", "pg_isready -U devops_user -d devops_platform"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - devops-network
+      - orbitron
 
-  # Redis Cache & Pub/Sub
   redis:
     image: redis:7-alpine
-    container_name: devops-redis
+    container_name: orbitron-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - devops-network
+      - orbitron
 
-  # RabbitMQ Message Queue
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: devops-rabbitmq
+    container_name: orbitron-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: devops
-      RABBITMQ_DEFAULT_PASS: devops_mq_2026
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-devops_mq_2026}
     ports:
-      - "5672:5672" # AMQP
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "check_running" ]
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
       interval: 10s
       timeout: 10s
       retries: 5
     networks:
-      - devops-network
+      - orbitron
+
+  # ─── Application ────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: orbitron-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://devops_user:${POSTGRES_PASSWORD:-devops_secret_2026}@postgres:5432/devops_platform?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://devops:${RABBITMQ_PASSWORD:-devops_mq_2026}@rabbitmq:5672
+      PORT: 3001
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change-me-in-production}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost:3001/api/github/callback}
+      KAGENT_API_URL: ${KAGENT_API_URL:-http://kagent-controller.kagent.svc.cluster.local:8083}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-price_starter_placeholder}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-price_pro_placeholder}
+      STRIPE_PRICE_ENTERPRISE: ${STRIPE_PRICE_ENTERPRISE:-price_enterprise_placeholder}
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - orbitron
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:3001
+    container_name: orbitron-web
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://backend:3001
+      NEXT_PUBLIC_API_URL: /api
+    ports:
+      - "3000:3000"
+    networks:
+      - orbitron
 
 volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
 
-
 networks:
-  devops-network:
+  orbitron:
     driver: bridge

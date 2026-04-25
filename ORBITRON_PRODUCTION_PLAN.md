@@ -1,62 +1,64 @@
 # Orbitron: Production Readiness & Deployment Plan
 
-Bu doküman, projeyi üretim (production) ortamına taşımadan önce test edilmesi gereken eksikleri, "kullanılmayan kod yığınlarını" ve deployment aşamasındaki yol haritasını analiz eder.
+This document tracks the production readiness status of the Orbitron DevOps AI platform.
 
 ---
 
-## 1. Mimari Eksikler ve Canlıya Çıkış Öncesi Teknik Borçlar (Tech Debt)
+## ✅ Completed
 
-Şu an projenin "demo" ve "ürün" arasındaki arafta kalmasına neden olan temel kısımlar:
+### Auth Hardening
+- JWT validation on page load via `/auth/me` endpoint
+- Automatic logout on token expiry
+- Next.js middleware protecting `/dashboard/*` routes
 
-### A. Auth (Kimlik Doğrulama) Simülasyonu
-- **Mevcut Durum:** `auth-context.tsx` tamamen simüle edilmiş (hardcoded) bir token/session mantığı üzerine kurulu. Sayfa yenilendiğinde "test auth" gidiyor.
-- **Çözüm:** Production için acilen NextAuth (Auth.js) veya Supabase/Auth0 entegrasyonu yapılmalı. JWT tabanlı veya HTTP-Only cookie tabanlı güvenli bir session yapısına geçilmeli.
+### Agent Service Wiring
+- Replaced `setTimeout` simulations with real backend polling
+- Frontend polls `/agents/{id}/executions` for live execution steps
 
-### B. Ajan Servis Bağlantıları (Agent Bridge)
-- **Mevcut Durum:** Pano'daki `AgentsService` sınıfında yer alan `triggerAgent` fonksiyonları `setTimeout` ile simüle ediliyor.
-- **Çözüm:** Bu simülasyonların, backend'deki gerçek `KagentBridgeController` endpoint'lerine (ve oradan da Kubernetes Cluster'a) WebSocket veya REST üzerinden bağlanması şart. Ajan işlemleri uzun süreli olduğu için (Long-polling veya WebSocket) şart.
+### Observability UI
+- **MetricsWidget**: Recharts-powered live Token Usage (line) + Compute Distribution (bar) charts
+- **TerminalLogger**: Streaming system logs with severity-based color coding (info/warn/error/success)
 
-### C. Ölü/Kullanılmayan Frontend Kodları
-- Eski "Mission Control" temasından kalma mor gradient barındıran bazı legacy CSS dosyaları ve kullanılmayan layout component'leri build boyutunu şişiriyor. Canlıya çıkmadan önce tam bir tree-shaking ve unused-exports analizi yapılmalı.
+### Full EN Localization
+- All 7 frontend dashboard pages fully localized to English
+- Backend cost-monitor service translated (tiers, suggestions, AWS Free Tier, scaling labels)
 
----
+### K8s Health Endpoints
+- `GET /api/health` — Liveness probe (always returns 200)
+- `GET /api/health/ready` — Readiness probe (checks DB connection)
 
-## 2. Deployment ve Web Hosting (Path / Sub-Directory) Stratejisi
+### Deployment Configuration
+- `next.config.js`: `output: 'standalone'` + `basePath` support + API rewrites
+- `main.ts`: Global prefix `/api`, CORS configurable via `FRONTEND_URL` env var
+- Multi-stage Dockerfiles for both frontend and backend
+- Production `docker-compose.yml` with PostgreSQL, Redis, RabbitMQ, backend (with healthcheck), and frontend
 
-Eğer proje Vercel veya AWS Amplify gibi bir yerde ana root haricinde (örn: `sirket.com/orbitron`) özel bir path altına deploy edilecekse dikkat edilmesi gerekenler:
-
-### Next.js (Frontend) Ayarları
-- Vercel veya Nginx arkasında bir alt path'te çalışmak için `next.config.js` dosyasına `basePath` ayarı eklenmelidir.
-```javascript
-module.exports = {
-  basePath: process.env.BASE_PATH || '', // Örn: '/orbitron'
-  assetPrefix: process.env.BASE_PATH || '',
-  // ...
-}
-```
-- Ayrıca tüm sayfa içi linkler (`<Link href="/">`) `basePath` ile otomatik haritalanır; ancak manuel yazılan API fetch url'leri (`/api/v1/deploy`) dinamik hale getirilmelidir.
-
-### NestJS (Backend) Ayarları
-- API route çakışmalarını önlemek adına NestJS tarafında bir Global Prefix kullanılmalıdır.
-- CORS ayarları kesinlikle `origin: '*'` yerine, sadece production URL'ine izin verecek şekilde (örn: `origin: 'https://app.orbitron.dev'`) sıkılaştırılmalıdır.
+### Build Verification
+- `npm run build` → 0 errors, 15 pages, Middleware 26.6 KB
+- Browser smoke test: All 11 pages render correctly, fully English
 
 ---
 
-## 3. UI/UX: Metrikler ve Hata Logları (Observability)
+## 🔲 Remaining (Future Phases)
 
-Sistemin gerçekten çalıştığını DevOps ekiplerine hissettirebilmek ve sadece statik veri yerine gerçek akışı gösterebilmek adına eksikler:
+### Auth Migration
+- Replace custom JWT flow with NextAuth.js or Auth0 for enterprise-grade session management
+- Add OAuth providers (Google, GitHub login)
 
-### A. Aktif Metrik Panosu
-UI sadece total sayıları gösteriyor (örn: Total Deploy: 45). Ancak DevOps araçlarında zaman serisi analizi şarttır.
-- **Çözüm:** Pano ekranına Token kullanımını anlık çizen bir çizgi grafik (Line Chart) ve Ajanların işlem hacmini bölen Bar Chart (Örn: Recharts kütüphanesi ile) eklenmesi.
+### Stripe Integration
+- Wire real Stripe Price IDs to billing service
+- Implement webhook handler for subscription lifecycle events
 
-### B. Sistem & Ajan Hata Konsolu
-En büyük eksik, ajanlar çalışırken veya çöktüğünde (`CrashLoopBackOff`, Rate Limits) kullanıcının bunu görememesidir. Sadece "Success/Fail" yazması DevOps kültürü için yeterli değildir.
-- **Çözüm:** Sistemin alt kısmına, hataları kırmızı (`#ff5f57`), sistem loglarını cyan rengiyle basan, canlı kayan bir "Terminal Logger" bileşeninin eklenmesi.
+### kagent Bridge
+- Connect to real Kubernetes cluster with kagent CRD
+- End-to-end agent execution with real Terraform/CloudFormation
 
----
+### Monitoring & Alerting
+- Integrate CloudWatch or Prometheus metrics
+- Set up Grafana dashboards
+- Configure PagerDuty/Slack incident notifications
 
-**Özet Plan**:
-1. NextJS ve NestJS configlerinde Path (Routing) prefix ayarlarını implemente etmek.
-2. Pano (Dashboard) üzerine Recharts ve Terminal eklentilerini kurup UI'ı canlandırmak.
-3. Auth yapısını NextAuth'a geçirip simülasyonları kaldırmak.
+### CI/CD Pipeline
+- GitHub Actions workflow for automated testing and deployment
+- Docker image publishing to ECR/GHCR
+- Staging → Production promotion flow
