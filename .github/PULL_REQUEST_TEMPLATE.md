@@ -4,7 +4,8 @@
 
 ## Related Issue
 
-Closes #<!-- issue number -->
+<!-- If this PR resolves an issue, replace the line below with a full reference such as `Closes #123`. Otherwise, remove it. -->
+Closes #123
 
 ## Type of Change
 
