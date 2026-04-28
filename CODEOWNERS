@@ -1,0 +1,11 @@
+# CODEOWNERS
+# This file defines code owners for the autonomous-devops-platform repository.
+# Maintainers: update the entries below with the appropriate GitHub usernames
+# or teams (e.g. @bugrasurucu or @org/team-name).
+#
+# Each line is a file pattern followed by one or more owners.
+# The last matching pattern takes precedence.
+# For more info see: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repository
+* @bugrasurucu
