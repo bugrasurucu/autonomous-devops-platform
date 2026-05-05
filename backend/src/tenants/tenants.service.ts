@@ -78,6 +78,17 @@ export class TenantsService {
         if (existing) return existing;
 
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        return this.createOrganization(userId, user?.name ?? `org-${userId.substring(0, 8)}`);
+        const baseName = user?.name ?? `org-${userId.substring(0, 8)}`;
+
+        // Try base name first, then add unique suffix on conflict
+        try {
+            return await this.createOrganization(userId, baseName);
+        } catch (e: any) {
+            if (e?.status === 409 || e?.message?.includes('slug already taken')) {
+                const suffix = userId.substring(0, 6);
+                return this.createOrganization(userId, `${baseName}-${suffix}`);
+            }
+            throw e;
+        }
     }
 }
