@@ -24,6 +24,24 @@ export class IncidentsController {
         );
     }
 
+    @Post()
+    create(
+        @Request() req: any,
+        @Body() body: { title: string; description?: string; severity?: string },
+    ) {
+        return this.incidentsService.create(
+            req.user.userId,
+            body.title,
+            body.description,
+            body.severity,
+        );
+    }
+
+    @Post('simulate')
+    simulate(@Request() req: any) {
+        return this.incidentsService.simulate(req.user.userId);
+    }
+
     @Post(':id/resolve')
     resolve(
         @Request() req: any,

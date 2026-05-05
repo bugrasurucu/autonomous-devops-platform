@@ -201,6 +201,7 @@ model Incident {
   userId      String         @map("user_id")
   title       String
   description String         @default("")
+  severity    String         @default("medium") // critical | high | medium | low
   alarm       String?
   status      IncidentStatus @default(active)
   resolution  String?

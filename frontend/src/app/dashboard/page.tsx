@@ -127,7 +127,7 @@ export default function DashboardPage() {
                             <div style={{ fontSize: 13, fontWeight: 600, color: usage.tier?.color }}>
                                 {usage.tier?.name} Plan
                                 {usage.plan === 'free' && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>· Free</span>}
-                                {usage.tier?.price > 0 && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>· ${usage.tier.price}/ay</span>}
+                                {usage.tier?.price > 0 && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>· ${usage.tier.price}/mo</span>}
                             </div>
                             <div style={{ display: 'flex', gap: 16, marginTop: 3 }}>
                                 <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>

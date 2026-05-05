@@ -13,11 +13,13 @@ export class StatsService {
         const [
             deploymentCount,
             activeDeployments,
+            successDeployments,
             incidentStats,
             recentActivities,
         ] = await Promise.all([
             this.prisma.deployment.count({ where: { userId } }),
             this.prisma.deployment.count({ where: { userId, status: 'running' } }),
+            this.prisma.deployment.count({ where: { userId, status: 'success' } }),
             this.prisma.incident.groupBy({
                 by: ['status'],
                 where: { userId },
@@ -35,9 +37,15 @@ export class StatsService {
         const activeIncidents =
             incidentStats.find((s: any) => s.status === 'active')?._count || 0;
 
+        const successRate = deploymentCount > 0
+            ? Math.round((successDeployments / deploymentCount) * 100)
+            : 100;
+
         return {
-            totalDeploys: deploymentCount,
+            totalDeployments: deploymentCount,
+            totalDeploys: deploymentCount, // backward compat
             activeDeploys: activeDeployments,
+            successRate,
             totalAgents: agents.length,
             activeAgents,
             activeIncidents,

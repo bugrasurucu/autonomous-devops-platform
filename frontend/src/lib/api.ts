@@ -84,6 +84,10 @@ export const api = {
     getIncidents: (limit?: number) => request(`/incidents?limit=${limit || 20}`),
     resolveIncident: (id: string, resolution?: string) =>
         request(`/incidents/${id}/resolve`, { method: 'POST', body: JSON.stringify({ resolution }) }),
+    simulateIncident: () =>
+        request('/incidents/simulate', { method: 'POST' }),
+    createIncident: (title: string, description?: string, severity?: string) =>
+        request('/incidents', { method: 'POST', body: JSON.stringify({ title, description, severity }) }),
 
     // Settings
     getModels: () => request('/settings/models'),
