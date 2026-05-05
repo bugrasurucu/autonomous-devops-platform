@@ -105,7 +105,7 @@ export default function BillingPage() {
                 )}
             </div>
 
-            {/* Plan kartları */}
+            {/* Plan cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
                 {plans.map(plan => {
                     const isCurrentPlan = plan.plan === currentPlan;
@@ -173,7 +173,7 @@ export default function BillingPage() {
                 })}
             </div>
 
-            {/* Özellik karşılaştırma tablosu */}
+            {/* Feature comparison table */}
             <div className="glass-card" style={{ overflow: 'hidden' }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                     Plan Comparison

@@ -83,7 +83,7 @@ export default function TokenUsagePage() {
 
             {data && (
                 <>
-                    {/* Ana bütçe kartı */}
+                    {/* Main budget card */}
                     <div className="glass-card" style={{ padding: 20, marginBottom: 16 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                             <div>
@@ -112,7 +112,7 @@ export default function TokenUsagePage() {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                        {/* Model bazında kullanım */}
+                        {/* Usage by model */}
                         <div className="glass-card" style={{ padding: 20 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
                                 Model Distribution
@@ -138,7 +138,7 @@ export default function TokenUsagePage() {
                             )}
                         </div>
 
-                        {/* Ajan bazında kullanım */}
+                        {/* Usage by agent */}
                         <div className="glass-card" style={{ padding: 20 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
                                 Agent Distribution
@@ -166,7 +166,7 @@ export default function TokenUsagePage() {
                         </div>
                     </div>
 
-                    {/* Plan yükseltme CTA */}
+                    {/* Plan upgrade CTA */}
                     {usagePct >= 70 && (
                         <div style={{
                             marginTop: 16, padding: 16, borderRadius: 12,

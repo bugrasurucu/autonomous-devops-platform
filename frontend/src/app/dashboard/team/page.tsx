@@ -101,7 +101,7 @@ export default function TeamPage() {
                 </p>
             </div>
 
-            {/* Üye listesi */}
+            {/* Member list */}
             <div className="glass-card" style={{ marginBottom: 16, overflow: 'hidden' }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                     Members
@@ -151,7 +151,7 @@ export default function TeamPage() {
                 ))}
             </div>
 
-            {/* Davet formu */}
+            {/* Invite form */}
             <div className="glass-card" style={{ padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 14 }}>
                     Invite Member

@@ -33,6 +33,9 @@ This document tracks the production readiness status of the Orbitron DevOps AI p
 - Multi-stage Dockerfiles for both frontend and backend
 - Production `docker-compose.yml` with PostgreSQL, Redis, RabbitMQ, backend (with healthcheck), and frontend
 
+### CI/CD Pipeline
+- GitHub Actions workflows (`ci.yml`, `cd.yml`) for automated testing and GHCR deployment
+
 ### Build Verification
 - `npm run build` → 0 errors, 15 pages, Middleware 26.6 KB
 - Browser smoke test: All 11 pages render correctly, fully English
@@ -57,8 +60,3 @@ This document tracks the production readiness status of the Orbitron DevOps AI p
 - Integrate CloudWatch or Prometheus metrics
 - Set up Grafana dashboards
 - Configure PagerDuty/Slack incident notifications
-
-### CI/CD Pipeline
-- GitHub Actions workflow for automated testing and deployment
-- Docker image publishing to ECR/GHCR
-- Staging → Production promotion flow
