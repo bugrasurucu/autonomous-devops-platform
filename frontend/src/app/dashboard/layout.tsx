@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSkeleton';
+import { useToast } from '@/components/Toast';
 
 const NAV_ITEMS = [
     { href: '/dashboard', label: 'Dashboard', icon: '⬡' },
@@ -28,9 +29,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [kagentAvailable, setKagentAvailable] = useState<boolean | null>(null);
+    const [activities, setActivities] = useState<any[]>([]);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const { info } = useToast();
 
     useEffect(() => {
         api.kagent?.getStatus().then((s: any) => setKagentAvailable(s?.available ?? false)).catch(() => setKagentAvailable(false));
+    }, []);
+
+    // Poll activity feed for notifications
+    useEffect(() => {
+        const fetchActivities = async () => {
+            try {
+                const stats = await api.getStats();
+                if (stats?.activities) {
+                    setActivities(stats.activities.slice(0, 8));
+                    setUnreadCount(prev => {
+                        const newCount = stats.activities.length;
+                        if (prev > 0 && newCount > prev) return newCount;
+                        return prev;
+                    });
+                }
+            } catch { }
+        };
+        fetchActivities();
+        const interval = setInterval(fetchActivities, 10000);
+        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -183,11 +208,82 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </aside>
 
             {/* Main content */}
-            <main style={{ flex: 1, overflow: 'auto', padding: 24, background: 'var(--bg-primary)' }}>
-                <div className="page-enter">
-                    <ErrorBoundary>
-                        {children}
-                    </ErrorBoundary>
+            <main style={{ flex: 1, overflow: 'auto', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+                {/* Top bar */}
+                <div style={{
+                    padding: '12px 24px', borderBottom: '1px solid var(--border-color)',
+                    display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12,
+                    background: 'rgba(8,15,30,0.8)', backdropFilter: 'blur(8px)',
+                    flexShrink: 0,
+                }}>
+                    {/* Notification Bell */}
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            onClick={() => { setNotifOpen(o => !o); setUnreadCount(0); }}
+                            style={{
+                                background: 'none', border: '1px solid var(--border-color)',
+                                borderRadius: 8, width: 34, height: 34, cursor: 'pointer',
+                                color: 'var(--text-secondary)', fontSize: 16,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                position: 'relative', transition: 'border-color 0.2s',
+                            }}
+                        >
+                            🔔
+                            {unreadCount > 0 && (
+                                <div style={{
+                                    position: 'absolute', top: -4, right: -4,
+                                    width: 16, height: 16, borderRadius: '50%',
+                                    background: '#f87171', fontSize: 9, fontWeight: 700,
+                                    color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </div>
+                            )}
+                        </button>
+                        {/* Dropdown */}
+                        {notifOpen && (
+                            <>
+                                <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setNotifOpen(false)} />
+                                <div style={{
+                                    position: 'absolute', top: 42, right: 0, zIndex: 50,
+                                    width: 340, maxHeight: 420, overflowY: 'auto',
+                                    background: 'rgba(8,12,28,0.98)', backdropFilter: 'blur(20px)',
+                                    border: '1px solid var(--border-color)', borderRadius: 12,
+                                    boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+                                }}>
+                                    <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 13, fontWeight: 700 }}>Activity Feed</span>
+                                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Recent events</span>
+                                    </div>
+                                    {activities.length === 0 ? (
+                                        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
+                                            No recent activity
+                                        </div>
+                                    ) : activities.map((a, i) => (
+                                        <div key={i} style={{
+                                            padding: '10px 16px', borderBottom: i < activities.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                                            display: 'flex', alignItems: 'flex-start', gap: 10,
+                                        }}>
+                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.color || '#818cf8', flexShrink: 0, marginTop: 5 }} />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: 12, lineHeight: 1.4 }}>{a.text}</div>
+                                                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                                    {new Date(a.createdAt).toLocaleTimeString()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+                <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+                    <div className="page-enter">
+                        <ErrorBoundary>
+                            {children}
+                        </ErrorBoundary>
+                    </div>
                 </div>
             </main>
 
