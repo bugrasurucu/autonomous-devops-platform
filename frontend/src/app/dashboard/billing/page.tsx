@@ -70,7 +70,7 @@ export default function BillingPage() {
         Promise.all([
             api.billing.getPlans(),
             api.tenant.getMe(),
-            api.getUsage().catch(() => null),
+            api.cost.getUsage().catch(() => null),
         ]).then(([plansData, orgData, usageData]: [any, any, any]) => {
             setPlans(plansData ?? []);
             setCurrentPlan(orgData?.plan ?? 'free');
