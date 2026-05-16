@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/Toast';
 import dynamic from 'next/dynamic';
 
 const MetricsWidget = dynamic(() => import('@/components/dashboard/MetricsWidget'), { ssr: false });
@@ -37,6 +38,7 @@ function MetricBar({ label, value, unit = '%', color, warning = 80, critical = 9
 }
 
 export default function DashboardPage() {
+    const { success, error: toastError } = useToast();
     const [stats, setStats] = useState<any>(null);
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [metrics, setMetrics] = useState<any>(null);
@@ -84,11 +86,14 @@ export default function DashboardPage() {
         if (!deployForm.projectName.trim()) return;
         setDeploying(true);
         try {
-            await api.deploy(deployForm);
+            const res = await api.deploy(deployForm) as any;
             setShowDeploy(false);
             setDeployForm({ projectName: '', region: 'us-east-1', environment: 'production', budget: 100 });
             await loadAll();
-        } catch (e: any) { alert(e.message); }
+            success('🚀 Deployment Started!', `${deployForm.projectName} is being deployed to ${deployForm.region}`);
+        } catch (e: any) {
+            toastError('Deploy Failed', e.message);
+        }
         finally { setDeploying(false); }
     };
 
@@ -147,7 +152,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     {usage.plan === 'free' && (
-                        <a href="/dashboard/finops" style={{
+                        <a href="/dashboard/billing" style={{
                             fontSize: 12, padding: '6px 12px', borderRadius: 8, fontWeight: 600,
                             background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
                             color: '#818cf8', textDecoration: 'none',
