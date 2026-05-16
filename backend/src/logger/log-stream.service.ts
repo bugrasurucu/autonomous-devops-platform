@@ -19,7 +19,7 @@ export class LogStreamService implements OnModuleInit {
 
     onModuleInit() {
         // Emit periodic heartbeat logs to keep connections alive + demo activity
-        setInterval(() => this.emitHeartbeat(), 5000);
+        setInterval(() => this.emitHeartbeat(), 6000);
     }
 
     /** Emit a log event — call this from any service */
@@ -32,7 +32,6 @@ export class LogStreamService implements OnModuleInit {
             message,
         };
         this.subject.next(event);
-        this.eventEmitter.emit('log.stream', event);
         return event;
     }
 
@@ -41,17 +40,52 @@ export class LogStreamService implements OnModuleInit {
         return this.subject.asObservable();
     }
 
-    /** Demo heartbeat to simulate live system logs */
+    // ── Bridge backend events into SSE stream ─────────────────────────
+
+    @OnEvent('activity.new')
+    onActivityNew(payload: any) {
+        const msg = payload?.message ?? `Activity: ${payload?.type ?? 'unknown'}`;
+        this.emit('info', 'system', msg);
+    }
+
+    @OnEvent('deployment.created')
+    onDeploymentCreated(payload: any) {
+        this.emit('info', 'deploy', `Deployment started: ${payload?.projectName ?? 'unknown'} → ${payload?.region ?? 'us-east-1'}`);
+    }
+
+    @OnEvent('deployment.completed')
+    onDeploymentCompleted(payload: any) {
+        const level = payload?.status === 'success' ? 'success' : 'error';
+        this.emit(level, 'deploy', `Deployment ${payload?.status ?? 'finished'}: ${payload?.projectName ?? 'unknown'} [${payload?.deployId ?? ''}]`);
+    }
+
+    @OnEvent('agent.triggered')
+    onAgentTriggered(payload: any) {
+        this.emit('info', payload?.agentId ?? 'agent', `Agent triggered — task: ${payload?.task ?? 'default'}`);
+    }
+
+    @OnEvent('incident.created')
+    onIncidentCreated(payload: any) {
+        this.emit('warn', 'sre-agent', `Incident created: ${payload?.title ?? 'unknown'} [${payload?.severity ?? 'medium'}]`);
+    }
+
+    @OnEvent('incident.resolved')
+    onIncidentResolved(payload: any) {
+        this.emit('success', 'sre-agent', `Incident resolved: ${payload?.title ?? 'unknown'} — SAAV loop complete`);
+    }
+
+    // ── Heartbeat ─────────────────────────────────────────────────────
+
     private heartbeatIndex = 0;
     private readonly HEARTBEAT_LOGS: { level: LogEvent['level']; source: string; message: string }[] = [
         { level: 'info',    source: 'kagent',         message: 'CRD sync — 4 agents healthy' },
-        { level: 'info',    source: 'system',         message: `Health check OK — API latency ${Math.round(Math.random() * 20 + 10)}ms` },
+        { level: 'info',    source: 'system',         message: 'Health check OK — API latency <20ms' },
         { level: 'success', source: 'pipeline-agent', message: 'GitHub Actions workflow completed — all checks passed' },
-        { level: 'warn',    source: 'finops-agent',   message: `Budget at ${Math.round(Math.random() * 30 + 30)}% — within threshold` },
+        { level: 'warn',    source: 'finops-agent',   message: 'Budget monitoring active — within threshold' },
         { level: 'info',    source: 'sre-agent',      message: 'CloudWatch scan: no anomalies detected' },
         { level: 'info',    source: 'infra-agent',    message: 'Terraform plan: 0 to add, 0 to change, 0 to destroy' },
         { level: 'success', source: 'sre-agent',      message: 'SAAV loop iteration complete — all metrics nominal' },
-        { level: 'info',    source: 'system',         message: `DB pool: ${Math.round(Math.random() * 8 + 2)}/20 connections active` },
+        { level: 'info',    source: 'system',         message: 'DB pool: 4/20 connections active' },
     ];
 
     private emitHeartbeat() {
