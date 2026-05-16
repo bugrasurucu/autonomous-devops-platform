@@ -244,12 +244,19 @@ export default function LandingPage() {
     };
 
     return (
-        <div style={{ overflow: 'hidden' }}>
+        <div style={{ overflow: 'hidden', background: '#020c1b', color: '#e2eeff', minHeight: '100vh' }}>
+
+            {/* Full-page ambient glow */}
+            <div style={{
+                position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+                background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,212,255,0.08) 0%, transparent 60%)',
+            }} />
 
             {/* ─── HERO ─────────────────────────────────────────────────── */}
             <section style={{
                 minHeight: '100vh', display: 'flex', alignItems: 'center',
-                position: 'relative', padding: '120px 24px 80px',
+                position: 'relative', padding: '100px 24px 80px',
+                zIndex: 1,
             }}>
                 {/* Grid bg */}
                 <div className="grid-bg" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
@@ -380,7 +387,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── PIPELINE PROCESS ────────────────────────────────────── */}
-            <section style={{ padding: '100px 24px', background: 'rgba(10,22,40,0.5)', position: 'relative' }}>
+            <section style={{ padding: '100px 24px', background: '#050e1c', position: 'relative' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: 64 }}>
                         <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: C.cyan, letterSpacing: '0.15em', marginBottom: 12 }}>AUTONOMOUS PIPELINE</div>
@@ -470,7 +477,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── AI AGENTS ───────────────────────────────────────────── */}
-            <section id="agents" style={{ padding: '100px 24px' }}>
+            <section id="agents" style={{ padding: '100px 24px', background: '#020c1b' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: 64 }}>
                         <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: C.green, letterSpacing: '0.15em', marginBottom: 12 }}>AI AGENT FLEET</div>
@@ -567,7 +574,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── WHY KUBERNETES ──────────────────────────────────────── */}
-            <section id="k8s" style={{ padding: '100px 24px', background: 'rgba(10,22,40,0.4)' }}>
+            <section id="k8s" style={{ padding: '100px 24px', background: '#050e1c' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: 72 }}>
                         <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: '#a78bfa', letterSpacing: '0.15em', marginBottom: 12 }}>☸ KUBERNETES-NATIVE ARCHITECTURE</div>
@@ -635,7 +642,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── TECH STACK ──────────────────────────────────────────── */}
-            <section id="stack" style={{ padding: '100px 24px' }}>
+            <section id="stack" style={{ padding: '100px 24px', background: '#020c1b' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: 64 }}>
                         <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: C.amber, letterSpacing: '0.15em', marginBottom: 12 }}>TECH STACK</div>
@@ -676,7 +683,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── PRICING ─────────────────────────────────────────────── */}
-            <section id="pricing" style={{ padding: '100px 24px', background: 'rgba(10,22,40,0.5)' }}>
+            <section id="pricing" style={{ padding: '100px 24px', background: '#050e1c' }}>
                 <div style={{ maxWidth: 900, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: 64 }}>
                         <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: C.cyan, letterSpacing: '0.15em', marginBottom: 12 }}>PRICING</div>
@@ -739,7 +746,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── CTA ──────────────────────────────────────────────────── */}
-            <section style={{ padding: '120px 24px', textAlign: 'center', position: 'relative' }}>
+            <section style={{ padding: '120px 24px', textAlign: 'center', position: 'relative', background: '#020c1b' }}>
                 <div className="grid-bg" style={{ position: 'absolute', inset: 0, opacity: 0.5 }} />
                 <div style={{
                     position: 'absolute', top: '30%', left: '50%', transform: 'translateX(-50%)',
