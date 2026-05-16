@@ -90,3 +90,4 @@ jobs:
         run: npm run build
         env:
           BACKEND_URL: http://localhost:3001
+          NEXT_TELEMETRY_DISABLED: 1
