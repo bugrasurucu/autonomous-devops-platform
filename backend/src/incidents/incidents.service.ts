@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 
 const SIMULATED_INCIDENTS = [
@@ -13,7 +14,10 @@ const SIMULATED_INCIDENTS = [
 
 @Injectable()
 export class IncidentsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private eventEmitter: EventEmitter2,
+    ) { }
 
     async findAll(userId: string, limit = 20) {
         return this.prisma.incident.findMany({
@@ -24,7 +28,7 @@ export class IncidentsService {
     }
 
     async create(userId: string, title: string, description?: string, severity?: string) {
-        return this.prisma.incident.create({
+        const incident = await this.prisma.incident.create({
             data: {
                 userId,
                 title,
@@ -33,6 +37,22 @@ export class IncidentsService {
                 status: 'active',
             },
         });
+
+        // Emit event — NotificationsService listens to this
+        this.eventEmitter.emit('incident.created', {
+            userId,
+            incidentId: incident.id,
+            title: incident.title,
+            severity: incident.severity,
+        });
+
+        // Also emit for SSE log stream
+        this.eventEmitter.emit('agent.trigger', {
+            agentId: 'sre-agent',
+            task: `Responding to ${incident.severity} incident: ${incident.title}`,
+        });
+
+        return incident;
     }
 
     async simulate(userId: string) {
@@ -46,7 +66,7 @@ export class IncidentsService {
         });
         if (!incident) throw new NotFoundException('Incident not found');
 
-        return this.prisma.incident.update({
+        const resolved = await this.prisma.incident.update({
             where: { id },
             data: {
                 status: 'resolved',
@@ -54,6 +74,17 @@ export class IncidentsService {
                 resolvedAt: new Date(),
             },
         });
+
+        // Emit event for notifications + SSE
+        this.eventEmitter.emit('incident.resolved', {
+            userId,
+            incidentId: id,
+            title: incident.title,
+            severity: incident.severity,
+            resolution: resolved.resolution,
+        });
+
+        return resolved;
     }
 
     async getStats(userId: string) {
@@ -65,4 +96,3 @@ export class IncidentsService {
         return { active, resolved, total };
     }
 }
-

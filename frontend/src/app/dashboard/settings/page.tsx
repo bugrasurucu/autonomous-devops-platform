@@ -8,7 +8,22 @@ const TABS = [
     { id: 'profile', label: '👤 Profile', icon: '👤' },
     { id: 'agents', label: '🤖 Agent Models', icon: '🤖' },
     { id: 'apikeys', label: '🔑 API Keys', icon: '🔑' },
+    { id: 'notifications', label: '🔔 Notifications', icon: '🔔' },
     { id: 'danger', label: '⚠️ Danger Zone', icon: '⚠️' },
+];
+
+const CHANNEL_TYPES = [
+    { id: 'slack',     label: 'Slack Webhook',  icon: '💬', configField: 'webhookUrl',  placeholder: 'https://hooks.slack.com/services/...' },
+    { id: 'webhook',   label: 'Generic Webhook',icon: '🔗', configField: 'webhookUrl',  placeholder: 'https://your-server.com/webhook' },
+    { id: 'email',     label: 'Email',          icon: '📧', configField: 'email',        placeholder: 'alerts@company.com' },
+    { id: 'pagerduty', label: 'PagerDuty',      icon: '📟', configField: 'routingKey',  placeholder: 'your-pagerduty-routing-key' },
+];
+
+const EVENT_OPTIONS = [
+    { id: 'incident.created',  label: 'Incident Created',    color: '#f87171' },
+    { id: 'incident.resolved', label: 'Incident Resolved',   color: '#34d399' },
+    { id: 'deploy.failed',     label: 'Deploy Failed',       color: '#fb923c' },
+    { id: 'deploy.success',    label: 'Deploy Succeeded',    color: '#818cf8' },
 ];
 
 const AGENT_DEFS = [
@@ -47,11 +62,20 @@ export default function SettingsPage() {
     const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
     const [savingPassword, setSavingPassword] = useState(false);
 
+    // Notifications state
+    const [channels, setChannels] = useState<any[]>([]);
+    const [showAddChannel, setShowAddChannel] = useState(false);
+    const [channelForm, setChannelForm] = useState({ name: '', type: 'slack', configValue: '', enabledOn: ['incident.created', 'incident.resolved', 'deploy.failed'] });
+    const [addingChannel, setAddingChannel] = useState(false);
+    const [testingChannel, setTestingChannel] = useState<string | null>(null);
+    const [testResult, setTestResult] = useState<{ id: string; ok: boolean; message: string } | null>(null);
+
     useEffect(() => {
         api.getModels().then(setModels).catch(() => { });
         api.getAgentModels().then(setAgentModels).catch(() => { });
         api.getUsage().then(setUsage).catch(() => { });
         api.getApiKeys().then(setApiKeys).catch(() => { });
+        (api.notifications.list() as any).then(setChannels).catch(() => { });
     }, []);
 
     const saveProfile = async () => {
@@ -361,6 +385,112 @@ export default function SettingsPage() {
                 </div>
             )}
 
+            {/* ── Notifications Tab ──────────────────── */}
+            {tab === 'notifications' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Alert Channels</h3>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                Configure where Orbitron sends incident and deployment alerts.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowAddChannel(true)}
+                            className="btn-primary"
+                            style={{ fontSize: 13 }}
+                        >
+                            + Add Channel
+                        </button>
+                    </div>
+
+                    {channels.length === 0 ? (
+                        <div style={{ padding: '40px 20px', textAlign: 'center', background: 'rgba(30,41,59,0.3)', borderRadius: 12, border: '1px dashed var(--border-color)' }}>
+                            <div style={{ fontSize: 32, marginBottom: 12 }}>🔕</div>
+                            <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>No channels configured</h4>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>You won't receive external notifications for incidents or deployments.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gap: 12 }}>
+                            {channels.map(ch => {
+                                const t = CHANNEL_TYPES.find(x => x.id === ch.type);
+                                return (
+                                    <div key={ch.id} className="glass-card" style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(30,41,59,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                                                {t?.icon || '🔔'}
+                                            </div>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <span style={{ fontSize: 14, fontWeight: 600 }}>{ch.name}</span>
+                                                    <span style={{ fontSize: 10, padding: '2px 6px', background: ch.enabled ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)', color: ch.enabled ? '#34d399' : '#f87171', borderRadius: 4, fontWeight: 600 }}>
+                                                        {ch.enabled ? 'ACTIVE' : 'DISABLED'}
+                                                    </span>
+                                                </div>
+                                                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                                    {t?.label} • {ch.enabledOn.length} event types
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button
+                                                onClick={async () => {
+                                                    setTestingChannel(ch.id);
+                                                    setTestResult(null);
+                                                    try {
+                                                        const res = await (api.notifications.test(ch.id) as any);
+                                                        setTestResult({ id: ch.id, ok: res.ok, message: res.message });
+                                                        setTimeout(() => setTestResult(null), 3000);
+                                                    } catch (e: any) {
+                                                        setTestResult({ id: ch.id, ok: false, message: e.message });
+                                                        setTimeout(() => setTestResult(null), 3000);
+                                                    }
+                                                    setTestingChannel(null);
+                                                }}
+                                                disabled={testingChannel === ch.id}
+                                                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)', color: '#818cf8', cursor: 'pointer' }}
+                                            >
+                                                {testingChannel === ch.id ? '⏳' : 'Test'}
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await (api.notifications.update(ch.id, { enabled: !ch.enabled }) as any);
+                                                        const updated = await (api.notifications.list() as any);
+                                                        setChannels(updated);
+                                                    } catch (e: any) { alert(e.message); }
+                                                }}
+                                                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, background: 'rgba(30,41,59,0.5)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                                            >
+                                                {ch.enabled ? 'Disable' : 'Enable'}
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    if (confirm('Delete this channel?')) {
+                                                        try {
+                                                            await (api.notifications.delete(ch.id) as any);
+                                                            setChannels(channels.filter(c => c.id !== ch.id));
+                                                        } catch (e: any) { alert(e.message); }
+                                                    }
+                                                }}
+                                                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171', cursor: 'pointer' }}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                        {testResult?.id === ch.id && (
+                                            <div style={{ position: 'absolute', right: 16, top: -30, fontSize: 11, padding: '4px 8px', borderRadius: 4, background: testResult.ok ? '#34d399' : '#f87171', color: '#000', fontWeight: 600 }}>
+                                                {testResult.ok ? '✓ Sent' : `❌ ${testResult.message}`}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Danger Zone Tab ──────────────────── */}
             {tab === 'danger' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -441,6 +571,110 @@ export default function SettingsPage() {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Add Notification Channel Modal ──────────────── */}
+            {showAddChannel && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 100,
+                    background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }} onClick={e => e.target === e.currentTarget && setShowAddChannel(false)}>
+                    <div className="glass-card" style={{ padding: 28, width: 460, maxWidth: '90vw' }}>
+                        <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>Add Notification Channel</h3>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setAddingChannel(true);
+                            try {
+                                const activeType = CHANNEL_TYPES.find(t => t.id === channelForm.type);
+                                if (!activeType) throw new Error('Invalid type');
+                                await (api.notifications.create({
+                                    name: channelForm.name,
+                                    type: channelForm.type,
+                                    config: { [activeType.configField]: channelForm.configValue },
+                                    enabledOn: channelForm.enabledOn,
+                                }) as any);
+                                const updated = await (api.notifications.list() as any);
+                                setChannels(updated);
+                                setShowAddChannel(false);
+                                setChannelForm({ name: '', type: 'slack', configValue: '', enabledOn: ['incident.created', 'incident.resolved', 'deploy.failed'] });
+                            } catch (err: any) { alert(err.message); }
+                            setAddingChannel(false);
+                        }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Channel Name</label>
+                                <input
+                                    className="input-field"
+                                    placeholder="e.g. SRE Slack Alerts"
+                                    value={channelForm.name}
+                                    onChange={e => setChannelForm({ ...channelForm, name: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Destination Type</label>
+                                <select
+                                    className="input-field"
+                                    value={channelForm.type}
+                                    onChange={e => setChannelForm({ ...channelForm, type: e.target.value, configValue: '' })}
+                                >
+                                    {CHANNEL_TYPES.map(t => (
+                                        <option key={t.id} value={t.id}>{t.icon} {t.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>
+                                    {CHANNEL_TYPES.find(t => t.id === channelForm.type)?.configField === 'webhookUrl' ? 'Webhook URL' :
+                                        CHANNEL_TYPES.find(t => t.id === channelForm.type)?.configField === 'email' ? 'Email Address' : 'Routing Key'}
+                                </label>
+                                <input
+                                    className="input-field"
+                                    type={channelForm.type === 'email' ? 'email' : 'text'}
+                                    placeholder={CHANNEL_TYPES.find(t => t.id === channelForm.type)?.placeholder}
+                                    value={channelForm.configValue}
+                                    onChange={e => setChannelForm({ ...channelForm, configValue: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 8 }}>Trigger Events</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                    {EVENT_OPTIONS.map(opt => {
+                                        const isSelected = channelForm.enabledOn.includes(opt.id);
+                                        return (
+                                            <label key={opt.id} style={{
+                                                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+                                                borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                                                background: isSelected ? 'rgba(129,140,248,0.1)' : 'rgba(30,41,59,0.5)',
+                                                border: `1px solid ${isSelected ? '#818cf8' : 'var(--border-color)'}`,
+                                            }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) setChannelForm(prev => ({ ...prev, enabledOn: [...prev.enabledOn, opt.id] }));
+                                                        else setChannelForm(prev => ({ ...prev, enabledOn: prev.enabledOn.filter(x => x !== opt.id) }));
+                                                    }}
+                                                    style={{ display: 'none' }}
+                                                />
+                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color }} />
+                                                {opt.label}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                                <button type="submit" className="btn-primary" disabled={addingChannel} style={{ flex: 1, justifyContent: 'center' }}>
+                                    {addingChannel ? '⏳ Saving...' : 'Save Channel'}
+                                </button>
+                                <button type="button" onClick={() => setShowAddChannel(false)} style={{
+                                    padding: '10px 16px', borderRadius: 8, background: 'none',
+                                    border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer',
+                                }}>Cancel</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

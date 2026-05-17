@@ -157,5 +157,19 @@ export const api = {
     kagent: {
         getStatus: () => request('/kagent/status'),
     },
+
+    // Notification channels
+    notifications: {
+        list: () => request('/notifications/channels'),
+        create: (body: { name: string; type: string; config: Record<string, string>; enabledOn?: string[] }) =>
+            request('/notifications/channels', { method: 'POST', body: JSON.stringify(body) }),
+        update: (id: string, patch: Partial<{ name: string; enabled: boolean; enabledOn: string[] }>) =>
+            request(`/notifications/channels/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+        delete: (id: string) =>
+            request(`/notifications/channels/${id}`, { method: 'DELETE' }),
+        test: (id: string) =>
+            request(`/notifications/channels/${id}/test`, { method: 'POST' }),
+    },
 };
+
 
