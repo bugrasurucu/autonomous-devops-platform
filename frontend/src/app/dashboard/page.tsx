@@ -47,7 +47,15 @@ export default function DashboardPage() {
     const [activities, setActivities] = useState<any[]>([]);
     const [showDeploy, setShowDeploy] = useState(false);
     const [scaling, setScaling] = useState<string | null>(null);
-    const [deployForm, setDeployForm] = useState({ projectName: '', region: 'us-east-1', environment: 'production', budget: 100 });
+    const [deployForm, setDeployForm] = useState({
+        projectName: '',
+        region: 'us-east-1',
+        environment: 'production',
+        budget: 100,
+        sourceType: 'github' as 'github' | 'upload',
+        sourceValue: '',
+        file: null as File | null
+    });
     const [deploying, setDeploying] = useState(false);
 
     const loadAll = useCallback(async () => {
@@ -84,13 +92,28 @@ export default function DashboardPage() {
 
     const handleDeploy = async () => {
         if (!deployForm.projectName.trim()) return;
+        if (deployForm.sourceType === 'github' && !deployForm.sourceValue.trim()) {
+            toastError('Deploy Failed', 'Please provide a GitHub repository URL');
+            return;
+        }
+        if (deployForm.sourceType === 'upload' && !deployForm.file) {
+            toastError('Deploy Failed', 'Please select a file to upload');
+            return;
+        }
+
         setDeploying(true);
         try {
-            const res = await api.deploy(deployForm) as any;
+            // For file uploads, we'd normally use FormData, but since we're simulating backend handling
+            // we'll pass the file name to the standard payload.
+            const payload = {
+                ...deployForm,
+                sourceValue: deployForm.sourceType === 'upload' ? deployForm.file?.name : deployForm.sourceValue
+            };
+            const res = await api.deploy(payload) as any;
             setShowDeploy(false);
-            setDeployForm({ projectName: '', region: 'us-east-1', environment: 'production', budget: 100 });
+            setDeployForm({ projectName: '', region: 'us-east-1', environment: 'production', budget: 100, sourceType: 'github', sourceValue: '', file: null });
             await loadAll();
-            success('🚀 Deployment Started!', `${deployForm.projectName} is being deployed to ${deployForm.region}`);
+            success('🚀 Deployment Started!', `${deployForm.projectName} is being deployed from ${deployForm.sourceType}`);
         } catch (e: any) {
             toastError('Deploy Failed', e.message);
         }
@@ -340,6 +363,71 @@ export default function DashboardPage() {
                                 <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Project Name</label>
                                 <input className="input-field" placeholder="my-app" value={deployForm.projectName} onChange={e => setDeployForm({ ...deployForm, projectName: e.target.value })} />
                             </div>
+
+                            {/* Source Selection */}
+                            <div style={{ background: 'rgba(30,41,59,0.5)', borderRadius: 10, padding: 4, display: 'flex', gap: 4 }}>
+                                <button
+                                    onClick={() => setDeployForm({ ...deployForm, sourceType: 'github' })}
+                                    style={{
+                                        flex: 1, padding: '6px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                        background: deployForm.sourceType === 'github' ? 'rgba(129,140,248,0.2)' : 'transparent',
+                                        color: deployForm.sourceType === 'github' ? '#818cf8' : 'var(--text-secondary)',
+                                    }}
+                                >📦 GitHub Repo</button>
+                                <button
+                                    onClick={() => setDeployForm({ ...deployForm, sourceType: 'upload' })}
+                                    style={{
+                                        flex: 1, padding: '6px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                        background: deployForm.sourceType === 'upload' ? 'rgba(129,140,248,0.2)' : 'transparent',
+                                        color: deployForm.sourceType === 'upload' ? '#818cf8' : 'var(--text-secondary)',
+                                    }}
+                                >📁 Upload Code</button>
+                            </div>
+
+                            {deployForm.sourceType === 'github' ? (
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Repository URL</label>
+                                    <input className="input-field" placeholder="https://github.com/user/repo" value={deployForm.sourceValue} onChange={e => setDeployForm({ ...deployForm, sourceValue: e.target.value })} />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Upload Project (ZIP)</label>
+                                    <div
+                                        style={{
+                                            border: '2px dashed var(--border-color)', borderRadius: 12, padding: '24px 16px',
+                                            textAlign: 'center', background: 'rgba(255,255,255,0.02)',
+                                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer',
+                                        }}
+                                        onClick={() => document.getElementById('file-upload')?.click()}
+                                        onDragOver={e => e.preventDefault()}
+                                        onDrop={e => {
+                                            e.preventDefault();
+                                            if (e.dataTransfer.files?.[0]) {
+                                                setDeployForm({ ...deployForm, file: e.dataTransfer.files[0] });
+                                            }
+                                        }}
+                                    >
+                                        <span style={{ fontSize: 24 }}>☁️</span>
+                                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                            {deployForm.file ? (
+                                                <span style={{ color: '#00ff88', fontWeight: 600 }}>{deployForm.file.name}</span>
+                                            ) : (
+                                                <>Drag & Drop or <span style={{ color: '#818cf8' }}>Click to Browse</span></>
+                                            )}
+                                        </div>
+                                        <input
+                                            id="file-upload"
+                                            type="file"
+                                            accept=".zip,.tar.gz"
+                                            style={{ display: 'none' }}
+                                            onChange={e => {
+                                                if (e.target.files?.[0]) setDeployForm({ ...deployForm, file: e.target.files[0] });
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <div>
                                     <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Region</label>
@@ -362,9 +450,9 @@ export default function DashboardPage() {
                                 <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Budget ($)</label>
                                 <input className="input-field" type="number" value={deployForm.budget} onChange={e => setDeployForm({ ...deployForm, budget: Number(e.target.value) })} />
                             </div>
-                            <div style={{ display: 'flex', gap: 10 }}>
+                            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                                 <button className="btn-primary" onClick={handleDeploy} disabled={deploying || !deployForm.projectName} style={{ flex: 1, justifyContent: 'center' }}>
-                                    {deploying ? '⏳ Deploying...' : '🚀 Deploy'}
+                                    {deploying ? '⏳ Deploying...' : '🚀 Deploy Project'}
                                 </button>
                                 <button onClick={() => setShowDeploy(false)} style={{
                                     padding: '10px 16px', borderRadius: 8, background: 'none', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer',

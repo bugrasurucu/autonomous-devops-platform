@@ -25,8 +25,8 @@ export class DeploymentsController {
             region?: string;
             environment?: string;
             budget?: number;
-            githubRepo?: string;
-            githubBranch?: string;
+            sourceType?: string;
+            sourceValue?: string;
         },
     ) {
         return this.deploymentsService.create(req.user.userId, body);

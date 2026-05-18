@@ -73,7 +73,7 @@ export const api = {
         request(`/agents/${id}/complete`, { method: 'POST', body: JSON.stringify({ output, success }) }),
 
     // Deployments
-    deploy: (data: { projectName: string; region?: string; environment?: string; budget?: number }) =>
+    deploy: (data: { projectName: string; region?: string; environment?: string; budget?: number; sourceType?: string; sourceValue?: string }) =>
         request('/deploy', { method: 'POST', body: JSON.stringify(data) }),
     getDeployments: (limit?: number) => request(`/deployments?limit=${limit || 20}`),
 
