@@ -7,6 +7,7 @@ import {
     UseGuards,
     Request,
     Res,
+    UnauthorizedException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { GithubService } from './github.service';
@@ -14,7 +15,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConfigService } from '@nestjs/config';
 
 @Controller('github')
-@UseGuards(JwtAuthGuard)
 export class GithubController {
     constructor(
         private githubService: GithubService,
@@ -22,9 +22,10 @@ export class GithubController {
     ) { }
 
     /** Returns the GitHub OAuth authorization URL */
+    @UseGuards(JwtAuthGuard)
     @Get('oauth-url')
-    getOAuthUrl() {
-        return { url: this.githubService.getOAuthUrl() };
+    getOAuthUrl(@Request() req: any) {
+        return { url: this.githubService.getOAuthUrl(req.user.userId) };
     }
 
     /**
@@ -33,12 +34,14 @@ export class GithubController {
      */
     @Get('callback')
     async callback(
-        @Request() req: any,
         @Query('code') code: string,
+        @Query('state') state: string,
         @Res() res: Response,
     ) {
         try {
-            await this.githubService.exchangeCode(req.user.userId, code);
+            const userId = state ? decodeURIComponent(state) : null;
+            if (!userId) throw new UnauthorizedException('No user state provided');
+            await this.githubService.exchangeCode(userId, code);
             const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:3000');
             return res.redirect(`${frontendUrl}/dashboard/settings?github=connected`);
         } catch (err) {
@@ -48,18 +51,21 @@ export class GithubController {
     }
 
     /** Returns whether GitHub is connected and the username if so */
+    @UseGuards(JwtAuthGuard)
     @Get('status')
     getStatus(@Request() req: any) {
         return this.githubService.getStatus(req.user.userId);
     }
 
     /** Disconnects GitHub by clearing stored token */
+    @UseGuards(JwtAuthGuard)
     @Delete('disconnect')
     disconnect(@Request() req: any) {
         return this.githubService.disconnect(req.user.userId);
     }
 
     /** Lists the authenticated user's GitHub repos */
+    @UseGuards(JwtAuthGuard)
     @Get('repos')
     listRepos(@Request() req: any, @Query('search') search?: string) {
         return this.githubService.listRepos(req.user.userId, search);

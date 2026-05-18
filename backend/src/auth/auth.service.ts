@@ -92,6 +92,67 @@ export class AuthService {
         return { token, user: this.sanitizeUser(user) };
     }
 
+    async getGithubOAuthUrl() {
+        const clientId = process.env.GITHUB_CLIENT_ID;
+        const redirectUri = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/github/callback`;
+        const scope = 'user:email';
+        return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
+    }
+
+    async githubLogin(code: string) {
+        const clientId = process.env.GITHUB_CLIENT_ID;
+        const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+        const redirectUri = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/github/callback`;
+
+        // 1. Get Access Token
+        const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code, redirect_uri: redirectUri }),
+        });
+        const tokenData: any = await tokenRes.json();
+        if (tokenData.error || !tokenData.access_token) {
+            throw new UnauthorizedException('GitHub OAuth failed');
+        }
+
+        // 2. Get User Info & Emails
+        const userRes = await fetch('https://api.github.com/user', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const ghUser: any = await userRes.json();
+
+        const emailsRes = await fetch('https://api.github.com/user/emails', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const ghEmails: any[] = await emailsRes.json();
+        const primaryEmail = ghEmails.find((e) => e.primary)?.email || ghUser.email || ghEmails[0]?.email;
+
+        if (!primaryEmail) throw new UnauthorizedException('No email found in GitHub account');
+
+        // 3. Upsert User
+        let user = await this.prisma.user.findUnique({ where: { email: primaryEmail } });
+        if (!user) {
+            user = await this.prisma.user.create({
+                data: {
+                    email: primaryEmail,
+                    passwordHash: '', // No password for OAuth users
+                    name: ghUser.name || ghUser.login,
+                    avatar: ghUser.avatar_url,
+                    plan: 'free',
+                },
+            });
+            this.email.sendWelcome(user.email, user.name ?? 'there').catch(() => null);
+        } else if (!user.avatar) {
+            user = await this.prisma.user.update({
+                where: { email: primaryEmail },
+                data: { avatar: ghUser.avatar_url },
+            });
+        }
+
+        const token = this.generateToken(user);
+        return { token, user: this.sanitizeUser(user) };
+    }
+
     private generateToken(user: { id: string; email: string; plan: string }) {
         return this.jwt.sign({
             sub: user.id,

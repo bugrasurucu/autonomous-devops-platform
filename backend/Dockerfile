@@ -1,4 +1,5 @@
 FROM node:20-alpine AS builder
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Install ALL deps (including devDeps) for the build step
@@ -13,6 +14,7 @@ RUN npm run build
 
 # ── Production image ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Re-copy package files and install only prod deps

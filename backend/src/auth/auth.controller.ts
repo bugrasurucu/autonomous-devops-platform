@@ -6,6 +6,8 @@ import {
     Body,
     UseGuards,
     Request,
+    Res,
+    Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -52,5 +54,22 @@ export class AuthController {
         @Body() body: { plan: string },
     ) {
         return this.authService.upgradePlan(req.user.userId, body.plan);
+    }
+
+    @Get('github')
+    async githubOAuthLogin(@Request() req: any, @Res() res: any) {
+        const url = await this.authService.getGithubOAuthUrl();
+        res.redirect(url);
+    }
+
+    @Get('github/callback')
+    async githubOAuthCallback(@Query('code') code: string, @Res() res: any) {
+        try {
+            const { token } = await this.authService.githubLogin(code);
+            // Redirect to frontend with token
+            res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?token=${token}`);
+        } catch (err) {
+            res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=github_failed`);
+        }
     }
 }

@@ -15,11 +15,12 @@ export class GithubService {
         this.encryptionKey = this.config.get('ENCRYPTION_KEY', 'devops-platform-encryption-key-2026');
     }
 
-    getOAuthUrl(): string {
+    getOAuthUrl(userId?: string): string {
         const clientId = this.config.get('GITHUB_CLIENT_ID', '');
         const redirectUri = this.config.get('GITHUB_REDIRECT_URI', 'http://localhost:3001/api/github/callback');
         const scope = 'repo read:user';
-        return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
+        const state = userId ? encodeURIComponent(userId) : '';
+        return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
     }
 
     async exchangeCode(userId: string, code: string): Promise<{ username: string }> {
@@ -27,10 +28,11 @@ export class GithubService {
         const clientSecret = this.config.get('GITHUB_CLIENT_SECRET', '');
 
         // Exchange code for access token
+        const redirectUri = this.config.get('GITHUB_REDIRECT_URI', 'http://localhost:3001/api/github/callback');
         const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
+            body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code, redirect_uri: redirectUri }),
         });
 
         const tokenData: any = await tokenRes.json();

@@ -22,10 +22,13 @@ import { BillingModule } from './billing/billing.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
+    PrometheusModule.register(),
     PrismaModule,
     AuthModule,
     AgentsModule,

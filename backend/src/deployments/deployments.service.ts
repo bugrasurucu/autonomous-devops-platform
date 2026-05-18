@@ -5,6 +5,26 @@ import { KagentBridgeService } from '../kagent-bridge/kagent-bridge.service';
 import { TokenBudgetService } from '../token-budget/token-budget.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Counter, Gauge, Histogram } from 'prom-client';
+
+const deployCounter = new Counter({
+    name: 'orbitron_deployments_total',
+    help: 'Total number of deployments executed',
+    labelNames: ['status', 'environment'],
+});
+
+const deployCostGauge = new Gauge({
+    name: 'orbitron_deployment_cost_usd',
+    help: 'Cost of the last deployment in USD',
+    labelNames: ['environment'],
+});
+
+const deployDurationHist = new Histogram({
+    name: 'orbitron_deployment_duration_seconds',
+    help: 'Duration of deployments in seconds',
+    labelNames: ['environment'],
+    buckets: [10, 30, 60, 120, 300, 600],
+});
 
 // Deployment stages — sequential order
 const DEPLOY_STAGES = [
@@ -200,7 +220,21 @@ export class DeploymentsService {
             deployId,
         });
 
-        this.eventEmitter.emit('deploy.completed', { userId, deployId, status: finalStatus, cost: totalCost, duration });
+        this.eventEmitter.emit(failed ? 'deploy.failed' : 'deploy.success', {
+            userId,
+            deployId,
+            projectName: config.projectName,
+            region: config.region,
+            status: finalStatus,
+            cost: totalCost,
+            duration
+        });
+
+        // Prometheus Metrics
+        deployCounter.inc({ status: finalStatus, environment: config.environment ?? 'production' });
+        deployCostGauge.set({ environment: config.environment ?? 'production' }, totalCost);
+        deployDurationHist.observe({ environment: config.environment ?? 'production' }, duration);
+
         this.logger.log(`Deploy ${deployId} ${finalStatus}: ${duration}s, $${totalCost.toFixed(4)}`);
     }
 

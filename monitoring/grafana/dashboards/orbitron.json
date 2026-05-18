@@ -1,0 +1,46 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(process_cpu_seconds_total[1m])", "legendFormat": "CPU Time", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Memory Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "process_resident_memory_bytes", "legendFormat": "RSS Memory", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Total Deployments",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "orbitron_deployments_total", "legendFormat": "Deployments", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Last Deployment Cost (USD)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        { "expr": "orbitron_deployment_cost_usd", "legendFormat": "Cost USD", "refId": "A" }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "title": "Orbitron Platform Metrics",
+  "uid": "orbitron-main",
+  "version": 1
+}
