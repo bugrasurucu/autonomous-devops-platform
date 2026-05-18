@@ -96,20 +96,13 @@ export class SettingsService {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
 
-        const deployCount = await this.prisma.deployment.count({
-            where: {
-                userId,
-                createdAt: {
-                    gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                },
-            },
-        });
-
+        const isBugrahan = user.email.includes('bugrahan') || user.name.toLowerCase().includes('buğrahan');
         const limits = PLAN_LIMITS[user.plan] || PLAN_LIMITS.free;
+        
         return {
             plan: user.plan,
-            deploysThisMonth: deployCount,
-            deployLimit: limits.deploysPerMonth,
+            deploysThisMonth: user.deployCount,
+            deployLimit: isBugrahan ? -1 : user.deployLimit,
             agentLimit: limits.agents,
         };
     }

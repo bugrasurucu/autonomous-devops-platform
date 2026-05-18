@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as k8s from '@kubernetes/client-node';
+import { GoogleGenAI } from '@google/genai';
 
 export interface KagentInvokeRequest {
     task: string;
@@ -96,7 +97,97 @@ export class KagentBridgeService implements OnModuleInit {
         onStep?: (step: KagentStep, index: number) => void,
     ): Promise<KagentInvokeResult> {
         const sessionId = `sim-${Date.now()}`;
-        const model = request.model ?? 'claude-haiku-4-5-20251001';
+        const model = request.model ?? 'gemini-2.5-flash';
+        const apiKey = this.config.get<string>('GEMINI_API_KEY');
+
+        if (!apiKey) {
+            this.logger.warn('No GEMINI_API_KEY found, falling back to static mock data.');
+            return this.invokeMockData(agentId, request, onStep, sessionId);
+        }
+
+        try {
+            const ai = new GoogleGenAI({ apiKey });
+            
+            const prompt = `You are the ${agentId} agent for an Autonomous DevOps Platform.
+Your task is to analyze the following user request and generate exactly 4 steps representing your reasoning, actions, and observations.
+User Task: "${request.task}"
+
+Respond ONLY with a valid JSON array where each object has:
+- "type": one of "reason", "act", or "observe"
+- "content": A string describing the reasoning or observation (use when type is reason or observe)
+- "tool": A string tool name (use when type is act)
+- "input": A JSON object of tool parameters (use when type is act)
+- "output": A string representing the tool result (use when type is act)
+
+Also return a final summary as the last element of the array, but make it type: "summary" and content: "your final summary string".`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json'
+                }
+            });
+
+            let parsedSteps: any[] = [];
+            let resultSummary = 'Task completed successfully.';
+            
+            try {
+                parsedSteps = JSON.parse(response.text || '[]');
+            } catch (e) {
+                this.logger.error('Failed to parse Gemini JSON output', e);
+                return this.invokeMockData(agentId, request, onStep, sessionId);
+            }
+
+            const steps: KagentStep[] = [];
+            for (let i = 0; i < parsedSteps.length; i++) {
+                const s = parsedSteps[i];
+                if (s.type === 'summary') {
+                    resultSummary = s.content || resultSummary;
+                    continue;
+                }
+                
+                await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
+                
+                const step: KagentStep = {
+                    type: (s.type as 'reason' | 'act' | 'observe') || 'reason',
+                    content: s.content,
+                    tool: s.tool,
+                    input: s.input,
+                    output: s.output,
+                    timestamp: new Date().toISOString(),
+                    durationMs: Math.round(300 + Math.random() * 700),
+                };
+                steps.push(step);
+                onStep?.(step, i);
+            }
+
+            return {
+                sessionId,
+                agentId,
+                status: 'completed',
+                steps,
+                result: resultSummary,
+                usage: { 
+                    model: 'gemini-2.5-flash', 
+                    inputTokens: response.usageMetadata?.promptTokenCount || 200, 
+                    outputTokens: response.usageMetadata?.candidatesTokenCount || 200 
+                },
+            };
+
+        } catch (error) {
+            this.logger.error('Gemini API call failed', error);
+            return this.invokeMockData(agentId, request, onStep, sessionId);
+        }
+    }
+
+    private async invokeMockData(
+        agentId: string,
+        request: KagentInvokeRequest,
+        onStep?: (step: KagentStep, index: number) => void,
+        sessionId: string = `sim-${Date.now()}`
+    ): Promise<KagentInvokeResult> {
+        const model = request.model ?? 'gemini-2.5-flash';
 
         const AGENT_SIMULATIONS: Record<string, { steps: Partial<KagentStep>[]; result: string }> = {
             'infra-agent': {

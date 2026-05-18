@@ -11,6 +11,7 @@ import { useToast } from '@/components/Toast';
 
 const NAV_ITEMS = [
     { href: '/dashboard', label: 'Dashboard', icon: '⬡' },
+    { href: '/dashboard/deployments', label: 'Deployments', icon: '🚀' },
     { href: '/dashboard/agents', label: 'Agents', icon: '⟁' },
     { href: '/dashboard/repositories', label: 'Repositories', icon: '⌥' },
     { href: '/dashboard/pipeline', label: 'Pipeline', icon: '▸▸' },

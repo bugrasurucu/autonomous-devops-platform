@@ -7,6 +7,7 @@ import {
     Query,
     UseGuards,
     Request,
+    Delete,
 } from '@nestjs/common';
 import { DeploymentsService } from './deployments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -43,5 +44,15 @@ export class DeploymentsController {
     @Get('deployments/:id')
     findOne(@Request() req: any, @Param('id') id: string) {
         return this.deploymentsService.findOne(req.user.userId, id);
+    }
+
+    @Post('deployments/:id/stop')
+    stop(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.stop(req.user.userId, id);
+    }
+
+    @Delete('deployments/:id')
+    delete(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.delete(req.user.userId, id);
     }
 }

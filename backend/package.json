@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@google/genai": "^2.4.0",
     "@kubernetes/client-node": "^1.4.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",

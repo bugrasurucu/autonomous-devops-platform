@@ -59,6 +59,8 @@ model User {
   plan             Plan     @default(free)
   githubToken      String?  @map("github_token") @db.Text
   githubUsername   String?  @map("github_username")
+  deployLimit      Int      @default(5) @map("deploy_limit")
+  deployCount      Int      @default(0) @map("deploy_count")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

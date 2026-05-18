@@ -76,6 +76,8 @@ export const api = {
     deploy: (data: { projectName: string; region?: string; environment?: string; budget?: number; sourceType?: string; sourceValue?: string }) =>
         request('/deploy', { method: 'POST', body: JSON.stringify(data) }),
     getDeployments: (limit?: number) => request(`/deployments?limit=${limit || 20}`),
+    stopDeployment: (id: string) => request(`/deployments/${id}/stop`, { method: 'POST' }),
+    deleteDeployment: (id: string) => request(`/deployments/${id}`, { method: 'DELETE' }),
 
     // FinOps
     getFinOps: () => request('/finops'),

@@ -59,6 +59,15 @@ export class DeploymentsService {
             sourceValue?: string;
         },
     ) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error('User not found');
+        
+        // Grant unlimited limits for Buğrahan Sürücü, otherwise check limit
+        const isBugrahan = user.email.includes('bugrahan') || user.name.toLowerCase().includes('buğrahan');
+        if (!isBugrahan && user.deployCount >= user.deployLimit) {
+            throw new Error(`Deploy limit reached (${user.deployLimit}). Please upgrade your plan.`);
+        }
+
         const deployId = `DEP-${Date.now()}`;
         const flowNodes = DEPLOY_STAGES.map(s => ({ id: s.id, label: s.label, status: 'pending' }));
 
@@ -75,6 +84,12 @@ export class DeploymentsService {
                 githubRepo: data.sourceValue,
                 githubBranch: data.sourceType,
             },
+        });
+
+        // Increment user's deploy count
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { deployCount: { increment: 1 } },
         });
 
         this.eventEmitter.emit('activity.new', {
@@ -102,6 +117,23 @@ export class DeploymentsService {
             where: { userId },
             orderBy: { createdAt: 'desc' },
             take: limit,
+        });
+    }
+
+    async stop(userId: string, id: string) {
+        const deployment = await this.prisma.deployment.findFirst({ where: { id, userId } });
+        if (!deployment) throw new Error('Deployment not found');
+        return this.prisma.deployment.update({
+            where: { id },
+            data: { status: 'cancelled' },
+        });
+    }
+
+    async delete(userId: string, id: string) {
+        const deployment = await this.prisma.deployment.findFirst({ where: { id, userId } });
+        if (!deployment) throw new Error('Deployment not found');
+        return this.prisma.deployment.delete({
+            where: { id },
         });
     }
 

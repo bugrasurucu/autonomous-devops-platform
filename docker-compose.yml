@@ -83,6 +83,7 @@ services:
       STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-price_starter_placeholder}
       STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-price_pro_placeholder}
       STRIPE_PRICE_ENTERPRISE: ${STRIPE_PRICE_ENTERPRISE:-price_enterprise_placeholder}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "3001:3001"
     healthcheck:
