@@ -628,7 +628,7 @@ export default function AppPreviewPage() {
                             fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: 8
                         }}>
                             <span style={{ color: '#818cf8', userSelect: 'none' }}>🔒</span>
-                            <span>{mockUrl}</span>
+                            <span>{liveContainerUrl || mockUrl}</span>
                         </div>
 
                         <span style={{
@@ -642,55 +642,70 @@ export default function AppPreviewPage() {
 
                     {/* Sandbox Live Viewport */}
                     <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 300px', height: 'calc(100% - 50px)' }}>
-                        <div style={{ background: '#0b0f19', padding: 24, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span style={{ fontSize: 24 }}>🧠</span>
-                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2eeff' }}>OrbitAI Sandbox</h3>
-                                </div>
-                                <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'JetBrains Mono, monospace' }}>React v19.0.0</span>
-                            </div>
-
-                            <div style={{
-                                flex: 1, background: '#070a12', borderRadius: 12, padding: 16,
-                                overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12,
-                                border: '1px solid rgba(255,255,255,0.03)'
-                            }}>
-                                {chatMessages.map((msg, idx) => (
-                                    <div key={idx} style={{
-                                        alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                                        maxWidth: '80%',
-                                        background: msg.role === 'user' ? '#818cf8' : 'rgba(255,255,255,0.05)',
-                                        color: msg.role === 'user' ? '#000' : 'var(--text-primary)',
-                                        fontWeight: msg.role === 'user' ? 600 : 400,
-                                        padding: '10px 14px', borderRadius: 12, fontSize: 12,
-                                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                                    }}>
-                                        {msg.text}
-                                    </div>
-                                ))}
-                            </div>
-
-                            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                                <input
-                                    type="text"
-                                    value={input}
-                                    onChange={e => setInput(e.target.value)}
-                                    placeholder="Type a message to interact with your live app..."
+                        {liveContainerUrl ? (
+                            <div style={{ background: '#0b0f19', padding: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+                                <iframe 
+                                    src={liveContainerUrl}
                                     style={{
-                                        flex: 1, padding: '12px 16px', borderRadius: 8,
-                                        background: '#070a12', border: '1px solid rgba(255,255,255,0.08)',
-                                        color: '#fff', fontSize: 12, outline: 'none'
+                                        width: '100%',
+                                        height: '100%',
+                                        border: 'none',
+                                        background: '#0b0f19'
                                     }}
+                                    title="Orbitron Live App Viewport"
                                 />
-                                <button type="submit" style={{
-                                    padding: '12px 20px', borderRadius: 8, fontWeight: 700,
-                                    background: '#818cf8', color: '#000', border: 'none', cursor: 'pointer'
+                            </div>
+                        ) : (
+                            <div style={{ background: '#0b0f19', padding: 24, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ fontSize: 24 }}>🧠</span>
+                                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2eeff' }}>OrbitAI Sandbox</h3>
+                                    </div>
+                                    <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'JetBrains Mono, monospace' }}>React v19.0.0</span>
+                                </div>
+
+                                <div style={{
+                                    flex: 1, background: '#070a12', borderRadius: 12, padding: 16,
+                                    overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12,
+                                    border: '1px solid rgba(255,255,255,0.03)'
                                 }}>
-                                    Send
-                                </button>
-                            </form>
-                        </div>
+                                    {chatMessages.map((msg, idx) => (
+                                        <div key={idx} style={{
+                                            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                            maxWidth: '80%',
+                                            background: msg.role === 'user' ? '#818cf8' : 'rgba(255,255,255,0.05)',
+                                            color: msg.role === 'user' ? '#000' : 'var(--text-primary)',
+                                            fontWeight: msg.role === 'user' ? 600 : 400,
+                                            padding: '10px 14px', borderRadius: 12, fontSize: 12,
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                        }}>
+                                            {msg.text}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                                    <input
+                                        type="text"
+                                        value={input}
+                                        onChange={e => setInput(e.target.value)}
+                                        placeholder="Type a message to interact with your live app..."
+                                        style={{
+                                            flex: 1, padding: '12px 16px', borderRadius: 8,
+                                            background: '#070a12', border: '1px solid rgba(255,255,255,0.08)',
+                                            color: '#fff', fontSize: 12, outline: 'none'
+                                        }}
+                                    />
+                                    <button type="submit" style={{
+                                        padding: '12px 20px', borderRadius: 8, fontWeight: 700,
+                                        background: '#818cf8', color: '#000', border: 'none', cursor: 'pointer'
+                                    }}>
+                                        Send
+                                    </button>
+                                </form>
+                            </div>
+                        )}
 
                         <div style={{ background: '#070a12', display: 'flex', flexDirection: 'column', height: '100%' }}>
                             <div style={{
