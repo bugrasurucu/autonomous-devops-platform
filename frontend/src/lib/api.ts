@@ -78,6 +78,7 @@ export const api = {
     getDeployments: (limit?: number) => request(`/deployments?limit=${limit || 20}`),
     stopDeployment: (id: string) => request(`/deployments/${id}/stop`, { method: 'POST' }),
     deleteDeployment: (id: string) => request(`/deployments/${id}`, { method: 'DELETE' }),
+    spinUpLiveContainer: (id: string) => request(`/deployments/${id}/live-container`, { method: 'POST' }),
 
     // FinOps
     getFinOps: () => request('/finops'),

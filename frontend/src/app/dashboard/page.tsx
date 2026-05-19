@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/Toast';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 
 const MetricsWidget = dynamic(() => import('@/components/dashboard/MetricsWidget'), { ssr: false });
 const TerminalLogger = dynamic(() => import('@/components/dashboard/TerminalLogger'), { ssr: false });
@@ -337,7 +338,21 @@ export default function DashboardPage() {
                             padding: '8px 0', borderBottom: '1px solid rgba(30,41,59,0.5)',
                         }}>
                             <div>
-                                <div style={{ fontSize: 12, fontWeight: 600 }}>{d.projectName}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600 }}>{d.projectName}</div>
+                                    {d.status === 'success' && (
+                                        <Link 
+                                            href={`/dashboard/preview/${d.id}`}
+                                            style={{
+                                                fontSize: 10, color: '#34d399', textDecoration: 'none',
+                                                background: 'rgba(52,211,153,0.1)', padding: '1px 6px', borderRadius: 4,
+                                                fontWeight: 700, border: '1px solid rgba(52,211,153,0.2)'
+                                            }}
+                                        >
+                                            🔗 Live App
+                                        </Link>
+                                    )}
+                                </div>
                                 <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{d.deployId} · {d.region}</div>
                             </div>
                             <span style={{

@@ -41,7 +41,12 @@ const FALLBACK_LOGS: Omit<LogEntry, 'id' | 'timestamp'>[] = [
 
 export default function TerminalLogger() {
     const { token } = useAuth();
-    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [logs, setLogs] = useState<LogEntry[]>(() => {
+        if (typeof window !== 'undefined' && (window as any).orbitron_logs) {
+            return (window as any).orbitron_logs;
+        }
+        return [];
+    });
     const [connected, setConnected] = useState(false);
     const [paused, setPaused] = useState(false);
     const [filter, setFilter] = useState<string>('all');
@@ -56,6 +61,9 @@ export default function TerminalLogger() {
         if (pausedRef.current) return;
         setLogs(prev => {
             const next = [...prev, entry].slice(-100); // keep last 100
+            if (typeof window !== 'undefined') {
+                (window as any).orbitron_logs = next;
+            }
             return next;
         });
     }, []);

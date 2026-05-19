@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/Toast';
+import Link from 'next/link';
 
 const STATUS_COLORS: Record<string, string> = {
     running: '#818cf8',
@@ -234,6 +235,20 @@ export default function DeploymentsPage() {
                                             </td>
                                             <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                                    {dep.status === 'success' && (
+                                                        <Link 
+                                                            href={`/dashboard/preview/${dep.id}`}
+                                                            style={{
+                                                                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                                                                background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)',
+                                                                color: '#34d399', textDecoration: 'none', cursor: 'pointer', transition: 'background 0.2s',
+                                                                display: 'inline-flex', alignItems: 'center'
+                                                            }}
+                                                            className="btn-success-hover"
+                                                        >
+                                                            🔗 Live Preview
+                                                        </Link>
+                                                    )}
                                                     {dep.status === 'running' ? (
                                                         <button 
                                                             onClick={() => handleStop(dep.id)}

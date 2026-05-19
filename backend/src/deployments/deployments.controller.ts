@@ -51,6 +51,11 @@ export class DeploymentsController {
         return this.deploymentsService.stop(req.user.userId, id);
     }
 
+    @Post('deployments/:id/live-container')
+    spinUpLiveContainer(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.spinUpRealContainer(req.user.userId, id);
+    }
+
     @Delete('deployments/:id')
     delete(@Request() req: any, @Param('id') id: string) {
         return this.deploymentsService.delete(req.user.userId, id);

@@ -3,13 +3,23 @@
 [![CI](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/ci.yml)
 [![CD](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/cd.yml/badge.svg)](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/cd.yml)
 
-Multi-agent AI platform that autonomously provisions AWS infrastructure, manages CI/CD pipelines, tracks cloud costs, and self-heals production incidents.
+Orbitron is an enterprise-grade, multi-agent AI platform that autonomously provisions AWS infrastructure, manages CI/CD pipelines, tracks cloud costs, and self-heals production incidents. It bridges the gap between simulated visual environments and real host orchestrations by integrating a live Docker socket daemon connection to run actual running containers on local ports.
 
-> **Tech Stack:** NestJS · Next.js 14 · PostgreSQL · Prisma · Redis · RabbitMQ · Docker · Kubernetes
+> **Tech Stack:** NestJS · Next.js 14 · PostgreSQL · Prisma · Redis · RabbitMQ · Docker · Kubernetes · Prometheus · Grafana · Gemini Pro
 
 ---
 
-## Architecture
+## 🌟 Key Platform Features & Integrations
+
+*   **🐳 Host Mode - Real Local Docker Deployment:** Mounts `/var/run/docker.sock` into the API container and uses `docker-cli` to spin up actual, fully-functioning alpine/nginx containers on dynamically allocated local ports (`http://localhost:4500`+).
+*   **👑 Unlimited Admin Quota (Buğrahan Sürücü):** Custom corporate billing rules allowing unlimited admin deployment credentials decorated with a premium gold-neon crown and infinite tag indicators.
+*   **🕸️ K8s Interactive Cluster Topology Map:** A premium, real-time developer preview canvas visualizing `ingress-controller` ➔ `frontend-service` ➔ API Gateways (`auth-service`, `payment-service`, `notification-service`) ➔ `postgres-db` with custom pod scaling controls.
+*   **🔌 Model Context Protocol (MCP) sidecars:** Seamless plug-and-play capability management for standard agents utilizing Anthropic MCP server protocols.
+*   **📈 Telemetry & Monitoring:** Bundled with Prometheus (`9090`) and Grafana (`3002`) containers to stream CPU, memory, log anomalies, and agent token usage metrics.
+
+---
+
+## ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -21,6 +31,7 @@ Multi-agent AI platform that autonomously provisions AWS infrastructure, manages
 │                  NestJS API  (Port 3001)                             │
 │  Auth · Agents · Deployments · GitHub · FinOps · SRE · Billing      │
 │  PostgreSQL (Prisma) · Redis · RabbitMQ · JWT · WebSocket Gateway   │
+│  Docker Socket (/var/run/docker.sock) ──➔ Real Container Deployment │
 └──────┬───────────────┬───────────────┬──────────────┬───────────────┘
        │               │               │              │
   ┌────▼────┐    ┌─────▼────┐   ┌─────▼──┐    ┌─────▼───┐
@@ -42,46 +53,43 @@ Multi-agent AI platform that autonomously provisions AWS infrastructure, manages
 
 ---
 
-## Quick Start
+## 🛠️ Quick Start
 
 ### Option 1: Docker Compose (Recommended)
 
+Make sure Docker is running on your host machine to allow the container daemon to bind to the socket!
+
 ```bash
-cp .env.example .env              # Configure environment variables
-docker compose up --build -d      # Start all 5 services
-# → Frontend: http://localhost:3000
-# → API:      http://localhost:3001
-# → RabbitMQ:  http://localhost:15672
+cp .env.example .env              # Configure your GEMINI_API_KEY and other credentials
+docker compose up --build -d      # Start all Orbitron core services
+# → Frontend Dashboard: http://localhost:3000
+# → API Service Node:   http://localhost:3001
+# → Prometheus Metrics: http://localhost:9090
+# → Grafana Visuals:    http://localhost:3002
+# → RabbitMQ Gateway:   http://localhost:15672
 ```
 
 ### Option 2: Local Development
 
 ```bash
-# 1. Start infrastructure
-docker compose up postgres redis rabbitmq -d
+# 1. Start core data engines
+docker compose up postgres redis rabbitmq prometheus grafana -d
 
-# 2. Backend
+# 2. Start NestJS Backend
 cd backend
 npm install
 npx prisma db push
-npm run start:dev              # http://localhost:3001
+npm run start:dev              # Running on http://localhost:3001
 
-# 3. Frontend
+# 3. Start Next.js Frontend
 cd frontend
 npm install
-npm run dev                    # http://localhost:3000
+npm run dev                    # Running on http://localhost:3000
 ```
-
-### GitHub OAuth (Optional)
-
-1. Create an OAuth App at [github.com/settings/developers](https://github.com/settings/developers)
-2. Homepage: `http://localhost:3000`
-3. Callback: `http://localhost:3001/api/github/callback`
-4. Add `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to your `.env`
 
 ---
 
-## API Endpoints
+## 📡 API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -94,6 +102,7 @@ npm run dev                    # http://localhost:3000
 | GET | `/api/agents` | List agents |
 | POST | `/api/deploy` | Trigger deployment |
 | GET | `/api/deployments` | Deployment history |
+| POST | `/api/deployments/:id/live-container` | Spin up a REAL running Docker container locally |
 | GET | `/api/github/status` | GitHub connection status |
 | GET | `/api/github/repos` | List repositories |
 | GET | `/api/finops` | Cost analytics |
@@ -101,84 +110,26 @@ npm run dev                    # http://localhost:3000
 
 ---
 
-## Agent Fleet
+## 🤖 Autonomous Agent Registry & Fleets
 
-| Agent | Responsibility | Tools |
-|-------|---------------|-------|
-| **Auto-Bootstrap** | Repo analysis & agent coordination | All MCP servers |
-| **Infra** | Terraform/CDK/CFn infrastructure code generation | Cloud Control, IaC, Checkov |
-| **Pipeline** | CI/CD configuration, testing, visual QA | GitHub Actions, mcpdoc |
-| **FinOps** | Cost analysis, budget gate | AWS Pricing, Infracost |
-| **SRE** | Anomaly detection, RCA, autonomous remediation | CloudWatch, EventBridge |
+*   **Auto-Bootstrap:** Initial codebase analyzer. Inspects languages, folders, frameworks, and designs the orchestration plan.
+*   **Infra Agent:** Automatically writes production Terraform HCL, CDK scripts, running automated Checkov checks.
+*   **Pipeline Agent:** Installs multi-architecture Docker compilations, configures Github Actions pipelines, and executes visual QA.
+*   **FinOps Agent:** AWS Pricing MCP & Infracost analyzer. Automatically verifies the monthly cost projections against limits.
+*   **SRE Agent:** Tracks CloudWatch metrics, creates automated alarms, and operates on SAAV (Sense-Analyze-Act-Verify) self-healing loop.
 
 ---
 
-## Dashboard Pages
+## 📚 Complete Platform Wiki & Documentation
 
-| Page | Description |
-|------|-------------|
-| **Dashboard** | System stats, MetricsWidget charts, TerminalLogger, recommendations |
-| **Agents** | Agent fleet overview, trigger executions, real-time step polling |
-| **FinOps** | Cost breakdown, pricing tiers, AWS Free Tier info, smart suggestions |
-| **Pipeline** | Deployment history table with status, region, cost, duration |
-| **Self-Healing** | SAAV heal cycle visualization, incident timeline |
-| **Repositories** | GitHub OAuth, repo browser, one-click deploy |
-| **Token Usage** | Monthly budget tracking, model & agent distribution |
-| **Billing** | Plan comparison, Stripe checkout integration |
-| **Team** | Member management, invite system, role assignments |
-| **Settings** | Profile, AI models, API key management |
-
----
-
-## Environment Variables
-
-See [`.env.example`](.env.example) for the full list. Key variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | (required) |
-| `JWT_SECRET` | JWT signing key | (required) |
-| `FRONTEND_URL` | CORS origin | `http://localhost:3000` |
-| `GITHUB_CLIENT_ID` | GitHub OAuth App ID | (optional) |
-| `STRIPE_PRICE_*` | Stripe Price IDs | placeholder |
-
----
-
-## CI/CD
-
-- **CI** (`ci.yml`): Runs on push/PR to `main` — backend type-check + build (with Postgres), frontend type-check + build
-- **CD** (`cd.yml`): Runs on push to `main` or version tags — builds and pushes Docker images to GitHub Container Registry (GHCR)
-
----
-
-## Security
-
-- **Least Privilege**: Each agent has its own IAM role
-- **Allow/Deny Lists**: Destructive commands require human approval
-- **Encryption**: API keys and GitHub tokens encrypted with AES-256
-- **Circuit Breaker**: Pipeline halts on budget overrun
-- **Artifact Review**: All Terraform plans reviewed before deployment
-
----
-
-## Current Limitations
-
-| Area | Current | Roadmap |
-|------|---------|---------|
-| Cloud Provider | AWS only | Azure, GCP |
-| CI/CD | GitHub Actions only | GitLab CI, Jenkins |
-| Auth | Custom JWT | NextAuth.js / Auth0 |
-| IaC | Terraform, CDK, CFn | Pulumi |
-
----
-
-## Documentation
-
-- [Security Guardrails](.agent/rules/security-guardrails.md)
-- [Auto-Bootstrap SKILL](.agent/skills/auto-bootstrap/SKILL.md)
-- [Infra Agent SKILL](.agent/skills/infra-agent/SKILL.md)
-- [Pipeline Agent SKILL](.agent/skills/pipeline-agent/SKILL.md)
-- [FinOps Agent SKILL](.agent/skills/finops-agent/SKILL.md)
-- [SRE Agent SKILL](.agent/skills/sre-agent/SKILL.md)
-- [Production Plan](ORBITRON_PRODUCTION_PLAN.md)
-- [Product Overview](ORBITRON_PRODUCT_OVERVIEW.md)
+For in-depth guides and connected platform architectural wikis, please check the [Orbitron Wiki Portal](docs/wiki/Wiki.md) containing:
+1. [⚙️ Code Architecture & Core Orchestrator](docs/wiki/Code.md)
+2. [🏥 Self-Healing & Incident Streams](docs/wiki/Issues.md)
+3. [🚀 Pull Requests, Checkov & FinOps Gates](docs/wiki/Pull_Requests.md)
+4. [🤖 A2A Agent Cards & Capability Registry](docs/wiki/Agents.md)
+5. [👥 Team collaboration & Quota rules](docs/wiki/Discussions.md)
+6. [🎬 Automated Workflows & Visual QA Actions](docs/wiki/Actions.md)
+7. [📋 Master Plan & Sequential Pipelines](docs/wiki/Projects.md)
+8. [🛡️ Security, RBAC & Isolation Systems](docs/wiki/Security_and_Quality.md)
+9. [📈 Grafana Dashboards & Telemetry Insights](docs/wiki/Insights.md)
+10. [🔑 Custom Models & Gemini API settings](docs/wiki/Settings.md)

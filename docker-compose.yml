@@ -93,6 +93,8 @@ services:
       retries: 3
     networks:
       - orbitron
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   frontend:
     build:

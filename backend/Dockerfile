@@ -14,7 +14,7 @@ RUN npm run build
 
 # ── Production image ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl docker-cli
 WORKDIR /app
 
 # Re-copy package files and install only prod deps

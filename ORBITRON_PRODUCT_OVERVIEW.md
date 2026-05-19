@@ -31,21 +31,23 @@ Orbitron is more than a web application — it's a Platform-as-a-Service with co
 
 ---
 
-## 🚀 What Has Been Built
+## 🚀 What Has Been Built & Hardened
 
-1. **Rebranding (Mission Control → Orbitron):** Complete rebrand with professional SaaS-grade identity, logo, and visual language.
-2. **Landing Page:** 6-layer marketing site:
-   * **Terminal Hero:** Live deploy command simulation
-   * **Pipeline Steps:** 6-step autonomous process visualization
-   * **AI Agent Fleet:** Introduction of all 4 agents
-   * **K8s Architecture:** Engineering-depth Kubernetes infrastructure diagram
-   * **Tech Stack Grid:** 18 supported DevOps technologies
-   * **Pricing:** Dynamic 3-tier pricing section
-3. **Dashboard Integrations:**
-   * **Token Usage & Billing:** Credit/plan tracking, fully English, bug-free
-   * **MetricsWidget & TerminalLogger:** Real-time observability with Recharts + streaming logs
-   * **Stabilization:** Fixed React state deadlocks on agent page transitions; optimized component architectures
-4. **Realistic Simulation:** Backend services (Agent Simulation) 100% compatible with frontend for live demos and investor pitches.
+1.  **🐳 Host Mode Real Docker Orchestration:** Mounts the `/var/run/docker.sock` daemon socket to spin up real, isolated containers mapped directly to local localhost ports, bringing true infrastructure capabilities to local developer boxes.
+2.  **👑 Premium Admin Limits & Badges:** Gold-neon crowned dashboards with unlimited tags configured specifically for Buğrahan Sürücü.
+3.  **🕸️ Kubernetes Topology visualizer & scale inspector:** Interactive K8s microservices architecture preview displaying live replica sets, CPU and RAM metrics, allowing dynamic pod scaling and simulated service mesh API request testing.
+4.  **Landing Page:** 6-layer marketing site:
+    *   **Terminal Hero:** Live deploy command simulation
+    *   **Pipeline Steps:** 6-step autonomous process visualization
+    *   **AI Agent Fleet:** Introduction of all 4 agents
+    *   **K8s Architecture:** Engineering-depth Kubernetes infrastructure diagram
+    *   **Tech Stack Grid:** 18 supported DevOps technologies
+    *   **Pricing:** Dynamic 3-tier pricing section
+5.  **Dashboard Integrations:**
+    *   **Token Usage & Billing:** Credit/plan tracking, fully English, bug-free
+    *   **MetricsWidget & TerminalLogger:** Real-time observability with Recharts + streaming logs
+    *   **Stabilization:** Fixed React state deadlocks on agent page transitions; optimized component architectures
+6.  **Realistic Simulation & LLM Routing:** Integrates real Gemini Pro reasoning with the `@google/genai` API SDK to execute actual logical decisions based on your real `.env` key tokens.
 
 ---
 
