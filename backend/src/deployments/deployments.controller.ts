@@ -60,4 +60,14 @@ export class DeploymentsController {
     delete(@Request() req: any, @Param('id') id: string) {
         return this.deploymentsService.delete(req.user.userId, id);
     }
+
+    @Get('deployments/:id/container-stats')
+    getContainerStats(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.getContainerStats(req.user.userId, id);
+    }
+
+    @Post('deployments/:id/chat')
+    chatWithContainer(@Request() req: any, @Param('id') id: string, @Body() body: { message: string }) {
+        return this.deploymentsService.chatWithContainer(req.user.userId, id, body.message);
+    }
 }

@@ -9,6 +9,9 @@ import { TokenBudgetService } from '../token-budget/token-budget.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Counter, Gauge, Histogram } from 'prom-client';
+import { GoogleGenAI } from '@google/genai';
+import { promisify } from 'util';
+const execAsync = promisify(exec);
 
 const deployCounter = new Counter({
     name: 'orbitron_deployments_total',
@@ -561,16 +564,11 @@ Create alarms for: CPU >80%, error rate >5%, latency p99 >2s.${ctx}`,
         const form = document.getElementById('chat-form');
         const input = document.getElementById('chat-input');
         const messages = document.getElementById('messages');
+        const deployId = '\${deployment.deployId}';
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token') || '';
 
-        const responses = [
-            "Container is operating at peak health! Latency is less than 0.8ms locally.",
-            "Stripe payment service check: SUCCESS. Active mock keys loaded.",
-            "Database postgres-db connection validated. Transaction logs are live.",
-            "Indeed, this is a real Docker container! Check your terminal: run 'docker ps' to inspect.",
-            "Nginx reverse proxy is successfully routing requests. 200 OK!"
-        ];
-
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!input.value.trim()) return;
 
@@ -583,13 +581,29 @@ Create alarms for: CPU >80%, error rate >5%, latency p99 >2s.${ctx}`,
             messages.appendChild(userMsg);
             messages.scrollTop = messages.scrollHeight;
 
-            setTimeout(() => {
-                const botMsg = document.createElement('div');
-                botMsg.className = 'message bot';
-                botMsg.innerText = responses[Math.floor(Math.random() * responses.length)];
-                messages.appendChild(botMsg);
-                messages.scrollTop = messages.scrollHeight;
-            }, 600);
+            const botMsg = document.createElement('div');
+            botMsg.className = 'message bot';
+            botMsg.innerHTML = '<span style="opacity:0.5">Typing...</span>';
+            messages.appendChild(botMsg);
+            messages.scrollTop = messages.scrollHeight;
+
+            try {
+                const response = await fetch('http://localhost:3001/api/deployments/' + deployId + '/chat', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ message: text })
+                });
+                
+                if (!response.ok) throw new Error('API Error');
+                const data = await response.json();
+                botMsg.innerText = data.reply;
+            } catch (err) {
+                botMsg.innerText = '⚠️ Error communicating with container backend: ' + err.message;
+            }
+            messages.scrollTop = messages.scrollHeight;
         });
     </script>
 </body>
@@ -636,5 +650,63 @@ Create alarms for: CPU >80%, error rate >5%, latency p99 >2s.${ctx}`,
                 });
             });
         });
+    }
+
+    async getContainerStats(userId: string, id: string) {
+        const deployment = await this.prisma.deployment.findFirst({
+            where: { OR: [{ id }, { deployId: id }], userId }
+        });
+        if (!deployment) throw new Error('Deployment not found');
+
+        const cleanId = deployment.deployId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const containerName = `orbitron-live-\${cleanId}`;
+
+        try {
+            // Get stats using docker CLI
+            const { stdout } = await execAsync(`docker stats \${containerName} --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}"`);
+            if (!stdout.trim()) {
+                throw new Error('Container might be down');
+            }
+            const [cpu, mem, memPerc, net] = stdout.trim().split('|');
+            return {
+                status: 'online',
+                cpu: cpu.replace('%', ''),
+                memory: mem.split('/')[0].trim(),
+                memoryPercent: memPerc.replace('%', ''),
+                network: net
+            };
+        } catch (e) {
+            return {
+                status: 'offline',
+                cpu: '0.00',
+                memory: '0 MB',
+                memoryPercent: '0.00',
+                network: '0B / 0B'
+            };
+        }
+    }
+
+    async chatWithContainer(userId: string, id: string, message: string) {
+        const deployment = await this.prisma.deployment.findFirst({
+            where: { OR: [{ id }, { deployId: id }], userId }
+        });
+        if (!deployment) throw new Error('Deployment not found');
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+            const prompt = `You are the runtime micro-agent for the project "\${deployment.projectName}" running in environment "\${deployment.environment}". 
+The user is talking to you through the live container shell. 
+Respond concisely (1-2 sentences) and realistically.
+User says: "\${message}"`;
+            
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            return { reply: response.text };
+        } catch (e: any) {
+            this.logger.error(`Gemini chat error: \${e.message}`);
+            return { reply: 'Internal container diagnostic: I am running, but my AI connection failed.' };
+        }
     }
 }

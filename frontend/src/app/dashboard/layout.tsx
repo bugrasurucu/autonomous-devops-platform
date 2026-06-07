@@ -8,6 +8,29 @@ import { api } from '@/lib/api';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSkeleton';
 import { useToast } from '@/components/Toast';
+import { useTheme } from '@/lib/theme-context';
+import dynamic from 'next/dynamic';
+
+const CommandPalette = dynamic(() => import('@/components/CommandPalette'), { ssr: false });
+
+function ThemeToggle() {
+    const { resolvedTheme, setTheme } = useTheme();
+    return (
+        <button
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            style={{
+                background: 'none', border: '1px solid var(--border-color)',
+                borderRadius: 8, width: 34, height: 34, cursor: 'pointer',
+                color: 'var(--text-secondary)', fontSize: 16,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s',
+            }}
+            title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+            {resolvedTheme === 'dark' ? '☀️' : '🌙'}
+        </button>
+    );
+}
 
 const NAV_ITEMS = [
     { href: '/dashboard', label: 'Dashboard', icon: '⬡' },
@@ -39,25 +62,75 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         api.kagent?.getStatus().then((s: any) => setKagentAvailable(s?.available ?? false)).catch(() => setKagentAvailable(false));
     }, []);
 
-    // Poll activity feed for notifications
+    // WebSocket connection for real-time notifications
     useEffect(() => {
+        if (!user) return;
+        
+        let socket: any;
+        let isConnected = false;
+        
+        const initSocket = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            const { io } = await import('socket.io-client');
+            const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
+            
+            socket = io(SOCKET_URL, {
+                auth: { token },
+                transports: ['websocket'],
+                reconnection: true,
+            });
+            
+            socket.on('connect', () => {
+                isConnected = true;
+                console.log('Notification socket connected');
+            });
+            
+            socket.on('NEW_ACTIVITY', (activity: any) => {
+                setActivities(prev => [activity, ...prev].slice(0, 8));
+                setUnreadCount(prev => prev + 1);
+                info('New Activity: ' + activity.text);
+                
+                // Desktop notification if supported and granted
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Orbitron Mission Control', { body: activity.text });
+                }
+            });
+            
+            socket.on('NOTIFICATION_PUSH', (notification: any) => {
+                setActivities(prev => [{ text: notification.message, color: '#f59e0b', createdAt: new Date().toISOString() }, ...prev].slice(0, 8));
+                setUnreadCount(prev => prev + 1);
+                info(notification.message);
+                
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Orbitron Alert', { body: notification.message });
+                }
+            });
+        };
+        
+        initSocket();
+        
+        // Request desktop notification permission
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+        
+        // Initial fetch
         const fetchActivities = async () => {
             try {
                 const stats = await api.getStats();
                 if (stats?.activities) {
                     setActivities(stats.activities.slice(0, 8));
-                    setUnreadCount(prev => {
-                        const newCount = stats.activities.length;
-                        if (prev > 0 && newCount > prev) return newCount;
-                        return prev;
-                    });
                 }
             } catch { }
         };
         fetchActivities();
-        const interval = setInterval(fetchActivities, 10000);
-        return () => clearInterval(interval);
-    }, []);
+        
+        return () => {
+            if (socket) socket.disconnect();
+        };
+    }, [user, info]);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -217,9 +290,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     background: 'rgba(8,15,30,0.8)', backdropFilter: 'blur(8px)',
                     flexShrink: 0,
                 }}>
-                    {/* Notification Bell */}
-                    <div style={{ position: 'relative' }}>
-                        <button
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {/* Theme Toggle */}
+                        <ThemeToggle />
+
+                        {/* Notification Bell */}
+                        <div style={{ position: 'relative' }}>
+                            <button
                             onClick={() => { setNotifOpen(o => !o); setUnreadCount(0); }}
                             style={{
                                 background: 'none', border: '1px solid var(--border-color)',
@@ -278,6 +355,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </>
                         )}
                     </div>
+                    </div>
                 </div>
                 <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
                     <div className="page-enter">
@@ -287,6 +365,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                 </div>
             </main>
+
+            <CommandPalette />
 
             <style>{`
                 @media (max-width: 768px) {

@@ -106,4 +106,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     handleErrorEvent(data: { userId: string; error: any }) {
         this.emitToUser(data.userId, 'ERROR', data.error);
     }
+
+    @OnEvent('notification.push')
+    handleNotificationPush(data: { userId: string; notification: any }) {
+        this.emitToUser(data.userId, 'NOTIFICATION_PUSH', data.notification);
+    }
 }

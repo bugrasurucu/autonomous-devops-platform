@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/Toast';
+import { ThemeProvider } from '@/lib/theme-context';
 
 export const metadata: Metadata = {
     title: 'Orbitron — Autonomous DevOps Platform',
@@ -11,11 +12,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en" className="dark">
+        <html lang="en" suppressHydrationWarning>
             <body>
-                <AuthProvider>
-                    <ToastProvider>{children}</ToastProvider>
-                </AuthProvider>
+                <ThemeProvider>
+                    <AuthProvider>
+                        <ToastProvider>{children}</ToastProvider>
+                    </AuthProvider>
+                </ThemeProvider>
             </body>
         </html>
     );

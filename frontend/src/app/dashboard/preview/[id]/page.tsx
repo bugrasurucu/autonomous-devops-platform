@@ -29,13 +29,34 @@ export default function AppPreviewPage() {
         setSpinError(null);
         try {
             const res = await api.spinUpLiveContainer(deployment.id || deployment.deployId) as any;
-            setLiveContainerUrl(res.url);
+            const token = localStorage.getItem('orbitron_token') || '';
+            setLiveContainerUrl(res.url + '?token=' + encodeURIComponent(token));
         } catch (e: any) {
             setSpinError(e.message || 'Failed to start Docker container. Check if Docker daemon is running.');
         } finally {
             setSpinningUp(false);
         }
     };
+
+    const [containerStats, setContainerStats] = useState({ cpu: '2.4', memory: '142 MB' });
+
+    useEffect(() => {
+        if (!liveContainerUrl) return;
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/proxy/deployments/${id}/container-stats`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('orbitron_token')}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === 'online') {
+                        setContainerStats({ cpu: data.cpu, memory: data.memory });
+                    }
+                }
+            } catch (e) {}
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [liveContainerUrl, id]);
 
     // --- State for Microservices / Kubernetes Preview ---
     const [selectedPod, setSelectedPod] = useState<string>('auth-service');
@@ -81,26 +102,31 @@ export default function AppPreviewPage() {
         fetchDep();
     }, [id]);
 
-    const handleSendMessage = (e: React.FormEvent) => {
+    const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim()) return;
 
         const userMsg = input.trim();
         setInput('');
         setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+        setChatMessages(prev => [...prev, { role: 'assistant', text: 'Typing...' }]);
 
-        setTimeout(() => {
-            const responses = [
-                "That is a brilliant idea! As an autonomous React component, I can render that in real-time.",
-                "Database sync completed in the background. Your state is fully persisted!",
-                "Running in serverless edge mode with 12ms latency globally.",
-                "Indeed! Orbitron's automated agent setup gave me full CI/CD pipeline capabilities.",
-                "Let me look that up for you... Found 4 active nodes globally."
-            ];
-            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-            setChatMessages(prev => [...prev, { role: 'assistant', text: randomResponse }]);
+        try {
+            const res = await fetch(`/api/proxy/deployments/${id}/chat`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('orbitron_token')}`
+                },
+                body: JSON.stringify({ message: userMsg })
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            setChatMessages(prev => prev.slice(0, -1).concat({ role: 'assistant', text: data.reply }));
             setApiLogs(prev => [...prev, `frontend-service: POST /api/v1/chat - 200 OK (${(Math.random() * 20 + 5).toFixed(1)}ms)`]);
-        }, 800);
+        } catch (e) {
+            setChatMessages(prev => prev.slice(0, -1).concat({ role: 'assistant', text: '⚠️ Error connecting to Gemini API.' }));
+        }
     };
 
     const handleScale = (podName: string, amount: number) => {
@@ -721,11 +747,11 @@ export default function AppPreviewPage() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
                                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
                                         <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>CPU Load</div>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#34d399', marginTop: 2 }}>2.4%</div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#34d399', marginTop: 2 }}>{containerStats.cpu}%</div>
                                     </div>
                                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
                                         <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>RAM Memory</div>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#818cf8', marginTop: 2 }}>142 MB</div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#818cf8', marginTop: 2 }}>{containerStats.memory}</div>
                                     </div>
                                 </div>
                             </div>

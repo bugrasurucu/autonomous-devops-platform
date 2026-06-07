@@ -199,7 +199,7 @@ Also return a final summary as the last element of the array, but make it type: 
                     { type: 'reason', content: 'All security checks passed. Infrastructure configuration is compliant with AWS Well-Architected Framework.' },
                     { type: 'observe', content: 'Infrastructure plan approved. Ready for deployment. VPC CIDR: 10.0.0.0/16, ECS tasks: 2, RDS instance: db.t3.small.' },
                 ],
-                result: 'Infrastructure analysis complete. Terraform plan generated with 4 resources. All security checks passed. Estimated monthly cost: $47.',
+                result: '[SIMULATED] Infrastructure analysis complete for requested project. Terraform plan generated with 4 resources. All security checks passed. Estimated monthly cost: $47.',
             },
             'pipeline-agent': {
                 steps: [
@@ -209,7 +209,7 @@ Also return a final summary as the last element of the array, but make it type: 
                     { type: 'act', tool: 'test_runner', input: { framework: 'jest', coverage: true }, output: 'Tests: 24 passed, 0 failed. Coverage: 87%. All assertions satisfied.' },
                     { type: 'reason', content: 'Pipeline validated successfully. Coverage threshold met. Ready to push configuration.' },
                 ],
-                result: 'CI/CD pipeline generated. 5-stage workflow: lint → test → build → deploy → verify. Coverage: 87%.',
+                result: '[SIMULATED] CI/CD pipeline generated for requested project. 5-stage workflow: lint → test → build → deploy → verify. Coverage: 87%.',
             },
             'finops-agent': {
                 steps: [
@@ -220,7 +220,7 @@ Also return a final summary as the last element of the array, but make it type: 
                     { type: 'reason', content: 'Switching to Graviton2 instances would save $22/month. Spot Instances for non-critical workloads: $45/month savings.' },
                     { type: 'observe', content: 'Recommendations generated. Potential savings: $67/month (28% reduction) with zero service impact.' },
                 ],
-                result: 'Cost analysis complete. Current: $234/month. Savings opportunities: $67/month via Spot Instances and Graviton migration.',
+                result: '[SIMULATED] Cost analysis complete for requested project. Current: $234/month. Savings opportunities: $67/month via Spot Instances and Graviton migration.',
             },
             'sre-agent': {
                 steps: [
@@ -231,7 +231,7 @@ Also return a final summary as the last element of the array, but make it type: 
                     { type: 'reason', content: 'All systems healthy. No remediation required. Scheduling next health check in 5 minutes.' },
                     { type: 'observe', content: 'SAAV cycle complete. Status: HEALTHY. SLO compliance: 99.97%. No action required.' },
                 ],
-                result: 'SAAV health check complete. All systems healthy. SLO: 99.97%. No incidents detected.',
+                result: '[SIMULATED] SAAV health check complete. All systems healthy. SLO: 99.97%. No incidents detected.',
             },
         };
 

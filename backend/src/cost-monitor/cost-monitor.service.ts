@@ -212,15 +212,13 @@ export class CostMonitorService {
             return recent[0];
         }
 
-        // Seeded realistic metrics based on deploy count
-        const deploys = await this.prisma.deployment.count({ where: { userId } });
-        const base = Math.min(deploys * 8, 75);
+        // No real metrics available yet
         return {
-            cpuPercent: base + Math.random() * 15,
-            memPercent: base * 0.9 + Math.random() * 10,
-            reqPerSec: deploys * 12 + Math.random() * 20,
-            errorRate: Math.random() * 2,
-            activeConns: deploys * 5 + Math.floor(Math.random() * 10),
+            cpuPercent: 0,
+            memPercent: 0,
+            reqPerSec: 0,
+            errorRate: 0,
+            activeConns: 0,
         };
     }
 

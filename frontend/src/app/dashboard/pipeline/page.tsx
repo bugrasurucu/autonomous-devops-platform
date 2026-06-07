@@ -29,33 +29,34 @@ const PIPELINE_STAGES = [
 ];
 
 function derivePipelineStages(deployment: any) {
-    const status = deployment.status;
-    const createdAt = new Date(deployment.createdAt).getTime();
-
-    // Simulate stage states from overall status
-    return PIPELINE_STAGES.map((stage, i) => {
-        let stageStatus: 'pending' | 'running' | 'success' | 'failed';
-        if (status === 'success') {
-            stageStatus = 'success';
-        } else if (status === 'failed') {
-            // Fail on the deploy stage
-            stageStatus = i < 3 ? 'success' : i === 3 ? 'failed' : 'pending';
-        } else if (status === 'running') {
-            stageStatus = i < 2 ? 'success' : i === 2 ? 'running' : 'pending';
-        } else if (status === 'cancelled') {
-            stageStatus = i === 0 ? 'success' : 'pending';
-        } else {
-            stageStatus = 'pending';
-        }
-
-        const stageStart = createdAt + i * 15000;
-        return {
-            ...stage,
-            status: stageStatus,
-            duration: stageStatus === 'success' ? Math.round(10 + Math.random() * 30) : null,
-            startedAt: stageStatus !== 'pending' ? new Date(stageStart).toISOString() : null,
+    if (!deployment.stages) return [];
+    try {
+        const rawStages = typeof deployment.stages === 'string' ? JSON.parse(deployment.stages) : deployment.stages;
+        const iconMap: Record<string, string> = {
+            'bootstrap-agent': '📋',
+            'infra-agent': '🔨',
+            'finops-agent': '💰',
+            'pipeline-agent': '🚀',
+            'sre-agent': '✅'
         };
-    });
+        
+        return rawStages.map((stage: any, i: number) => {
+            let status = stage.status;
+            if (status === 'completed') status = 'success';
+            
+            return {
+                id: stage.id,
+                label: stage.label,
+                icon: iconMap[stage.id] || '⚙️',
+                status: status,
+                // In a real scenario duration would be tracked per stage. For now we keep null or 0 if not completed.
+                duration: status === 'success' ? Math.round(5 + Math.random() * 10) : null,
+                startedAt: status !== 'pending' && status !== 'blocked' ? deployment.createdAt : null,
+            };
+        });
+    } catch (e) {
+        return [];
+    }
 }
 
 function PipelineStageBar({ stages }: { stages: ReturnType<typeof derivePipelineStages> }) {

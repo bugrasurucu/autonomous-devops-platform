@@ -138,6 +138,36 @@ export class BillingService {
                 }
                 break;
             }
+            case 'invoice.payment_failed': {
+                const invoice = event.data.object;
+                const org = await this.prisma.organization.findFirst({
+                    where: { stripeCustomerId: invoice.customer },
+                });
+                if (org) {
+                    // Send notification to user about payment failure
+                    this.logger.warn(`Payment failed for org=${org.id}. Customer=${invoice.customer}`);
+                    // Optionally downgrade to free immediately or wait for subscription.deleted
+                }
+                break;
+            }
+            case 'customer.subscription.updated': {
+                const sub = event.data.object;
+                const org = await this.prisma.organization.findFirst({
+                    where: { stripeSubId: sub.id },
+                });
+                if (org) {
+                    // Check if plan has changed in Stripe and sync it
+                    // E.g., if the user upgraded/downgraded directly from Stripe Portal
+                    const priceId = sub.items.data[0]?.price.id;
+                    const newPlan = Object.keys(PRICE_IDS).find(key => PRICE_IDS[key as Plan] === priceId) as Plan;
+                    
+                    if (newPlan && org.plan !== newPlan) {
+                        await this.tenants.updatePlan(org.id, newPlan);
+                        this.logger.log(`Subscription updated via portal — synced plan to ${newPlan}: org=${org.id}`);
+                    }
+                }
+                break;
+            }
         }
     }
 }

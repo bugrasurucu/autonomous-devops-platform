@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # ──────────────────────────────────────────
+  # Nginx Reverse Proxy
+  # ──────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: orbitron-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - orbitron-network
+
+  # ──────────────────────────────────────────
+  # Orbitron Frontend
+  # ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: orbitron-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://orbitron-nginx/api
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - orbitron-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # ──────────────────────────────────────────
+  # Orbitron Backend API
+  # ──────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: orbitron-backend
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://devops_user:devops_secret_2026@postgres:5432/devops_platform?schema=public
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://devops:devops_mq_2026@rabbitmq:5672
+      - JWT_SECRET=${JWT_SECRET:-production-secret-change-me}
+      - FRONTEND_URL=http://orbitron-nginx
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+    networks:
+      - orbitron-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
+  # ──────────────────────────────────────────
+  # Data & Infrastructure Layer
+  # ──────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: orbitron-postgres
+    environment:
+      - POSTGRES_USER=devops_user
+      - POSTGRES_PASSWORD=devops_secret_2026
+      - POSTGRES_DB=devops_platform
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - orbitron-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: orbitron-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - orbitron-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: orbitron-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=devops
+      - RABBITMQ_DEFAULT_PASS=devops_mq_2026
+    volumes:
+      - mq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - orbitron-network
+
+networks:
+  orbitron-network:
+    driver: bridge
+
+volumes:
+  pg_data:
+  redis_data:
+  mq_data:

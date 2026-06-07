@@ -24,6 +24,10 @@ import { NotificationsModule } from './notifications/notifications.module';
 
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 
+import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
+import { AuditLogInterceptor } from './common/audit-log.interceptor';
+import { RateLimitGuard } from './common/rate-limit.guard';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -49,6 +53,16 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     NotificationsModule,
   ],
   controllers: [StatsController],
-  providers: [StatsService],
+  providers: [
+    StatsService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditLogInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    }
+  ],
 })
 export class AppModule { }

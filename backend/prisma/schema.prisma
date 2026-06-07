@@ -71,6 +71,7 @@ model User {
   incidents        Incident[]
   agentExecutions  AgentExecution[]
   orgMemberships   OrganizationMember[]
+  auditLogs        AuditLog[]
 
   @@map("users")
 }
@@ -264,4 +265,19 @@ model ScalingEvent {
 
   @@index([userId])
   @@map("scaling_events")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  action      String
+  resource    String
+  metadata    String?  @db.Text
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
 }
