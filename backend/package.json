@@ -38,6 +38,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "crypto-js": "^4.2.0",
+    "helmet": "^8.2.0",
     "ioredis": "^5.10.0",
     "nodemailer": "^8.0.5",
     "passport": "^0.7.0",

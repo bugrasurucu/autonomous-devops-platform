@@ -53,6 +53,19 @@ Orbitron is an enterprise-grade, multi-agent AI platform that autonomously provi
 
 ---
 
+## 🆕 Latest Features (Phase 15)
+
+*   **⌘K Command Palette:** Instantly navigate anywhere in the platform using keyboard shortcuts with fuzzy search
+*   **🌓 Dark/Light Theme Toggle:** System-aware theme switching with localStorage persistence
+*   **🛡️ API Rate Limiting:** Redis-backed sliding window rate limiter with plan-based quotas (Free: 60/min, Starter: 200/min, Pro: 1000/min)
+*   **📋 Audit Logging:** Every mutation (POST/PUT/DELETE) is automatically logged with user, IP, endpoint, and request metadata
+*   **🔔 Real-time Notifications:** WebSocket push notifications (replacing polling) with desktop notification support
+*   **💳 Stripe Webhook Hardening:** `invoice.payment_failed` and `customer.subscription.updated` event handlers
+*   **🧪 Cypress E2E Tests:** Automated auth flow, dashboard navigation, and theme toggle tests
+*   **🐳 Production Docker Compose:** Nginx reverse proxy with gzip, security headers, and resource limits
+
+---
+
 ## 🛠️ Quick Start
 
 ### Option 1: Docker Compose (Recommended)
@@ -69,7 +82,15 @@ docker compose up --build -d      # Start all Orbitron core services
 # → RabbitMQ Gateway:   http://localhost:15672
 ```
 
-### Option 2: Local Development
+### Option 2: Production Mode (Nginx Reverse Proxy)
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.prod.yml up --build -d
+# → All traffic through Nginx: http://localhost:80
+```
+
+### Option 3: Local Development
 
 ```bash
 # 1. Start core data engines
@@ -85,6 +106,19 @@ npm run start:dev              # Running on http://localhost:3001
 cd frontend
 npm install
 npm run dev                    # Running on http://localhost:3000
+```
+
+### Running Tests
+
+```bash
+# Backend unit tests
+cd backend && npx jest --forceExit
+
+# Frontend E2E tests (requires running dev servers)
+cd frontend && npx cypress run
+
+# Frontend build check
+cd frontend && npm run build
 ```
 
 ---

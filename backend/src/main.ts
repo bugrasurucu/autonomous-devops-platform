@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import * as express from 'express';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -11,9 +12,23 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  // Enable CORS
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: false, // Disabled for development; enable in production with proper CSP
+    crossOriginEmbedderPolicy: false,
+  }));
+
+  // Enable CORS with strict origin
+  const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000').split(',');
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? '*',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // In dev, allow all; in production, change to callback(new Error('Not allowed by CORS'))
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });

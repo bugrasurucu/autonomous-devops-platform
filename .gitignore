@@ -41,8 +41,7 @@ logs/
 /tmp/
 *.tmp
 
-# Prisma
-backend/prisma/migrations/
+# Prisma (generated client is in node_modules, but migrations are tracked)
 
 # Database
 *.db
