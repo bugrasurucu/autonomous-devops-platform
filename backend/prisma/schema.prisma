@@ -47,6 +47,12 @@ enum IncidentStatus {
   resolved
 }
 
+enum CloudProvider {
+  aws
+  azure
+  gcp
+}
+
 // ─── Models ──────────────────────────────────────
 
 model User {
@@ -72,6 +78,7 @@ model User {
   agentExecutions  AgentExecution[]
   orgMemberships   OrganizationMember[]
   auditLogs        AuditLog[]
+  notificationChannels NotificationChannel[]
 
   @@map("users")
 }
@@ -168,6 +175,7 @@ model Deployment {
   githubRepo  String?      @map("github_repo")
   githubBranch String?     @map("github_branch")
   status      DeployStatus @default(pending)
+  provider    CloudProvider @default(aws)
   region      String       @default("us-east-1")
   environment String       @default("production")
   budget      Float        @default(0)
@@ -281,3 +289,20 @@ model AuditLog {
   @@index([userId, createdAt])
   @@map("audit_logs")
 }
+
+model NotificationChannel {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  name        String
+  type        String   // slack, webhook, email, pagerduty
+  config      String   @db.Text // JSON string of config
+  enabledOn   String   @db.Text // JSON string of events array
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notification_channels")
+}
+

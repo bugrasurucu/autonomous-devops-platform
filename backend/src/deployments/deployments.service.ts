@@ -63,6 +63,7 @@ export class DeploymentsService {
             budget?: number;
             sourceType?: string;
             sourceValue?: string;
+            provider?: 'aws' | 'azure' | 'gcp';
         },
     ) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -86,6 +87,7 @@ export class DeploymentsService {
                 environment: data.environment ?? 'production',
                 budget: data.budget ?? 0,
                 status: 'running',
+                provider: data.provider ?? 'aws',
                 stages: JSON.stringify(flowNodes),
                 githubRepo: data.sourceValue,
                 githubBranch: data.sourceType,
@@ -263,6 +265,7 @@ export class DeploymentsService {
             deployId,
             projectName: config.projectName,
             region: config.region,
+            provider: config.provider ?? 'aws',
             status: finalStatus,
             cost: totalCost,
             duration
@@ -287,16 +290,23 @@ Branch: ${config.githubBranch ?? 'main'}
 Target environment: ${config.environment ?? 'production'}
 AWS Region: ${config.region ?? 'us-east-1'}${ctx}`,
 
-            'infra-agent': `Generate Terraform infrastructure code for the project.
+            'infra-agent': `Generate Infrastructure-as-Code (IaC) for the project.
 Project: ${config.projectName}
+Provider: ${(config.provider ?? 'aws').toUpperCase()}
 Region: ${config.region ?? 'us-east-1'}
 Environment: ${config.environment ?? 'production'}
+Requirements: 
+- If AWS: Generate Terraform HCL.
+- If AZURE: Generate Bicep/ARM templates.
+- If GCP: Generate Google Cloud Deployment Manager manifests.
 Run Checkov scan and fix any HIGH/CRITICAL findings.${ctx}`,
 
-            'finops-agent': `Estimate monthly infrastructure cost and validate against budget.
+            'finops-agent': `Perform deep cost estimation using Infracost simulation.
 Budget limit: $${config.budget ?? 50}/month
 Project: ${config.projectName}
-Return JSON with decision APPROVED or BLOCKED.${ctx}`,
+Provider: ${(config.provider ?? 'aws').toUpperCase()}
+Task: Calculate unit economics for the generated IaC resources (Compute, Networking, Storage).
+Return JSON with decision APPROVED or BLOCKED and an exact breakdown.${ctx}`,
 
             'pipeline-agent': `Generate GitHub Actions CI/CD pipeline for the project.
 Project: ${config.projectName}

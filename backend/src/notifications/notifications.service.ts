@@ -3,22 +3,6 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 
-// ── Channel types ────────────────────────────────────────────────
-
-export interface NotificationChannel {
-    id: string;
-    userId: string;
-    name: string;
-    type: 'slack' | 'webhook' | 'email' | 'pagerduty';
-    config: Record<string, string>;   // webhookUrl | email | routingKey
-    enabledOn: string[];              // 'incident.created' | 'incident.resolved' | 'deploy.failed'
-    enabled: boolean;
-    createdAt: Date;
-}
-
-// In-memory store (production → move to DB table)
-const CHANNEL_STORE: Record<string, NotificationChannel[]> = {};
-
 // ── Event payloads ───────────────────────────────────────────────
 
 interface IncidentEvent {
@@ -51,11 +35,15 @@ export class NotificationsService {
 
     // ── CRUD ────────────────────────────────────────────────────
 
-    listChannels(userId: string): NotificationChannel[] {
-        return (CHANNEL_STORE[userId] ?? []).filter(c => !c['_deleted']);
+    async listChannels(userId: string) {
+        const channels = await this.prisma.notificationChannel.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+        });
+        return channels.map(this.deserializeChannel);
     }
 
-    createChannel(
+    async createChannel(
         userId: string,
         body: {
             name: string;
@@ -63,43 +51,55 @@ export class NotificationsService {
             config: Record<string, string>;
             enabledOn?: string[];
         },
-    ): NotificationChannel {
-        const channel: NotificationChannel = {
-            id: `ch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            userId,
-            name: body.name,
-            type: body.type,
-            config: body.config,
-            enabledOn: body.enabledOn ?? ['incident.created', 'incident.resolved', 'deploy.failed'],
-            enabled: true,
-            createdAt: new Date(),
-        };
-        if (!CHANNEL_STORE[userId]) CHANNEL_STORE[userId] = [];
-        CHANNEL_STORE[userId].push(channel);
+    ) {
+        const enabledOn = body.enabledOn ?? ['incident.created', 'incident.resolved', 'deploy.failed'];
+        const channel = await this.prisma.notificationChannel.create({
+            data: {
+                userId,
+                name: body.name,
+                type: body.type,
+                config: JSON.stringify(body.config),
+                enabledOn: JSON.stringify(enabledOn),
+                enabled: true,
+            },
+        });
         this.logger.log(`[${userId}] Created ${channel.type} channel: ${channel.name}`);
-        return channel;
+        return this.deserializeChannel(channel);
     }
 
-    updateChannel(userId: string, id: string, patch: Partial<NotificationChannel>): NotificationChannel {
-        const channels = CHANNEL_STORE[userId] ?? [];
-        const idx = channels.findIndex(c => c.id === id);
-        if (idx === -1) throw new NotFoundException('Channel not found');
-        channels[idx] = { ...channels[idx], ...patch };
-        return channels[idx];
+    async updateChannel(userId: string, id: string, patch: any) {
+        const dataToUpdate: any = { ...patch };
+        if (patch.config) dataToUpdate.config = JSON.stringify(patch.config);
+        if (patch.enabledOn) dataToUpdate.enabledOn = JSON.stringify(patch.enabledOn);
+
+        try {
+            const channel = await this.prisma.notificationChannel.update({
+                where: { id, userId },
+                data: dataToUpdate,
+            });
+            return this.deserializeChannel(channel);
+        } catch (error) {
+            throw new NotFoundException('Channel not found');
+        }
     }
 
-    deleteChannel(userId: string, id: string): { ok: boolean } {
-        const channels = CHANNEL_STORE[userId] ?? [];
-        const idx = channels.findIndex(c => c.id === id);
-        if (idx === -1) throw new NotFoundException('Channel not found');
-        channels.splice(idx, 1);
-        return { ok: true };
+    async deleteChannel(userId: string, id: string): Promise<{ ok: boolean }> {
+        try {
+            await this.prisma.notificationChannel.delete({
+                where: { id, userId },
+            });
+            return { ok: true };
+        } catch (error) {
+            throw new NotFoundException('Channel not found');
+        }
     }
 
     // ── Test ─────────────────────────────────────────────────────
 
     async testChannel(userId: string, id: string): Promise<{ ok: boolean; message: string }> {
-        const channel = (CHANNEL_STORE[userId] ?? []).find(c => c.id === id);
+        const channel = await this.prisma.notificationChannel.findFirst({
+            where: { id, userId },
+        });
         if (!channel) throw new NotFoundException('Channel not found');
 
         const testPayload = {
@@ -109,7 +109,7 @@ export class NotificationsService {
         };
 
         try {
-            await this.dispatch(channel, 'test', testPayload);
+            await this.dispatch(this.deserializeChannel(channel), 'test', testPayload);
             return { ok: true, message: 'Test notification sent successfully' };
         } catch (err: any) {
             return { ok: false, message: err.message };
@@ -120,41 +120,51 @@ export class NotificationsService {
 
     @OnEvent('incident.created')
     async onIncidentCreated(payload: IncidentEvent) {
-        const channels = this.getChannelsFor(payload.userId, 'incident.created');
+        const channels = await this.getChannelsFor(payload.userId, 'incident.created');
         const text = `🚨 *New ${payload.severity.toUpperCase()} Incident*: ${payload.title}`;
         await this.fanOut(channels, 'incident.created', { ...payload, text });
     }
 
     @OnEvent('incident.resolved')
     async onIncidentResolved(payload: IncidentEvent) {
-        const channels = this.getChannelsFor(payload.userId, 'incident.resolved');
-        const text = `✅ *Incident Resolved*: ${payload.title}${payload.resolution ? `\n> ${payload.resolution}` : ''}`;
+        const channels = await this.getChannelsFor(payload.userId, 'incident.resolved');
+        const resolutionText = payload.resolution ? `\n> ${payload.resolution}` : '';
+        const text = `✅ *Incident Resolved*: ${payload.title}${resolutionText}`;
         await this.fanOut(channels, 'incident.resolved', { ...payload, text });
     }
 
     @OnEvent('deploy.failed')
     async onDeployFailed(payload: DeployEvent) {
-        const channels = this.getChannelsFor(payload.userId, 'deploy.failed');
+        const channels = await this.getChannelsFor(payload.userId, 'deploy.failed');
         const text = `❌ *Deployment Failed*: ${payload.projectName} on ${payload.region ?? 'us-east-1'}`;
         await this.fanOut(channels, 'deploy.failed', { ...payload, text });
     }
 
     @OnEvent('deploy.success')
     async onDeploySuccess(payload: DeployEvent) {
-        const channels = this.getChannelsFor(payload.userId, 'deploy.success');
+        const channels = await this.getChannelsFor(payload.userId, 'deploy.success');
         const text = `🚀 *Deployment Successful*: ${payload.projectName} is live on ${payload.region ?? 'us-east-1'}`;
         await this.fanOut(channels, 'deploy.success', { ...payload, text });
     }
 
     // ── Internal helpers ─────────────────────────────────────────
 
-    private getChannelsFor(userId: string, event: string): NotificationChannel[] {
-        return (CHANNEL_STORE[userId] ?? []).filter(
-            c => c.enabled && c.enabledOn.includes(event),
-        );
+    private deserializeChannel(channel: any) {
+        return {
+            ...channel,
+            config: JSON.parse(channel.config || '{}'),
+            enabledOn: JSON.parse(channel.enabledOn || '[]'),
+        };
     }
 
-    private async fanOut(channels: NotificationChannel[], event: string, data: any) {
+    private async getChannelsFor(userId: string, event: string) {
+        const channels = await this.prisma.notificationChannel.findMany({
+            where: { userId, enabled: true },
+        });
+        return channels.map(this.deserializeChannel).filter(c => c.enabledOn.includes(event));
+    }
+
+    private async fanOut(channels: any[], event: string, data: any) {
         for (const ch of channels) {
             try {
                 await this.dispatch(ch, event, data);
@@ -165,7 +175,7 @@ export class NotificationsService {
         }
     }
 
-    private async dispatch(channel: NotificationChannel, event: string, data: any): Promise<void> {
+    private async dispatch(channel: any, event: string, data: any): Promise<void> {
         switch (channel.type) {
             case 'slack':
                 await this.sendSlack(channel.config.webhookUrl, data.text ?? JSON.stringify(data));
