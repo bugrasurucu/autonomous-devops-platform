@@ -12,6 +12,11 @@ export class FinopsController {
         return this.finopsService.getFinOps(req.user.userId);
     }
 
+    @Get('opa-evaluate')
+    evaluateOpa(@Request() req: any) {
+        return this.finopsService.evaluateOpaPolicies(req.user.userId);
+    }
+
     @Post('optimize/:id')
     applyOptimization(@Request() req: any, @Param('id') id: string) {
         return this.finopsService.applyOptimization(req.user.userId, id);

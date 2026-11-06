@@ -95,7 +95,7 @@ async function bootstrap() {
     <div class="links">
       <a href="/api/health">/api/health</a>
       <a href="/api/health/ready">/api/health/ready</a>
-      <a href="/api/deployments/providers">/api/deployments/providers</a>
+      <a href="/api/openapi.json">/api/openapi.json</a>
       <a href="/api/metrics">/api/metrics</a>
     </div>
   </div>
@@ -106,6 +106,37 @@ async function bootstrap() {
   };
   httpAdapter.get('/', rootHandler);
   httpAdapter.get('/api', rootHandler);
+  httpAdapter.get('/api/openapi.json', (_req: express.Request, res: express.Response) => {
+    return res.status(200).json({
+      openapi: '3.1.0',
+      info: {
+        title: 'Orbitron Multi-Cloud Autonomous DevOps Platform API',
+        version: '2.0.0',
+        description: 'Control Plane REST API for Multi-Cloud IaC Synthesis (AWS, GCP, Azure, Kubernetes), Autonomous Agents, FinOps OPA Policies, and SAAV Self-Healing.',
+      },
+      paths: {
+        '/api/deploy': { post: { summary: 'Trigger autonomous multi-cloud deployment orchestration' } },
+        '/api/deployments': { get: { summary: 'List deployments for authenticated tenant' } },
+        '/api/deployments/providers': { get: { summary: 'Get multi-cloud provider catalog & keyless OIDC setup templates' } },
+        '/api/deployments/{id}/artifacts': { get: { summary: 'Get synthesized Dockerfile, OpenTofu/Terraform, K8s manifests, Security Gate & FinOps report' } },
+        '/api/deployments/{id}/plan-diff': { get: { summary: 'Get structured OpenTofu plan diff (+add ~change -destroy) and iacHash' } },
+        '/api/deployments/{id}/github-pr': { post: { summary: 'Prepare GitHub Setup Pull Request on orbitron/setup-* branch' } },
+        '/api/deployments/{id}/rollback': { post: { summary: 'Rollback deployment to previous verified release' } },
+        '/api/deployments/{id}/destroy': { post: { summary: 'Destroy environment resources (tofu destroy)' } },
+        '/api/agents': { get: { summary: 'List autonomous DevOps agents and runtime telemetry' } },
+        '/api/agents/tools': { get: { summary: 'List deterministic agent tool catalog & guardrail policies' } },
+        '/api/agents/benchmark': { get: { summary: 'Run 10-stack multi-cloud evaluation benchmark suite' } },
+        '/api/incidents/runbooks': { get: { summary: 'List declarative YAML SAAV remediation runbooks' } },
+        '/api/incidents/{id}/saav-timeline': { get: { summary: 'Get 4-stage Sense→Analyze→Act→Verify timeline for incident' } },
+        '/api/incidents/webhook/{provider}': { post: { summary: 'Ingest cloud alarm webhook (aws, gcp, azure, alertmanager)' } },
+        '/api/finops': { get: { summary: 'Get multi-cloud cost breakdown, 30-day projection, anomalies, and IaC optimization patches' } },
+        '/api/finops/opa-evaluate': { get: { summary: 'Evaluate OPA/Rego FinOps budget and compute policies' } },
+        '/api/tenants/rbac-matrix': { get: { summary: 'Get environment-scoped RBAC permission matrix' } },
+        '/api/tenants/audit-logs': { get: { summary: 'Query immutable tenant audit logs' } },
+        '/api/tenants/audit-logs/export': { get: { summary: 'Export audit logs as JSON or CSV' } },
+      },
+    });
+  });
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);

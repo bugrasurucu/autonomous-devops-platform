@@ -155,11 +155,11 @@ function buildSampleArtifacts(port = 3000) {
         },
         {
             name: 'k8s/manifest.yaml',
-            content: `resources:\n  limits:\n    cpu: "500m"\n    memory: "512Mi"\nreadinessProbe:\n  httpGet:\n    path: /api/health\n    port: ${port}`,
+            content: `resources:\n  requests:\n    cpu: "250m"\n    memory: "256Mi"\n  limits:\n    cpu: "500m"\n    memory: "512Mi"\nreadinessProbe:\n  httpGet:\n    path: /api/health\n    port: ${port}`,
         },
         {
             name: '.github/workflows/orbitron-ci-cd.yml',
-            content: `name: Orbitron CI/CD\npermissions:\n  id-token: write\n  contents: read\njobs:\n  scan:\n    steps:\n      - name: Checkov IaC Scan\n        run: checkov -d .`,
+            content: `name: Orbitron CI/CD\npermissions:\n  id-token: write\n  contents: read\njobs:\n  scan:\n    steps:\n      - name: Checkov & Trivy Scan\n        uses: aquasecurity/trivy-action@master`,
         },
     ];
 }

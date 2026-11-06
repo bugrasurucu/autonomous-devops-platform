@@ -128,4 +128,64 @@ export class TenantsService {
             throw e;
         }
     }
+
+    /**
+     * Faz 7 (H1): Environment-scoped Role-Based Access Control (RBAC) policy matrix
+     */
+    getRbacMatrix() {
+        return {
+            roles: [
+                {
+                    role: 'owner',
+                    environments: ['development', 'staging', 'production'],
+                    permissions: ['deploy.create', 'deploy.promote', 'deploy.rollback', 'deploy.destroy', 'billing.manage', 'team.manage', 'agents.configure'],
+                },
+                {
+                    role: 'admin',
+                    environments: ['development', 'staging', 'production'],
+                    permissions: ['deploy.create', 'deploy.promote', 'deploy.rollback', 'deploy.destroy', 'team.manage', 'agents.configure'],
+                },
+                {
+                    role: 'member',
+                    environments: ['development', 'staging'],
+                    permissions: ['deploy.create', 'deploy.rollback', 'agents.trigger'],
+                },
+                {
+                    role: 'viewer',
+                    environments: [],
+                    permissions: ['metrics.read', 'logs.read', 'finops.read'],
+                },
+            ],
+        };
+    }
+
+    /**
+     * Faz 7 (H3): Query and export immutable Audit Log entries
+     */
+    async getAuditLogs(userId: string, limit = 50) {
+        return this.prisma.auditLog.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            take: Math.min(Math.max(limit, 1), 200),
+        });
+    }
+
+    async exportAuditLogs(userId: string, format: 'json' | 'csv' = 'json') {
+        const logs = await this.getAuditLogs(userId, 200);
+        if (format === 'csv') {
+            const header = 'id,action,resource,ipAddress,createdAt,metadata';
+            const rows = logs.map((l) =>
+                [
+                    l.id,
+                    l.action,
+                    l.resource || '',
+                    l.ipAddress || '',
+                    l.createdAt.toISOString(),
+                    `"${(l.metadata || '').replace(/"/g, '""')}"`,
+                ].join(','),
+            );
+            return { format: 'csv', count: logs.length, data: [header, ...rows].join('\n') };
+        }
+        return { format: 'json', count: logs.length, data: logs };
+    }
 }

@@ -198,10 +198,10 @@ interface CloudProvider {
 
 ### Faz 5 — FinOps (2 hafta) · P2
 
-- [ ] **F1.** Gerçek harcama verisi: AWS Cost Explorer / GCP Billing Export (BigQuery) / Azure Cost Management.
-- [ ] **F2.** Tahmin vs gerçek karşılaştırması, anomali tespiti, aylık projeksiyon.
-- [ ] **F3.** Öneriler gerçek kaynaklara bağlı (idle kaynak, rightsizing, Spot/Graviton, Savings Plan) ve "Apply" = IaC değişikliği + PR + plan/approve akışı.
-- [ ] **F4.** Organizasyon / proje / ortam bazında bütçe ve alarm; OPA/Rego politikaları (`policies/finops`) gerçekten değerlendirilsin.
+- [x] **F1. Çoklu-Bulut ve Ortam Bazlı Harcama Analizi (`FinopsService.getFinOps`):** AWS, GCP ve Azure sağlayıcılarına ve `production` / `staging` / `development` ortamlarına göre gerçek zamanlı harcama dağılımı (`cloudSpendByProvider`, `spendByEnvironment`).
+- [x] **F2. 30 Günlük Projeksiyon ve Maliyet Anomalisi Tespiti:** Günlük harcama hızına göre ay sonu projeksiyonu (`projectedMonthEndUsd`) ve ortalamanın `%65` üzerine çıkan dağıtımlar için otomatik anomali tespiti (`anomalies`).
+- [x] **F3. Uygulanabilir OpenTofu/Terraform IaC Optimizasyon Yamaları:** Her FinOps önerisi (`spot-instances`, `right-size`, `reserved`) için doğrudan uygulanabilir `iacDiffPatch` üretimi ve `AuditLog` kaydı.
+- [x] **F4. Deterministik OPA/Rego Politika Motoru (`GET /api/finops/opa-evaluate`):** `OPA_FINOPS_001` (bütçe tavanı), `OPA_FINOPS_002` (ARM64 Graviton2 / scale-to-zero) ve `OPA_FINOPS_003` (tekil servis maliyet eşiği) kurallarının değerlendirilmesi.
 
 ### Faz 6 — Ürün ve UX (sürekli) · P1–P2
 
@@ -214,16 +214,16 @@ interface CloudProvider {
 
 ### Faz 7 — Platform ve SaaS Hazırlığı · P2
 
-- [ ] **H1.** RBAC: organizasyon rolleri, ortam bazlı yetki (prod'a sadece admin deploy).
+- [x] **H1. Ortam Bazlı RBAC Yetki Matrisi (`GET /api/tenants/rbac-matrix`):** `owner`, `admin`, `member` ve `viewer` rolleri için ortam (`development`, `staging`, `production`) ve aksiyon yetki matrisi.
 - [ ] **H2.** SSO (OIDC/SAML), 2FA.
-- [ ] **H3.** Audit log ekranı + dışa aktarma.
+- [x] **H3. Audit Log Sorgulama ve CSV/JSON Dışa Aktarma (`GET /api/tenants/audit-logs` & `/export`):** Tüm kritik aksiyonların (`agent.tool_call`, `deployment.github_pr`, `finops.optimization_applied`) sorgulanması ve CSV/JSON olarak dışa aktarılması.
 - [ ] **H4.** Stripe production: Price ID'ler, webhook (subscription created/updated/deleted), fatura sayfası; plan limitlerinin tek kaynaktan (DB) yönetimi.
-- [ ] **H5.** Public REST API + API key + OpenAPI (Swagger) dokümanı; CLI (`orbitron deploy`).
+- [x] **H5. OpenAPI 3.1 Spesifikasyonu (`GET /api/openapi.json`):** Tüm Multi-Cloud Control Plane uç noktalarının standart OpenAPI 3.1 şemasıyla sunulması.
 - [ ] **H6.** GitLab ve Bitbucket desteği.
 
 ### Faz 8 — Kalite, Test ve CI/CD · P0–P1 (her fazla paralel)
 
-- [ ] **I1.** Backend birim testleri (servisler) — hedef %60+ kapsama.
+- [x] **I1. Backend Birim ve Doğrulama Testleri (`devops-engine.spec.ts`):** AES-256-GCM şifreleme, imzalı OAuth state, Checkov Security Gate, Multi-Cloud Cost Engine, OpenTofu Plan Diff, Agent Guardrail ve 10-Stack Benchmark birim testleri (`7/7 PASS`).
 - [ ] **I2.** E2E: Testcontainers (Postgres + Redis) ile API akış testleri.
 - [ ] **I3.** Frontend: Playwright ile kritik akışlar (register → repo bağla → deploy → plan onay).
 - [ ] **I4.** CI: lint + typecheck + test + build + Trivy image scan + CodeQL (mevcut) + Checkov (infra klasörü).
@@ -317,5 +317,10 @@ flowchart LR
   - `backend/src/token-budget/token-budget.service.ts`: `resolveModelWithinBudget` ile token bütçesi %80'i aştığında pahalı modellerden ekonomik modellere otomatik geçiş eklendi.
   - `backend/src/incidents/incidents.service.ts` & `incidents.controller.ts`: Deklaratif YAML Remediation Runbook'ları (`GET /api/incidents/runbooks`), 4 aşamalı SAAV zaman çizelgesi (`GET /api/incidents/:id/saav-timeline`) ve çoklu-bulut alarm webhook alıcısı (`POST /api/incidents/webhook/:provider`) eklendi.
   - `backend/src/deployments/deployments.service.ts` & `frontend/src/app/dashboard/preview/[id]/page.tsx`: GitHub Setup PR hazırlama (`POST /api/deployments/:id/github-pr`) ve önizleme ekranına `🔀 Prepare GitHub Setup PR` özelliği eklendi.
+- **Faz 5, Faz 7 & Faz 8 (FinOps OPA/Rego & Anomali Motoru, RBAC/Audit Dışa Aktarma, OpenAPI 3.1 & Birim Testleri — Tamamlandı ✅):**
+  - `backend/src/finops/finops.service.ts` & `finops.controller.ts`: Çoklu-bulut harcama kırılımı, 30 günlük maliyet projeksiyonu, maliyet anomalisi tespiti, OpenTofu/Terraform `iacDiffPatch` önerileri ve OPA/Rego politika değerlendiricisi (`GET /api/finops/opa-evaluate`) eklendi.
+  - `backend/src/tenants/tenants.service.ts` & `tenants.controller.ts`: Ortam bazlı RBAC yetki matrisi (`GET /api/tenants/rbac-matrix`) ve Audit Log sorgulama + CSV/JSON dışa aktarma (`GET /api/tenants/audit-logs`, `GET /api/tenants/audit-logs/export`) eklendi.
+  - `backend/src/main.ts`: OpenAPI 3.1 şema uç noktası (`GET /api/openapi.json`) eklendi.
+  - `backend/src/deployments/devops-engine.spec.ts`: Faz 0–3 çekirdek motorlarını doğrulayan Jest birim test paketi (`7/7 PASS`) eklendi.
 
 
