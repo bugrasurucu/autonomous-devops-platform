@@ -79,7 +79,7 @@ module "rds" {
   environment           = var.environment
   vpc_id                = module.vpc.vpc_id
   private_subnet_ids    = module.vpc.private_subnet_ids
-  ecs_security_group_id = module.ecs.cluster_arn  # Referans düzeltilmeli
+  ecs_security_group_id = module.ecs.ecs_tasks_security_group_id
   engine                = var.db_engine
   instance_class        = var.db_instance_class
   database_name         = var.db_name

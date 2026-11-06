@@ -84,7 +84,10 @@ export default function BillingPage() {
         setCheckoutLoading(planKey);
         try {
             const res: any = await api.billing.checkout(planKey, window.location.origin + '/dashboard/billing');
-            if (res?.url) {
+            if (res?.upgraded) {
+                success('Plan Updated!', `You're now on the ${PLAN_META[planKey]?.label} plan.`);
+                setCurrentPlan(planKey);
+            } else if (res?.url) {
                 window.location.href = res.url;
             } else {
                 success('Plan Updated!', `You're now on the ${PLAN_META[planKey]?.label} plan.`);
@@ -123,7 +126,7 @@ export default function BillingPage() {
     );
 
     const currentMeta = PLAN_META[currentPlan] ?? PLAN_META.free;
-    const deploysUsed = usage?.deploysThisMonth ?? 0;
+    const deploysUsed = usage?.usage?.deploys?.used ?? usage?.deploysThisMonth ?? 0;
     const currentPlanData = plans.find(p => p.plan === currentPlan);
     const deployLimit = currentPlanData?.deploymentsPerMonth ?? 3;
     const deployPct = deployLimit === -1 ? 0 : Math.min(100, (deploysUsed / deployLimit) * 100);

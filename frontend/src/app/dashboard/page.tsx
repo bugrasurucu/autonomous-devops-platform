@@ -229,7 +229,7 @@ export default function DashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
                 {[
                     { label: 'Total Deployments', value: stats?.totalDeployments ?? '—', icon: '🚀', color: '#818cf8' },
-                    { label: 'Active Agents', value: '4', icon: '🤖', color: '#34d399' },
+                    { label: 'Active Agents', value: stats ? `${stats.activeAgents || stats.totalAgents || 4}` : '4', icon: '🤖', color: '#34d399' },
                     { label: 'Success Rate', value: `${stats?.successRate ?? 95}%`, icon: '✅', color: '#34d399' },
                     { label: 'Est. Monthly Cost', value: usage ? `$${usage.estimatedCost}` : '—', icon: '💰', color: '#fbbf24' },
                 ].map(card => (
@@ -445,11 +445,25 @@ export default function DashboardPage() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Region</label>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Cloud Provider & Region</label>
                                     <select className="input-field" value={deployForm.region} onChange={e => setDeployForm({ ...deployForm, region: e.target.value })}>
-                                        <option value="us-east-1">US East (N. Virginia)</option>
-                                        <option value="eu-west-1">EU West (Ireland)</option>
-                                        <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
+                                        <optgroup label="☁️ Amazon Web Services (AWS)">
+                                            <option value="aws:us-east-1">AWS — US East (N. Virginia)</option>
+                                            <option value="aws:eu-west-1">AWS — EU West (Ireland)</option>
+                                            <option value="aws:ap-southeast-1">AWS — Asia Pacific (Singapore)</option>
+                                            <option value="us-east-1">AWS — Default (us-east-1)</option>
+                                        </optgroup>
+                                        <optgroup label="🌐 Google Cloud Platform (GCP)">
+                                            <option value="gcp:us-central1">GCP — Iowa (us-central1)</option>
+                                            <option value="gcp:europe-west1">GCP — Belgium (europe-west1)</option>
+                                        </optgroup>
+                                        <optgroup label="🔷 Microsoft Azure">
+                                            <option value="azure:eastus">Azure — East US (eastus)</option>
+                                            <option value="azure:westeurope">Azure — West Europe (westeurope)</option>
+                                        </optgroup>
+                                        <optgroup label="☸️ Kubernetes (Cloud-Agnostic)">
+                                            <option value="k8s:cluster-default">Kubernetes — Production Cluster</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                                 <div>

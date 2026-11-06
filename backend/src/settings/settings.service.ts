@@ -1,22 +1,24 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import * as CryptoJS from 'crypto-js';
+import { encryptSecret, decryptSecret } from '../common/crypto.util';
 
 const SUPPORTED_MODELS = [
     { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', tier: 'pro', desc: 'Most capable OpenAI model' },
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', tier: 'free', desc: 'Fast and economical' },
     { id: 'claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic', tier: 'pro', desc: 'Best for code and analysis' },
     { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'anthropic', tier: 'free', desc: 'Lightning fast' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'google', tier: 'free', desc: 'Fastest next-gen multimodal reasoning' },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google', tier: 'free', desc: 'Ultra fast multimodal' },
     { id: 'gemini-2.0-pro', name: 'Gemini 2.0 Pro', provider: 'google', tier: 'pro', desc: 'Advanced reasoning' },
     { id: 'deepseek-r1', name: 'DeepSeek R1', provider: 'deepseek', tier: 'pro', desc: 'Open-source reasoning' },
     { id: 'mistral-large', name: 'Mistral Large', provider: 'mistral', tier: 'enterprise', desc: 'European AI' },
 ];
 
-const PLAN_LIMITS = {
-    free: { agents: 2, deploysPerMonth: 5, models: ['gpt-4o-mini', 'gemini-2.0-flash', 'claude-3-haiku'] },
-    pro: { agents: 5, deploysPerMonth: 50, models: ['gpt-4o', 'gpt-4o-mini', 'claude-3.5-sonnet', 'claude-3-haiku', 'gemini-2.0-flash', 'gemini-2.0-pro', 'deepseek-r1'] },
+const PLAN_LIMITS: Record<string, { agents: number; deploysPerMonth: number; models: string[] }> = {
+    free: { agents: 2, deploysPerMonth: 5, models: ['gpt-4o-mini', 'gemini-2.5-flash', 'gemini-2.0-flash', 'claude-3-haiku'] },
+    starter: { agents: 4, deploysPerMonth: 20, models: ['gpt-4o', 'gpt-4o-mini', 'gemini-2.5-flash', 'gemini-2.0-flash', 'claude-3-haiku'] },
+    pro: { agents: 5, deploysPerMonth: 100, models: ['gpt-4o', 'gpt-4o-mini', 'claude-3.5-sonnet', 'claude-3-haiku', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-pro', 'deepseek-r1'] },
     enterprise: { agents: 10, deploysPerMonth: -1, models: ['all'] },
 };
 
@@ -93,28 +95,37 @@ export class SettingsService {
     }
 
     async getUsage(userId: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: { orgMemberships: true },
+        });
         if (!user) throw new NotFoundException('User not found');
 
-        const isBugrahan = user.email.includes('bugrahan') || user.name.toLowerCase().includes('buğrahan');
+        const adminEmails = (this.config.get<string>('ADMIN_EMAILS', '') || '')
+            .split(',')
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean);
+        const isOwnerOrAdmin =
+            user.plan === 'enterprise' ||
+            adminEmails.includes(user.email.toLowerCase()) ||
+            user.orgMemberships?.some((m) => m.role === 'owner' || m.role === 'admin');
         const limits = PLAN_LIMITS[user.plan] || PLAN_LIMITS.free;
-        
+
         return {
             plan: user.plan,
             deploysThisMonth: user.deployCount,
-            deployLimit: isBugrahan ? -1 : user.deployLimit,
+            deployLimit: isOwnerOrAdmin ? -1 : user.deployLimit,
             agentLimit: limits.agents,
         };
     }
 
     private encrypt(text: string): string {
-        return CryptoJS.AES.encrypt(text, this.encryptionKey).toString();
+        return encryptSecret(text, this.encryptionKey);
     }
 
     private decrypt(encrypted: string): string {
         try {
-            const bytes = CryptoJS.AES.decrypt(encrypted, this.encryptionKey);
-            return bytes.toString(CryptoJS.enc.Utf8);
+            return decryptSecret(encrypted, this.encryptionKey);
         } catch {
             return '***';
         }

@@ -9,12 +9,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: config.get('JWT_SECRET', 'mission-control-saas-2026-secret-key'),
+            secretOrKey: config.get<string>('JWT_SECRET') || 'orbitron-local-dev-jwt-secret-only',
         });
     }
 
     async validate(payload: any) {
         return {
+            id: payload.sub,
             userId: payload.sub,
             email: payload.email,
             plan: payload.plan,

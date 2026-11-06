@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import * as CryptoJS from 'crypto-js';
+import { encryptSecret, decryptSecret, signOAuthState, verifyOAuthState } from '../common/crypto.util';
 
 @Injectable()
 export class GithubService {
@@ -15,12 +15,69 @@ export class GithubService {
         this.encryptionKey = this.config.get('ENCRYPTION_KEY', 'devops-platform-encryption-key-2026');
     }
 
+    isOAuthConfigured(): boolean {
+        const clientId = this.config.get('GITHUB_CLIENT_ID', '');
+        return Boolean(clientId && clientId !== 'your_github_client_id');
+    }
+
     getOAuthUrl(userId?: string): string {
         const clientId = this.config.get('GITHUB_CLIENT_ID', '');
         const redirectUri = this.config.get('GITHUB_REDIRECT_URI', 'http://localhost:3001/api/github/callback');
         const scope = 'repo read:user';
-        const state = userId ? encodeURIComponent(userId) : '';
-        return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
+        const state = userId ? signOAuthState(userId, this.encryptionKey) : '';
+        return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;
+    }
+
+    verifyOAuthStateToken(state?: string): string | null {
+        if (!state) return null;
+        return verifyOAuthState(state, this.encryptionKey);
+    }
+
+    async connectWithTokenOrUsername(userId: string, payload: { username?: string; token?: string }): Promise<{ connected: boolean; username: string }> {
+        const rawToken = payload.token?.trim();
+        const rawUsername = payload.username?.trim().replace(/^@/, '');
+
+        if (rawToken) {
+            const userRes = await fetch('https://api.github.com/user', {
+                headers: { Authorization: `Bearer ${rawToken}`, 'User-Agent': 'Orbitron-DevOps-Platform' },
+            });
+            if (!userRes.ok) {
+                throw new UnauthorizedException('Invalid GitHub Personal Access Token');
+            }
+            const ghUser: any = await userRes.json();
+            const encrypted = this.encrypt(rawToken);
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: { githubToken: encrypted, githubUsername: ghUser.login },
+            });
+            this.logger.log(`GitHub PAT connected for user ${userId}: @${ghUser.login}`);
+            return { connected: true, username: ghUser.login };
+        }
+
+        if (rawUsername) {
+            // Verify public GitHub profile or store username for public repo fetching
+            let resolvedLogin = rawUsername;
+            try {
+                const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(rawUsername)}`, {
+                    headers: { 'User-Agent': 'Orbitron-DevOps-Platform' },
+                });
+                if (userRes.ok) {
+                    const ghUser: any = await userRes.json();
+                    resolvedLogin = ghUser.login || rawUsername;
+                }
+            } catch {
+                // Allow offline/fallback connection with provided username
+            }
+            const marker = this.encrypt(`PUBLIC_USER:${resolvedLogin}`);
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: { githubToken: marker, githubUsername: resolvedLogin },
+            });
+            this.logger.log(`GitHub public profile connected for user ${userId}: @${resolvedLogin}`);
+            return { connected: true, username: resolvedLogin };
+        }
+
+        throw new UnauthorizedException('Please provide a GitHub username or Personal Access Token');
     }
 
     async exchangeCode(userId: string, code: string): Promise<{ username: string }> {
@@ -59,10 +116,11 @@ export class GithubService {
         return { username: ghUser.login };
     }
 
-    async getStatus(userId: string): Promise<{ connected: boolean; username?: string }> {
+    async getStatus(userId: string): Promise<{ connected: boolean; username?: string; oauthConfigured?: boolean }> {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user?.githubToken) return { connected: false };
-        return { connected: true, username: user.githubUsername ?? undefined };
+        const oauthConfigured = this.isOAuthConfigured();
+        if (!user?.githubToken && !user?.githubUsername) return { connected: false, oauthConfigured };
+        return { connected: true, username: user.githubUsername ?? undefined, oauthConfigured };
     }
 
     async disconnect(userId: string): Promise<void> {
@@ -73,11 +131,25 @@ export class GithubService {
     }
 
     async listRepos(userId: string, search?: string): Promise<any[]> {
-        const token = await this.getDecryptedToken(userId);
-        const url = 'https://api.github.com/user/repos?per_page=100&sort=updated&type=owner';
-        const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'DevOps-Platform' },
-        });
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user?.githubToken && !user?.githubUsername) {
+            throw new UnauthorizedException('GitHub not connected');
+        }
+
+        const decrypted = user.githubToken ? this.decrypt(user.githubToken) : `PUBLIC_USER:${user.githubUsername}`;
+        const isPublicUserMode = decrypted.startsWith('PUBLIC_USER:');
+        const username = isPublicUserMode ? decrypted.replace('PUBLIC_USER:', '') : user.githubUsername;
+
+        const url = isPublicUserMode
+            ? `https://api.github.com/users/${encodeURIComponent(username || 'bugrasurucu')}/repos?per_page=100&sort=updated`
+            : 'https://api.github.com/user/repos?per_page=100&sort=updated&type=owner';
+
+        const headers: Record<string, string> = { 'User-Agent': 'Orbitron-DevOps-Platform' };
+        if (!isPublicUserMode && decrypted) {
+            headers.Authorization = `Bearer ${decrypted}`;
+        }
+
+        const res = await fetch(url, { headers });
 
         if (!res.ok) throw new UnauthorizedException('GitHub API call failed');
         const repos: any[] = await res.json();
@@ -123,11 +195,10 @@ export class GithubService {
     }
 
     private encrypt(text: string): string {
-        return CryptoJS.AES.encrypt(text, this.encryptionKey).toString();
+        return encryptSecret(text, this.encryptionKey);
     }
 
     private decrypt(encrypted: string): string {
-        const bytes = CryptoJS.AES.decrypt(encrypted, this.encryptionKey);
-        return bytes.toString(CryptoJS.enc.Utf8);
+        return decryptSecret(encrypted, this.encryptionKey);
     }
 }

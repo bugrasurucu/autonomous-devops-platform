@@ -8,7 +8,7 @@ import { EventsGateway } from './events.gateway';
         JwtModule.registerAsync({
             imports: [ConfigModule],
             useFactory: (config: ConfigService) => ({
-                secret: config.get('JWT_SECRET', 'mission-control-jwt-secret-2026'),
+                secret: config.get('JWT_SECRET', 'mission-control-saas-2026-secret-key'),
                 signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '7d') },
             }),
             inject: [ConfigService],

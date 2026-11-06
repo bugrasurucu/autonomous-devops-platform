@@ -28,9 +28,16 @@ export class DeploymentsController {
             budget?: number;
             sourceType?: string;
             sourceValue?: string;
+            githubRepo?: string;
+            githubBranch?: string;
         },
     ) {
         return this.deploymentsService.create(req.user.userId, body);
+    }
+
+    @Get('deployments/providers')
+    getCloudProviders() {
+        return this.deploymentsService.getCloudProvidersCatalog();
     }
 
     @Get('deployments')
@@ -54,6 +61,50 @@ export class DeploymentsController {
     @Post('deployments/:id/live-container')
     spinUpLiveContainer(@Request() req: any, @Param('id') id: string) {
         return this.deploymentsService.spinUpRealContainer(req.user.userId, id);
+    }
+
+    @Get('deployments/:id/container-status')
+    getContainerStatus(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.getContainerStatus(req.user.userId, id);
+    }
+
+    @Post('deployments/:id/stop-container')
+    stopLiveContainer(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.stopLiveContainer(req.user.userId, id);
+    }
+
+    @Get('deployments/:id/artifacts')
+    getArtifacts(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.getGeneratedArtifacts(req.user.userId, id);
+    }
+
+    @Get('deployments/:id/plan-diff')
+    getPlanDiff(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.getPlanDiff(req.user.userId, id);
+    }
+
+    @Post('deployments/:id/destroy')
+    destroyEnvironment(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.destroyEnvironment(req.user.userId, id);
+    }
+
+    @Post('deployments/:id/redeploy')
+    redeploy(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.redeploy(req.user.userId, id);
+    }
+
+    @Post('deployments/:id/promote')
+    promote(
+        @Request() req: any,
+        @Param('id') id: string,
+        @Body() body?: { targetEnvironment?: string },
+    ) {
+        return this.deploymentsService.promote(req.user.userId, id, body?.targetEnvironment);
+    }
+
+    @Post('deployments/:id/rollback')
+    rollback(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.rollback(req.user.userId, id);
     }
 
     @Delete('deployments/:id')

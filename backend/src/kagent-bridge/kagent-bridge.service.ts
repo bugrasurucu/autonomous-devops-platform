@@ -121,11 +121,13 @@ Respond ONLY with a valid JSON array where each object has:
 
 Also return a final summary as the last element of the array, but make it type: "summary" and content: "your final summary string".`;
 
+            const resolvedGeminiModel = model.startsWith('gemini-') ? model : 'gemini-2.5-flash';
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: resolvedGeminiModel,
                 contents: prompt,
                 config: {
-                    responseMimeType: 'application/json'
+                    responseMimeType: 'application/json',
+                    ...(request.maxTokens ? { maxOutputTokens: request.maxTokens } : {}),
                 }
             });
 
@@ -169,7 +171,7 @@ Also return a final summary as the last element of the array, but make it type: 
                 steps,
                 result: resultSummary,
                 usage: { 
-                    model: 'gemini-2.5-flash', 
+                    model, 
                     inputTokens: response.usageMetadata?.promptTokenCount || 200, 
                     outputTokens: response.usageMetadata?.candidatesTokenCount || 200 
                 },
@@ -190,6 +192,15 @@ Also return a final summary as the last element of the array, but make it type: 
         const model = request.model ?? 'gemini-2.5-flash';
 
         const AGENT_SIMULATIONS: Record<string, { steps: Partial<KagentStep>[]; result: string }> = {
+            'bootstrap-agent': {
+                steps: [
+                    { type: 'reason', content: `Cloning and inspecting repository structure for: "${request.task.substring(0, 100)}".` },
+                    { type: 'act', tool: 'repo_research', input: { namespace: request.namespace }, output: 'Detected stack: TypeScript / Node.js 20, PostgreSQL 16, Redis 7, Dockerfile present.' },
+                    { type: 'observe', content: 'Repository dependencies scanned (0 critical CVEs). Recommended target architecture: AWS ECS Fargate + RDS Multi-AZ + ALB.' },
+                    { type: 'reason', content: 'Architecture blueprint finalized and handed off to Infrastructure, FinOps, Pipeline, and SRE agents.' },
+                ],
+                result: 'Repository analysis complete. Stack: Node.js/TypeScript + PostgreSQL + Docker. Target architecture: ECS Fargate + RDS + ALB.',
+            },
             'infra-agent': {
                 steps: [
                     { type: 'reason', content: `Analyzing task: "${request.task.substring(0, 100)}". Planning infrastructure requirements and resource allocation.` },
@@ -255,6 +266,7 @@ Also return a final summary as the last element of the array, but make it type: 
 
         // Realistic token estimates per agent type
         const tokenEstimates: Record<string, { input: number; output: number }> = {
+            'bootstrap-agent':{ input: 1120 + Math.round(Math.random() * 250), output: 410 + Math.round(Math.random() * 140) },
             'infra-agent':    { input: 1840 + Math.round(Math.random() * 400), output: 620 + Math.round(Math.random() * 200) },
             'pipeline-agent': { input: 1200 + Math.round(Math.random() * 300), output: 480 + Math.round(Math.random() * 150) },
             'finops-agent':   { input: 980  + Math.round(Math.random() * 250), output: 390 + Math.round(Math.random() * 120) },

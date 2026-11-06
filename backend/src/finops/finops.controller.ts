@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Request } from '@nestjs/common';
 import { FinopsService } from './finops.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -10,5 +10,10 @@ export class FinopsController {
     @Get()
     getFinOps(@Request() req: any) {
         return this.finopsService.getFinOps(req.user.userId);
+    }
+
+    @Post('optimize/:id')
+    applyOptimization(@Request() req: any, @Param('id') id: string) {
+        return this.finopsService.applyOptimization(req.user.userId, id);
     }
 }

@@ -25,7 +25,24 @@ export class GithubController {
     @UseGuards(JwtAuthGuard)
     @Get('oauth-url')
     getOAuthUrl(@Request() req: any) {
-        return { url: this.githubService.getOAuthUrl(req.user.userId) };
+        return {
+            url: this.githubService.getOAuthUrl(req.user.userId),
+            configured: this.githubService.isOAuthConfigured(),
+        };
+    }
+
+    /** Connect GitHub directly with a username (public repos) or Personal Access Token */
+    @UseGuards(JwtAuthGuard)
+    @Post('connect')
+    connect(
+        @Request() req: any,
+        @Query('username') qUsername?: string,
+    ) {
+        const body = req.body || {};
+        return this.githubService.connectWithTokenOrUsername(req.user.userId, {
+            username: body.username || qUsername,
+            token: body.token,
+        });
     }
 
     /**
@@ -39,8 +56,9 @@ export class GithubController {
         @Res() res: Response,
     ) {
         try {
-            const userId = state ? decodeURIComponent(state) : null;
-            if (!userId) throw new UnauthorizedException('No user state provided');
+            const decodedState = state ? decodeURIComponent(state) : '';
+            const userId = this.githubService.verifyOAuthStateToken(decodedState);
+            if (!userId) throw new UnauthorizedException('Invalid or expired OAuth state');
             await this.githubService.exchangeCode(userId, code);
             const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:3000');
             return res.redirect(`${frontendUrl}/dashboard/settings?github=connected`);

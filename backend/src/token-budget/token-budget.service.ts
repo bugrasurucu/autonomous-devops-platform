@@ -6,7 +6,16 @@ import { AgentTaskType } from '@prisma/client';
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
     'claude-haiku-4-5-20251001': { input: 0.0008,  output: 0.004  },
     'claude-sonnet-4-6':         { input: 0.003,   output: 0.015  },
+    'claude-3.5-sonnet':         { input: 0.003,   output: 0.015  },
+    'claude-3-haiku':            { input: 0.00025, output: 0.00125 },
     'gpt-4.1-mini':              { input: 0.0004,  output: 0.0016 },
+    'gpt-4o':                    { input: 0.0025,  output: 0.010  },
+    'gpt-4o-mini':               { input: 0.00015, output: 0.0006 },
+    'gemini-2.5-flash':          { input: 0.00015, output: 0.0006 },
+    'gemini-2.0-flash':          { input: 0.0001,  output: 0.0004 },
+    'gemini-2.0-pro':            { input: 0.00125, output: 0.005  },
+    'deepseek-r1':               { input: 0.00055, output: 0.00219 },
+    'mistral-large':             { input: 0.002,   output: 0.006  },
 };
 
 // Which model to use per task type (cost optimized)

@@ -14,7 +14,7 @@ import { EmailModule } from '../email/email.module';
             imports: [ConfigModule],
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
-                secret: config.get('JWT_SECRET', 'mission-control-saas-2026-secret-key'),
+                secret: config.get<string>('JWT_SECRET') || 'orbitron-local-dev-jwt-secret-only',
                 signOptions: {
                     expiresIn: config.get('JWT_EXPIRES_IN', '7d'),
                 },

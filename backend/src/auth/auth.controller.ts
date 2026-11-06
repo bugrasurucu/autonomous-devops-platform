@@ -3,6 +3,7 @@ import {
     Post,
     Get,
     Put,
+    Delete,
     Body,
     UseGuards,
     Request,
@@ -54,6 +55,27 @@ export class AuthController {
         @Body() body: { plan: string },
     ) {
         return this.authService.upgradePlan(req.user.userId, body.plan);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('change-password')
+    async changePassword(
+        @Request() req: any,
+        @Body() body: { currentPassword?: string; newPassword: string },
+    ) {
+        return this.authService.changePassword(req.user.userId, body.currentPassword, body.newPassword);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('export')
+    async exportData(@Request() req: any) {
+        return this.authService.exportUserData(req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('account')
+    async deleteAccount(@Request() req: any) {
+        return this.authService.deleteAccount(req.user.userId);
     }
 
     @Get('github')

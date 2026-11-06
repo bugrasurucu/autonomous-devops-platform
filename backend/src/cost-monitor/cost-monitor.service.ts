@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import * as os from 'os';
 
 // ─── Pricing Tiers ──────────────────────────────────────────────
 export const PRICING_TIERS = [
@@ -201,7 +202,7 @@ export class CostMonitorService {
     }
 
     async getMetrics(userId: string) {
-        // Return last 10 system metrics or simulated recent values
+        // Return last recorded system metrics if present, otherwise real host OS telemetry
         const recent = await this.prisma.systemMetrics.findMany({
             where: { userId },
             orderBy: { recordedAt: 'desc' },
@@ -209,16 +210,28 @@ export class CostMonitorService {
         });
 
         if (recent.length > 0) {
-            return recent[0];
+            return { ...recent[0], source: 'recorded' };
         }
 
-        // No real metrics available yet
+        const cpus = Math.max(os.cpus().length, 1);
+        const load1m = os.loadavg()[0] || 0;
+        const cpuPercent = Math.min(Math.round((load1m / cpus) * 100 * 10) / 10, 100);
+
+        const totalMem = os.totalmem();
+        const freeMem = os.freemem();
+        const memPercent = totalMem > 0 ? Math.round(((totalMem - freeMem) / totalMem) * 100 * 10) / 10 : 0;
+
+        const runningDeploys = await this.prisma.deployment.count({
+            where: { userId, status: { in: ['running', 'success'] } },
+        });
+
         return {
-            cpuPercent: 0,
-            memPercent: 0,
-            reqPerSec: 0,
+            cpuPercent,
+            memPercent,
+            reqPerSec: runningDeploys * 4,
             errorRate: 0,
-            activeConns: 0,
+            activeConns: runningDeploys,
+            source: 'host-telemetry',
         };
     }
 

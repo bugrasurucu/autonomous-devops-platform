@@ -51,6 +51,11 @@ export class IncidentsController {
         return this.incidentsService.resolve(req.user.userId, id, body.resolution);
     }
 
+    @Post(':id/auto-heal')
+    autoHeal(@Request() req: any, @Param('id') id: string) {
+        return this.incidentsService.autoHealNow(req.user.userId, id);
+    }
+
     @Get('stats')
     getStats(@Request() req: any) {
         return this.incidentsService.getStats(req.user.userId);

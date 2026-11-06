@@ -54,9 +54,46 @@ export class TenantsService {
         return org;
     }
 
-    async inviteMember(orgId: string, invitedUserId: string, role: 'admin' | 'member' | 'viewer' = 'member') {
+    async inviteMember(orgId: string, emailOrUserId: string, role: 'admin' | 'member' | 'viewer' = 'member') {
+        const cleaned = (emailOrUserId || '').trim();
+        if (!cleaned) {
+            throw new ConflictException('Email or User ID is required');
+        }
+
+        let targetUserId = cleaned;
+        if (cleaned.includes('@')) {
+            const normalizedEmail = cleaned.toLowerCase();
+            let user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+            if (!user) {
+                const namePart = normalizedEmail.split('@')[0].replace(/[._-]/g, ' ');
+                const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+                user = await this.prisma.user.create({
+                    data: {
+                        email: normalizedEmail,
+                        passwordHash: '',
+                        name: displayName || 'Team Member',
+                        plan: 'free',
+                    },
+                });
+            }
+            targetUserId = user.id;
+        } else {
+            const user = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+            if (!user) {
+                throw new NotFoundException('User not found');
+            }
+        }
+
+        const existingMember = await this.prisma.organizationMember.findUnique({
+            where: { orgId_userId: { orgId, userId: targetUserId } },
+        });
+        if (existingMember) {
+            throw new ConflictException('User is already a member of this organization');
+        }
+
         return this.prisma.organizationMember.create({
-            data: { orgId, userId: invitedUserId, role },
+            data: { orgId, userId: targetUserId, role },
+            include: { user: { select: { id: true, name: true, email: true } } },
         });
     }
 

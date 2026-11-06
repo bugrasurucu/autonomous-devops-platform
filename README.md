@@ -1,169 +1,238 @@
-# 🚀 Orbitron — Autonomous DevOps AI Platform
+# 🪐 Orbitron — Autonomous Multi-Cloud DevOps Platform
 
 [![CI](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/ci.yml)
 [![CD](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/cd.yml/badge.svg)](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/cd.yml)
+[![CodeQL](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/codeql.yml/badge.svg)](https://github.com/bugrasurucu/autonomous-devops-platform/actions/workflows/codeql.yml)
 
-Orbitron is an enterprise-grade, multi-agent AI platform that autonomously provisions AWS infrastructure, manages CI/CD pipelines, tracks cloud costs, and self-heals production incidents. It bridges the gap between simulated visual environments and real host orchestrations by integrating a live Docker socket daemon connection to run actual running containers on local ports.
+> **Point it at a repo, pick a cloud, and let the agents do the rest.**
 
-> **Tech Stack:** NestJS · Next.js 14 · PostgreSQL · Prisma · Redis · RabbitMQ · Docker · Kubernetes · Prometheus · Grafana · Gemini Pro
+Orbitron is a multi-agent DevOps platform. It analyzes a Git repository, generates infrastructure-as-code, CI/CD, and container configuration for your target cloud (**AWS, GCP, Azure, or any Kubernetes cluster**), enforces security and cost gates, deploys, and then watches production with a self-healing SRE loop.
 
----
-
-## 🌟 Key Platform Features & Integrations
-
-*   **🐳 Host Mode - Real Local Docker Deployment:** Mounts `/var/run/docker.sock` into the API container and uses `docker-cli` to spin up actual, fully-functioning alpine/nginx containers on dynamically allocated local ports (`http://localhost:4500`+).
-*   **👑 Unlimited Admin Quota (Buğrahan Sürücü):** Custom corporate billing rules allowing unlimited admin deployment credentials decorated with a premium gold-neon crown and infinite tag indicators.
-*   **🕸️ K8s Interactive Cluster Topology Map:** A premium, real-time developer preview canvas visualizing `ingress-controller` ➔ `frontend-service` ➔ API Gateways (`auth-service`, `payment-service`, `notification-service`) ➔ `postgres-db` with custom pod scaling controls.
-*   **🔌 Model Context Protocol (MCP) sidecars:** Seamless plug-and-play capability management for standard agents utilizing Anthropic MCP server protocols.
-*   **📈 Telemetry & Monitoring:** Bundled with Prometheus (`9090`) and Grafana (`3002`) containers to stream CPU, memory, log anomalies, and agent token usage metrics.
+> [!IMPORTANT]
+> **Project status: early alpha.** The end-to-end UI flow works, but several stages are still **simulated**. Read the [status table](#-what-works-today) before relying on it, and see the [Master Plan](ORBITRON_MASTER_PLAN.md) for the roadmap.
 
 ---
 
-## ## Architecture
+## ✨ How it works
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    ORBITRON WEB UI  (Next.js 14)                     │
-│              Dashboard · FinOps · Agents · Pipeline · SRE           │
-└───────────────────────────┬─────────────────────────────────────────┘
-                            │ REST / WebSocket
-┌───────────────────────────▼─────────────────────────────────────────┐
-│                  NestJS API  (Port 3001)                             │
-│  Auth · Agents · Deployments · GitHub · FinOps · SRE · Billing      │
-│  PostgreSQL (Prisma) · Redis · RabbitMQ · JWT · WebSocket Gateway   │
-│  Docker Socket (/var/run/docker.sock) ──➔ Real Container Deployment │
-└──────┬───────────────┬───────────────┬──────────────┬───────────────┘
-       │               │               │              │
-  ┌────▼────┐    ┌─────▼────┐   ┌─────▼──┐    ┌─────▼───┐
-  │  INFRA  │    │  FINOPS  │   │PIPELINE│    │   SRE   │
-  │  AGENT  │    │  AGENT   │   │ AGENT  │    │  AGENT  │
-  ├─────────┤    ├──────────┤   ├────────┤    ├─────────┤
-  │Terraform│    │Infracost │   │GitHub  │    │CloudWatch│
-  │CDK/CFn  │    │Pricing   │   │Actions │    │EventBrg  │
-  │Checkov  │    │OPA/Rego  │   │Browser │    │Lambda    │
-  └────┬────┘    └────┬─────┘   └───┬────┘    └─────┬────┘
-       └──────────────┴─────────────┴───────────────┘
-                            │
-              ┌─────────────▼─────────────┐
-              │       AWS MCP SERVERS      │
-              │  Cloud Control · IaC       │
-              │  Pricing · CloudWatch/Logs │
-              └────────────────────────────┘
+```mermaid
+flowchart LR
+    A["1. Connect repo + cloud"] --> B["2. Analyze repo"]
+    B --> C["3. Generate IaC, Dockerfile, CI/CD"]
+    C --> D["4. Security + cost gates"]
+    D --> E["5. Approve plan"]
+    E --> F["6. Deploy"]
+    F --> G["7. Verify + rollback"]
+    G --> H["8. Observe + self-heal"]
 ```
 
----
+Five specialized agents run the pipeline in sequence:
 
-## 🆕 Latest Features (Phase 15)
-
-*   **⌘K Command Palette:** Instantly navigate anywhere in the platform using keyboard shortcuts with fuzzy search
-*   **🌓 Dark/Light Theme Toggle:** System-aware theme switching with localStorage persistence
-*   **🛡️ API Rate Limiting:** Redis-backed sliding window rate limiter with plan-based quotas (Free: 60/min, Starter: 200/min, Pro: 1000/min)
-*   **📋 Audit Logging:** Every mutation (POST/PUT/DELETE) is automatically logged with user, IP, endpoint, and request metadata
-*   **🔔 Real-time Notifications:** WebSocket push notifications (replacing polling) with desktop notification support
-*   **💳 Stripe Webhook Hardening:** `invoice.payment_failed` and `customer.subscription.updated` event handlers
-*   **🧪 Cypress E2E Tests:** Automated auth flow, dashboard navigation, and theme toggle tests
-*   **🐳 Production Docker Compose:** Nginx reverse proxy with gzip, security headers, and resource limits
+| Agent | Responsibility |
+|-------|----------------|
+| 🔍 **Bootstrap** | Scans the repo: language, framework, ports, Dockerfile, database needs |
+| 🏗️ **Infra** | Produces Terraform/OpenTofu for the selected cloud and runs security checks |
+| 💰 **FinOps** | Estimates monthly cost and blocks deployments that exceed the budget |
+| ⚡ **Pipeline** | Generates Dockerfile, docker-compose, GitHub Actions, and Kubernetes manifests |
+| 🛡️ **SRE** | Configures alarms and runs the Sense → Analyze → Act → Verify (SAAV) healing loop |
 
 ---
 
-## 🛠️ Quick Start
+## 📊 What works today
 
-### Option 1: Docker Compose (Recommended)
+| Capability | Status | Notes |
+|------------|:------:|-------|
+| Auth, organizations, plans, quotas | ✅ | JWT, PostgreSQL via Prisma |
+| GitHub connection | ✅ | OAuth (if configured), username (public repos), or Personal Access Token |
+| Repo metadata + root file scan | ✅ | Via GitHub REST API |
+| 5-stage pipeline UI with per-stage output | ✅ | Live updates over WebSocket/SSE |
+| Generated DevOps bundle (6 files) | ✅ | Dockerfile, compose, Terraform, GitHub Actions, K8s manifest, CloudWatch alarms. View, copy, and download them. |
+| Redeploy / promote / rollback actions | ✅ | Currently creates a new deployment record (release versioning is planned) |
+| Local Docker container | 🧪 | Real `nginx:alpine` container with a generated status page. It does **not** run your app yet. |
+| Agent reasoning | 🧪 | Gemini-generated or mock steps. Agents don't call real tools yet. |
+| Checkov / Infracost / OPA gates | 🧪 | Results are templated. The tools are not executed yet. |
+| Cost estimates and FinOps "Apply" | 🧪 | Heuristic numbers per environment |
+| Self-healing incidents | 🧪 | Auto-resolved after a SAAV timer with rule-based RCA text |
+| System metrics charts | 🧪 | Synthetic data |
+| AWS deploy (ECS / App Runner) | 🗺️ | Planned (Phase 2) |
+| GCP deploy (Cloud Run) | 🗺️ | Planned (Phase 2, first target) |
+| Azure deploy (Container Apps) | 🗺️ | Planned (Phase 2) |
+| Any Kubernetes (Helm / ArgoCD) | 🗺️ | Planned (Phase 2) |
+| Keyless cloud auth (OIDC / Workload Identity) | 🗺️ | Planned (Phase 2) |
 
-Make sure Docker is running on your host machine to allow the container daemon to bind to the socket!
+✅ working · 🧪 simulated · 🗺️ planned
+
+---
+
+## ☁️ Multi-cloud target matrix
+
+| Concept | AWS | GCP | Azure | Kubernetes |
+|---------|-----|-----|-------|------------|
+| Simple container | App Runner / ECS Fargate | Cloud Run | Container Apps | Deployment + Service |
+| Registry | ECR | Artifact Registry | ACR | GHCR / Harbor |
+| PostgreSQL | RDS / Aurora Serverless v2 | Cloud SQL | Flexible Server | CloudNativePG |
+| Secrets | Secrets Manager | Secret Manager | Key Vault | External Secrets |
+| Monitoring | CloudWatch | Cloud Monitoring | Azure Monitor | Prometheus |
+| Keyless identity | IAM OIDC role | Workload Identity Federation | Federated Credential | ServiceAccount |
+
+All clouds sit behind a single `CloudProvider` adapter interface, described in [docs/architecture.md](docs/architecture.md).
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    UI["Next.js Dashboard :3000"] -->|REST + WebSocket| API["NestJS API :3001"]
+    API --> DB[("PostgreSQL")]
+    API --> R[("Redis")]
+    API --> AG["Agent runtime (Gemini today, multi-LLM planned)"]
+    API --> GH["GitHub API"]
+    API --> DK["Local Docker (dev mode)"]
+    API -.planned.-> P{"CloudProvider adapters"}
+    P -.-> AWS & GCP & AZ["Azure"] & K8S["Kubernetes"]
+    API --> PM["Prometheus /api/metrics"] --> GF["Grafana"]
+```
+
+**Stack:** NestJS 11 · Next.js 16 · TypeScript · PostgreSQL 16 · Prisma · Redis · Socket.IO · Docker · Prometheus · Grafana · Google Gemini (`@google/genai`) · optional kagent on Kubernetes
+
+The planned stack upgrades (React 19, Prisma 6, Tailwind 4 + shadcn/ui, BullMQ/Temporal, OpenTofu, OpenTelemetry, Vercel AI SDK) are listed in [Master Plan, Phase 9](ORBITRON_MASTER_PLAN.md#faz-9--teknoloji-yenileme--p1).
+
+---
+
+## 🛠️ Quick start
+
+### Prerequisites
+
+- Node.js 20+
+- Docker Desktop (or Docker Engine) running
+- *(Optional)* A `GEMINI_API_KEY` for LLM-generated agent reasoning
+
+### Option 1: Docker Compose
 
 ```bash
-cp .env.example .env              # Configure your GEMINI_API_KEY and other credentials
-docker compose up --build -d      # Start all Orbitron core services
-# → Frontend Dashboard: http://localhost:3000
-# → API Service Node:   http://localhost:3001
-# → Prometheus Metrics: http://localhost:9090
-# → Grafana Visuals:    http://localhost:3002
-# → RabbitMQ Gateway:   http://localhost:15672
+cp .env.example .env        # set JWT_SECRET, ENCRYPTION_KEY, GEMINI_API_KEY
+docker compose up --build -d
 ```
 
-### Option 2: Production Mode (Nginx Reverse Proxy)
+| Service | URL |
+|---------|-----|
+| Dashboard | http://localhost:3000 |
+| API | http://localhost:3001/api |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3002 |
+
+### Option 2: Local development
 
 ```bash
-cp .env.example .env
-docker compose -f docker-compose.prod.yml up --build -d
-# → All traffic through Nginx: http://localhost:80
-```
+# 1. Data services
+docker compose up postgres redis -d
 
-### Option 3: Local Development
-
-```bash
-# 1. Start core data engines
-docker compose up postgres redis rabbitmq prometheus grafana -d
-
-# 2. Start NestJS Backend
+# 2. Backend
 cd backend
 npm install
 npx prisma db push
-npm run start:dev              # Running on http://localhost:3001
+npm run start:dev          # http://localhost:3001
 
-# 3. Start Next.js Frontend
+# 3. Frontend (new terminal)
 cd frontend
 npm install
-npm run dev                    # Running on http://localhost:3000
+npm run dev                # http://localhost:3000
 ```
 
-### Running Tests
+### Try the flow
 
-```bash
-# Backend unit tests
-cd backend && npx jest --forceExit
+1. Register at `http://localhost:3000`.
+2. **Repositories** → **Connect GitHub** → enter a GitHub username (or a PAT for private repos).
+3. Select a repo, then click **Deploy**.
+4. **Pipeline**: watch the 5 stages and expand each stage's output.
+5. **Deployments** → **Live & IaC**: launch the local container, then open the **DevOps IaC & Files** tab to download the generated bundle.
+6. **Self-Healing** → **Simulate Incident**: watch the SAAV loop.
 
-# Frontend E2E tests (requires running dev servers)
-cd frontend && npx cypress run
-
-# Frontend build check
-cd frontend && npm run build
-```
+> [!WARNING]
+> Local container mode needs access to the Docker socket. Only enable it on a development machine. Mounting `/var/run/docker.sock` gives root-equivalent access to the host.
 
 ---
 
-## 📡 API Endpoints
+## 📡 API reference
+
+<details>
+<summary>Click to expand the endpoint list</summary>
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/auth/register` | Create account |
-| POST | `/api/auth/login` | Login (returns JWT) |
-| GET | `/api/auth/me` | Validate current session |
-| GET | `/api/health` | Liveness probe |
-| GET | `/api/health/ready` | Readiness probe (DB check) |
-| GET | `/api/stats` | Platform statistics |
+| POST | `/api/auth/login` | Log in (returns JWT) |
+| GET | `/api/auth/me` | Current session |
+| PUT | `/api/auth/profile` | Update profile |
+| PUT | `/api/auth/plan` | Change plan |
+| POST | `/api/auth/change-password` | Change password |
+| GET | `/api/auth/export` | Export account data |
+| DELETE | `/api/auth/account` | Delete account |
+| GET | `/api/health`, `/api/health/ready` | Liveness / readiness |
+| GET | `/api/stats` | Dashboard statistics |
+| GET | `/api/activities` | Persisted activity feed |
 | GET | `/api/agents` | List agents |
-| POST | `/api/deploy` | Trigger deployment |
+| POST | `/api/agents/:id/trigger` | Run an agent with a custom task |
+| GET | `/api/agents/:id/executions` | Execution history and steps |
+| POST | `/api/deploy` | Start the 5-stage multi-cloud pipeline (`aws`, `gcp`, `azure`, `kubernetes`) |
+| GET | `/api/deployments/providers` | Cloud provider catalog, regions, and keyless OIDC setup templates |
 | GET | `/api/deployments` | Deployment history |
-| POST | `/api/deployments/:id/live-container` | Spin up a REAL running Docker container locally |
-| GET | `/api/github/status` | GitHub connection status |
-| GET | `/api/github/repos` | List repositories |
-| GET | `/api/finops` | Cost analytics |
-| GET | `/api/incidents` | Active incidents |
+| GET | `/api/deployments/:id` | Deployment detail |
+| GET | `/api/deployments/:id/artifacts` | Generated 6-file DevOps bundle + security gate + multi-cloud cost report + OpenTofu plan diff |
+| GET | `/api/deployments/:id/plan-diff` | OpenTofu / Terraform resource diff (`+add ~change -destroy`), `iacHash`, and security/cost gates |
+| POST | `/api/deployments/:id/stop` | Cancel a running pipeline |
+| POST | `/api/deployments/:id/redeploy` | Re-run with the same config |
+| POST | `/api/deployments/:id/promote` | Promote dev → staging → production |
+| POST | `/api/deployments/:id/rollback` | Restore the last successful config |
+| POST | `/api/deployments/:id/destroy` | Decommission environment (`tofu destroy`) and stop active containers |
+| POST | `/api/deployments/:id/live-container` | Start the local Docker container |
+| GET | `/api/deployments/:id/container-status` | Container state and logs |
+| POST | `/api/deployments/:id/stop-container` | Stop the local container |
+| DELETE | `/api/deployments/:id` | Delete a deployment |
+| GET | `/api/github/oauth-url` | OAuth URL and whether OAuth is configured |
+| POST | `/api/github/connect` | Connect with a username or PAT |
+| GET | `/api/github/status`, `/api/github/repos` | Connection status and repositories |
+| GET | `/api/finops` | Cost overview and recommendations |
+| POST | `/api/finops/optimize/:id` | Apply a recommendation |
+| GET | `/api/cost/usage`, `/api/cost/suggestions` | Usage and suggestions |
+| GET | `/api/token-usage` | LLM token usage |
+| GET | `/api/incidents`, `/api/incidents/stats` | Incidents |
+| POST | `/api/incidents/simulate` | Simulate an incident |
+| POST | `/api/incidents/:id/auto-heal` | Run the SAAV remediation now |
+| POST | `/api/incidents/:id/resolve` | Resolve manually |
+| GET | `/api/tenants/me` | Organization and members |
+| POST | `/api/tenants/:id/members` | Invite a member |
+| GET | `/api/billing/plans`, POST `/api/billing/checkout` | Plans and upgrade |
+| GET | `/api/notifications/channels` | Alert channels |
+| GET | `/api/logs/stream` | SSE log stream |
+| GET | `/api/metrics` | Prometheus scrape endpoint |
+
+</details>
 
 ---
 
-## 🤖 Autonomous Agent Registry & Fleets
+## 🗺️ Roadmap
 
-*   **Auto-Bootstrap:** Initial codebase analyzer. Inspects languages, folders, frameworks, and designs the orchestration plan.
-*   **Infra Agent:** Automatically writes production Terraform HCL, CDK scripts, running automated Checkov checks.
-*   **Pipeline Agent:** Installs multi-architecture Docker compilations, configures Github Actions pipelines, and executes visual QA.
-*   **FinOps Agent:** AWS Pricing MCP & Infracost analyzer. Automatically verifies the monthly cost projections against limits.
-*   **SRE Agent:** Tracks CloudWatch metrics, creates automated alarms, and operates on SAAV (Sense-Analyze-Act-Verify) self-healing loop.
+See **[ORBITRON_MASTER_PLAN.md](ORBITRON_MASTER_PLAN.md)** for the gap analysis and the A-to-Z task list (in Turkish). In short:
+
+1. **Phase 0:** Security hardening and cleanup (role-based quotas, mandatory secrets, `dockerode`)
+2. **Phase 1:** Real repo analysis, OpenTofu plan, Checkov + Infracost gates, plan approval, PR delivery
+3. **Phase 2:** Multi-cloud deploy: GCP Cloud Run → AWS → Azure → Kubernetes, with keyless auth
+4. **Phase 3:** Real tool-calling agents (MCP, multi-LLM, guardrails)
+5. **Phase 4–5:** OpenTelemetry, real SAAV self-healing, real billing data
+6. **Phase 6–10:** UX overhaul, RBAC/SSO, tests, tech refresh, docs
 
 ---
 
-## 📚 Complete Platform Wiki & Documentation
+## 📚 Documentation
 
-For in-depth guides and connected platform architectural wikis, please check the [Orbitron Wiki Portal](docs/wiki/Wiki.md) containing:
-1. [⚙️ Code Architecture & Core Orchestrator](docs/wiki/Code.md)
-2. [🏥 Self-Healing & Incident Streams](docs/wiki/Issues.md)
-3. [🚀 Pull Requests, Checkov & FinOps Gates](docs/wiki/Pull_Requests.md)
-4. [🤖 A2A Agent Cards & Capability Registry](docs/wiki/Agents.md)
-5. [👥 Team collaboration & Quota rules](docs/wiki/Discussions.md)
-6. [🎬 Automated Workflows & Visual QA Actions](docs/wiki/Actions.md)
-7. [📋 Master Plan & Sequential Pipelines](docs/wiki/Projects.md)
-8. [🛡️ Security, RBAC & Isolation Systems](docs/wiki/Security_and_Quality.md)
-9. [📈 Grafana Dashboards & Telemetry Insights](docs/wiki/Insights.md)
-10. [🔑 Custom Models & Gemini API settings](docs/wiki/Settings.md)
+- [Architecture (current + target multi-cloud)](docs/architecture.md)
+- [Master Plan & gap analysis](ORBITRON_MASTER_PLAN.md)
+- [Product overview](ORBITRON_PRODUCT_OVERVIEW.md)
+- [Wiki portal](docs/wiki/Wiki.md)
+- [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
+
+## 📄 License
+
+See [LICENSE](LICENSE).

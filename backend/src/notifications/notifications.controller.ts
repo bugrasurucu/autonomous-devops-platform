@@ -13,30 +13,30 @@ export class NotificationsController {
     /** GET /api/notifications/channels */
     @Get('channels')
     list(@Request() req: any) {
-        return this.svc.listChannels(req.user.id);
+        return this.svc.listChannels(req.user.userId || req.user.id);
     }
 
     /** POST /api/notifications/channels */
     @Post('channels')
     create(@Request() req: any, @Body() body: any) {
-        return this.svc.createChannel(req.user.id, body);
+        return this.svc.createChannel(req.user.userId || req.user.id, body);
     }
 
     /** PATCH /api/notifications/channels/:id */
     @Patch('channels/:id')
     update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
-        return this.svc.updateChannel(req.user.id, id, body);
+        return this.svc.updateChannel(req.user.userId || req.user.id, id, body);
     }
 
     /** DELETE /api/notifications/channels/:id */
     @Delete('channels/:id')
     remove(@Request() req: any, @Param('id') id: string) {
-        return this.svc.deleteChannel(req.user.id, id);
+        return this.svc.deleteChannel(req.user.userId || req.user.id, id);
     }
 
     /** POST /api/notifications/channels/:id/test */
     @Post('channels/:id/test')
     test(@Request() req: any, @Param('id') id: string) {
-        return this.svc.testChannel(req.user.id, id);
+        return this.svc.testChannel(req.user.userId || req.user.id, id);
     }
 }

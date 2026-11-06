@@ -8,7 +8,9 @@ import Link from 'next/link';
 const STATUS_COLORS: Record<string, string> = {
     running: '#818cf8',
     success: '#34d399',
+    completed: '#34d399',
     failed: '#f87171',
+    blocked: '#fbbf24',
     cancelled: '#94a3b8',
     pending: '#a78bfa',
 };
@@ -16,7 +18,9 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_BG: Record<string, string> = {
     running: 'rgba(129,140,248,0.08)',
     success: 'rgba(52,211,153,0.08)',
+    completed: 'rgba(52,211,153,0.08)',
     failed: 'rgba(248,113,113,0.08)',
+    blocked: 'rgba(251,191,36,0.08)',
     cancelled: 'rgba(148,163,184,0.08)',
     pending: 'rgba(167,139,250,0.08)',
 };
@@ -77,6 +81,37 @@ export default function DeploymentsPage() {
             toastError('Failed to delete', e.message);
         } finally {
             setDeletingId(null);
+        }
+    };
+
+    const handleRedeploy = async (id: string) => {
+        try {
+            const res = await api.redeployDeployment(id) as any;
+            success('Redeploy Started', `New deployment ${res.deployId} triggered.`);
+            await loadData();
+        } catch (e: any) {
+            toastError('Redeploy Failed', e.message);
+        }
+    };
+
+    const handlePromote = async (id: string, currentEnv: string) => {
+        const nextEnv = currentEnv === 'development' ? 'staging' : 'production';
+        try {
+            const res = await api.promoteDeployment(id, nextEnv) as any;
+            success('Promoted!', `Promoted to ${nextEnv} (${res.deployId}).`);
+            await loadData();
+        } catch (e: any) {
+            toastError('Promote Failed', e.message);
+        }
+    };
+
+    const handleRollback = async (id: string) => {
+        try {
+            const res = await api.rollbackDeployment(id) as any;
+            success('Rollback Triggered', `Restoring stable revision (${res.deployId}).`);
+            await loadData();
+        } catch (e: any) {
+            toastError('Rollback Failed', e.message);
         }
     };
 
@@ -212,7 +247,7 @@ export default function DeploymentsPage() {
                                                     ))}
                                                 </div>
                                                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                                                    {parsedStages.filter(s => s.status === 'success').length} / {parsedStages.length} Stages Passed
+                                                    {parsedStages.filter(s => s.status === 'success' || s.status === 'completed').length} / {parsedStages.length} Stages Passed
                                                 </div>
                                             </td>
                                             <td style={{ padding: '16px 20px' }}>
@@ -234,27 +269,66 @@ export default function DeploymentsPage() {
                                                 </span>
                                             </td>
                                             <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                                    {dep.status === 'success' && (
-                                                        <Link 
-                                                            href={`/dashboard/preview/${dep.id}`}
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap' }}>
+                                                    <Link 
+                                                        href={`/dashboard/preview/${dep.id}`}
+                                                        style={{
+                                                            padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                            background: dep.status === 'success' ? 'rgba(52,211,153,0.15)' : 'rgba(129,140,248,0.12)',
+                                                            border: dep.status === 'success' ? '1px solid rgba(52,211,153,0.3)' : '1px solid rgba(129,140,248,0.25)',
+                                                            color: dep.status === 'success' ? '#34d399' : '#818cf8',
+                                                            textDecoration: 'none', cursor: 'pointer', transition: 'background 0.2s',
+                                                            display: 'inline-flex', alignItems: 'center'
+                                                        }}
+                                                        className="btn-success-hover"
+                                                    >
+                                                        {dep.status === 'success' ? '🔗 Live & IaC' : '📦 IaC Files'}
+                                                    </Link>
+                                                    {dep.status === 'success' && dep.environment !== 'production' && (
+                                                        <button
+                                                            onClick={() => handlePromote(dep.id, dep.environment)}
                                                             style={{
-                                                                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                                                                background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)',
-                                                                color: '#34d399', textDecoration: 'none', cursor: 'pointer', transition: 'background 0.2s',
-                                                                display: 'inline-flex', alignItems: 'center'
+                                                                padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                                background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                                                                color: '#fbbf24', cursor: 'pointer',
                                                             }}
-                                                            className="btn-success-hover"
+                                                            title="Promote to next environment"
                                                         >
-                                                            🔗 Live Preview
-                                                        </Link>
+                                                            ⬆ Promote
+                                                        </button>
+                                                    )}
+                                                    {(dep.status === 'failed' || dep.status === 'cancelled') && (
+                                                        <button
+                                                            onClick={() => handleRollback(dep.id)}
+                                                            style={{
+                                                                padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                                background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                                                                color: '#fbbf24', cursor: 'pointer',
+                                                            }}
+                                                            title="Rollback to last stable release"
+                                                        >
+                                                            ⏪ Rollback
+                                                        </button>
+                                                    )}
+                                                    {dep.status !== 'running' && (
+                                                        <button
+                                                            onClick={() => handleRedeploy(dep.id)}
+                                                            style={{
+                                                                padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                                                background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.25)',
+                                                                color: '#818cf8', cursor: 'pointer',
+                                                            }}
+                                                            title="Trigger fresh deployment"
+                                                        >
+                                                            ↻ Redeploy
+                                                        </button>
                                                     )}
                                                     {dep.status === 'running' ? (
                                                         <button 
                                                             onClick={() => handleStop(dep.id)}
                                                             disabled={stoppingId === dep.id}
                                                             style={{
-                                                                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                                                                padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
                                                                 background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)',
                                                                 color: '#f87171', cursor: 'pointer', transition: 'background 0.2s'
                                                             }}
@@ -267,13 +341,13 @@ export default function DeploymentsPage() {
                                                             onClick={() => handleDelete(dep.id)}
                                                             disabled={deletingId === dep.id}
                                                             style={{
-                                                                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                                                                padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
                                                                 background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
                                                                 color: 'var(--text-secondary)', cursor: 'pointer', transition: 'background 0.2s'
                                                             }}
                                                             className="btn-secondary-hover"
                                                         >
-                                                            {deletingId === dep.id ? '⏳ Delete' : '🗑 Delete'}
+                                                            {deletingId === dep.id ? '⏳' : '🗑'}
                                                         </button>
                                                     )}
                                                 </div>

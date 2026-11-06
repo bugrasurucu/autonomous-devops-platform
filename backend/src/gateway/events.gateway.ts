@@ -102,6 +102,36 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.emitToUser(userId, 'DEPLOY_COMPLETED', deployData);
     }
 
+    @OnEvent('deploy.success')
+    handleDeploySuccess(data: { userId: string;[key: string]: any }) {
+        const { userId, ...deployData } = data;
+        this.emitToUser(userId, 'DEPLOY_COMPLETED', { ...deployData, status: 'success' });
+    }
+
+    @OnEvent('deploy.failed')
+    handleDeployFailed(data: { userId: string;[key: string]: any }) {
+        const { userId, ...deployData } = data;
+        this.emitToUser(userId, 'DEPLOY_COMPLETED', { ...deployData, status: 'failed' });
+    }
+
+    @OnEvent('agent.step')
+    handleAgentStep(data: { userId: string;[key: string]: any }) {
+        const { userId, ...stepData } = data;
+        this.emitToUser(userId, 'AGENT_STEP', stepData);
+    }
+
+    @OnEvent('incident.created')
+    handleIncidentCreated(data: { userId: string;[key: string]: any }) {
+        const { userId, ...incidentData } = data;
+        this.emitToUser(userId, 'INCIDENT_CREATED', incidentData);
+    }
+
+    @OnEvent('incident.resolved')
+    handleIncidentResolved(data: { userId: string;[key: string]: any }) {
+        const { userId, ...incidentData } = data;
+        this.emitToUser(userId, 'INCIDENT_RESOLVED', incidentData);
+    }
+
     @OnEvent('error.new')
     handleErrorEvent(data: { userId: string; error: any }) {
         this.emitToUser(data.userId, 'ERROR', data.error);

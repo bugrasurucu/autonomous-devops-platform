@@ -521,7 +521,7 @@ export default function SettingsPage() {
                                     onClick={async () => {
                                         setSavingPassword(true);
                                         try {
-                                            await api.updateProfile({ name }); // placeholder — wire real password endpoint
+                                            await api.changePassword(passwordForm.current, passwordForm.next);
                                             alert('Password updated successfully');
                                             setPasswordForm({ current: '', next: '', confirm: '' });
                                         } catch (e: any) { alert(e.message); }
@@ -546,7 +546,20 @@ export default function SettingsPage() {
                                 <button style={{
                                     padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontWeight: 600,
                                     background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.3)', color: '#818cf8',
-                                }} onClick={() => alert('Export feature coming soon — will include deployments, incidents, and token usage.')}>
+                                }} onClick={async () => {
+                                    try {
+                                        const exportData = await api.exportData();
+                                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `orbitron-export-${new Date().toISOString().slice(0, 10)}.json`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    } catch (e: any) {
+                                        alert(e.message || 'Failed to export data');
+                                    }
+                                }}>
                                     Export
                                 </button>
                             </div>
@@ -566,7 +579,17 @@ export default function SettingsPage() {
                                 <button style={{
                                     padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontWeight: 600,
                                     background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171',
-                                }} onClick={() => alert('Please contact support@orbitron.dev to delete your account.')}>
+                                }} onClick={async () => {
+                                    if (!confirm('Are you sure you want to permanently delete your account and all data? This action cannot be undone.')) return;
+                                    try {
+                                        await api.deleteAccount();
+                                        localStorage.removeItem('token');
+                                        localStorage.removeItem('user');
+                                        window.location.href = '/login';
+                                    } catch (e: any) {
+                                        alert(e.message || 'Failed to delete account');
+                                    }
+                                }}>
                                     Delete Account
                                 </button>
                             </div>

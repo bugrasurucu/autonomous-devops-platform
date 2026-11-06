@@ -83,9 +83,9 @@ HAS_DOCKERFILE=false
 # Port tespiti
 detect_port() {
   if [ -f "$PROJECT_DIR/package.json" ]; then
-    grep -oP '"start":\s*".*--port\s+\K\d+' "$PROJECT_DIR/package.json" 2>/dev/null || echo "3000"
+    sed -n 's/.*"start":.*--port[[:space:]]\{1,\}\([0-9]\{1,\}\).*/\1/p' "$PROJECT_DIR/package.json" 2>/dev/null | head -1 | grep -E '^[0-9]+$' || echo "3000"
   elif [ -f "$PROJECT_DIR/Dockerfile" ]; then
-    grep -oP 'EXPOSE\s+\K\d+' "$PROJECT_DIR/Dockerfile" 2>/dev/null | head -1 || echo "8080"
+    sed -n 's/^EXPOSE[[:space:]]\{1,\}\([0-9]\{1,\}\).*/\1/p' "$PROJECT_DIR/Dockerfile" 2>/dev/null | head -1 | grep -E '^[0-9]+$' || echo "8080"
   else
     echo "8080"
   fi
@@ -94,9 +94,9 @@ detect_port() {
 # Env değişkenlerini topla
 detect_env_vars() {
   if [ -f "$PROJECT_DIR/.env.example" ]; then
-    grep -oP '^[A-Z_]+' "$PROJECT_DIR/.env.example" 2>/dev/null | tr '\n' ',' | sed 's/,$//'
+    grep -Eo '^[A-Z_][A-Z0-9_]*' "$PROJECT_DIR/.env.example" 2>/dev/null | tr '\n' ',' | sed 's/,$//' || true
   elif [ -f "$PROJECT_DIR/.env.sample" ]; then
-    grep -oP '^[A-Z_]+' "$PROJECT_DIR/.env.sample" 2>/dev/null | tr '\n' ',' | sed 's/,$//'
+    grep -Eo '^[A-Z_][A-Z0-9_]*' "$PROJECT_DIR/.env.sample" 2>/dev/null | tr '\n' ',' | sed 's/,$//' || true
   else
     echo ""
   fi

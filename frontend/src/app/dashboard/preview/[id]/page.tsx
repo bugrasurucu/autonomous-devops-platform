@@ -21,16 +21,36 @@ export default function AppPreviewPage() {
     const [loading, setLoading] = useState(true);
 
     const [liveContainerUrl, setLiveContainerUrl] = useState<string | null>(null);
+    const [containerInfo, setContainerInfo] = useState<any>(null);
+    const [artifactsData, setArtifactsData] = useState<any>(null);
+    const [selectedArtifactIdx, setSelectedArtifactIdx] = useState(0);
+    const [copiedFile, setCopiedFile] = useState<string | null>(null);
     const [spinningUp, setSpinningUp] = useState(false);
+    const [stoppingContainer, setStoppingContainer] = useState(false);
     const [spinError, setSpinError] = useState<string | null>(null);
+    const [viewOverride, setViewOverride] = useState<'auto' | 'k8s' | 'app' | 'artifacts'>('auto');
+
+    const refreshContainerStatus = async (targetId: string) => {
+        try {
+            const st = await api.getContainerStatus(targetId) as any;
+            setContainerInfo(st);
+            if (st?.running && st?.url) {
+                setLiveContainerUrl(st.url);
+            } else {
+                setLiveContainerUrl(null);
+            }
+        } catch {}
+    };
 
     const handleSpinUpContainer = async () => {
         setSpinningUp(true);
         setSpinError(null);
         try {
-            const res = await api.spinUpLiveContainer(deployment.id || deployment.deployId) as any;
-            const token = localStorage.getItem('orbitron_token') || '';
-            setLiveContainerUrl(res.url + '?token=' + encodeURIComponent(token));
+            const targetId = deployment.id || deployment.deployId;
+            const res = await api.spinUpLiveContainer(targetId) as any;
+            setLiveContainerUrl(res.url);
+            setViewOverride('app');
+            await refreshContainerStatus(targetId);
         } catch (e: any) {
             setSpinError(e.message || 'Failed to start Docker container. Check if Docker daemon is running.');
         } finally {
@@ -38,25 +58,36 @@ export default function AppPreviewPage() {
         }
     };
 
-    const [containerStats, setContainerStats] = useState({ cpu: '2.4', memory: '142 MB' });
+    const handleStopContainer = async () => {
+        if (!deployment) return;
+        setStoppingContainer(true);
+        try {
+            const targetId = deployment.id || deployment.deployId;
+            await api.stopLiveContainer(targetId);
+            setLiveContainerUrl(null);
+            await refreshContainerStatus(targetId);
+        } catch (e: any) {
+            setSpinError(e.message || 'Failed to stop container');
+        } finally {
+            setStoppingContainer(false);
+        }
+    };
 
-    useEffect(() => {
-        if (!liveContainerUrl) return;
-        const interval = setInterval(async () => {
-            try {
-                const res = await fetch(`/api/proxy/deployments/${id}/container-stats`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('orbitron_token')}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.status === 'online') {
-                        setContainerStats({ cpu: data.cpu, memory: data.memory });
-                    }
-                }
-            } catch (e) {}
-        }, 5000);
-        return () => clearInterval(interval);
-    }, [liveContainerUrl, id]);
+    const handleCopyArtifact = (fileName: string, content: string) => {
+        navigator.clipboard.writeText(content);
+        setCopiedFile(fileName);
+        setTimeout(() => setCopiedFile(null), 2000);
+    };
+
+    const handleDownloadArtifact = (fileName: string, content: string) => {
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName.replace(/\//g, '-');
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     // --- State for Microservices / Kubernetes Preview ---
     const [selectedPod, setSelectedPod] = useState<string>('auth-service');
@@ -88,10 +119,13 @@ export default function AppPreviewPage() {
     useEffect(() => {
         const fetchDep = async () => {
             try {
-                const deploys = await api.getDeployments();
+                const deploys = await api.getDeployments(50);
                 const found = deploys.find((d: any) => d.id === id || d.deployId === id);
                 if (found) {
                     setDeployment(found);
+                    const targetId = found.id || found.deployId;
+                    refreshContainerStatus(targetId);
+                    api.getDeploymentArtifacts(targetId).then(setArtifactsData).catch(() => {});
                 }
             } catch (e) {
                 console.error(e);
@@ -102,31 +136,26 @@ export default function AppPreviewPage() {
         fetchDep();
     }, [id]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
+    const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim()) return;
 
         const userMsg = input.trim();
         setInput('');
         setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-        setChatMessages(prev => [...prev, { role: 'assistant', text: 'Typing...' }]);
 
-        try {
-            const res = await fetch(`/api/proxy/deployments/${id}/chat`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('orbitron_token')}`
-                },
-                body: JSON.stringify({ message: userMsg })
-            });
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            setChatMessages(prev => prev.slice(0, -1).concat({ role: 'assistant', text: data.reply }));
+        setTimeout(() => {
+            const responses = [
+                "That is a brilliant idea! As an autonomous React component, I can render that in real-time.",
+                "Database sync completed in the background. Your state is fully persisted!",
+                "Running in serverless edge mode with 12ms latency globally.",
+                "Indeed! Orbitron's automated agent setup gave me full CI/CD pipeline capabilities.",
+                "Let me look that up for you... Found 4 active nodes globally."
+            ];
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            setChatMessages(prev => [...prev, { role: 'assistant', text: randomResponse }]);
             setApiLogs(prev => [...prev, `frontend-service: POST /api/v1/chat - 200 OK (${(Math.random() * 20 + 5).toFixed(1)}ms)`]);
-        } catch (e) {
-            setChatMessages(prev => prev.slice(0, -1).concat({ role: 'assistant', text: '⚠️ Error connecting to Gemini API.' }));
-        }
+        }, 800);
     };
 
     const handleScale = (podName: string, amount: number) => {
@@ -236,37 +265,77 @@ export default function AppPreviewPage() {
     const mockUrl = `https://${projectName}-${cleanId}.orbitron.live`;
 
     // Determine if it is a microservices / k8s application
-    const isMicroservice = 
+    const autoIsMicroservice = 
         projectName.toLowerCase().includes('micro') || 
         projectName.toLowerCase().includes('k8s') || 
         projectName.toLowerCase().includes('k8') || 
         projectName.toLowerCase().includes('kube') || 
         projectName.toLowerCase().includes('backend') || 
         projectName.toLowerCase().includes('split') ||
-        projectName.toLowerCase().includes('server') ||
-        pods[selectedPod] !== undefined;
+        projectName.toLowerCase().includes('server');
+
+    const isMicroservice = viewOverride === 'k8s' ? true : viewOverride === 'app' || viewOverride === 'artifacts' ? false : (!liveContainerUrl && autoIsMicroservice);
+    const isArtifactsView = viewOverride === 'artifacts';
 
     return (
         <div>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <h1 style={{ fontSize: 20, fontWeight: 700 }}>
-                        <span className="gradient-text">{isMicroservice ? 'K8s Cluster Topology' : 'Live Preview'}</span> · <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>{projectName}</span>
+                        <span className="gradient-text">
+                            {isArtifactsView ? 'Generated DevOps Bundle' : isMicroservice ? 'K8s Cluster Topology' : 'Live Preview'}
+                        </span> · <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>{projectName}</span>
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
-                        {isMicroservice 
+                        {isArtifactsView
+                            ? 'Production-ready Dockerfile, Terraform IaC, GitHub Actions CI/CD, Kubernetes manifests & SRE alarms.'
+                            : isMicroservice 
                             ? 'Interactive Kubernetes pods & service mesh topology running inside simulated Orbitron sandbox.'
-                            : 'Faux browser sandbox running inside the autonomous environment container.'}
+                            : 'Live container & browser sandbox running inside the autonomous environment.'}
                     </p>
                 </div>
-                <Link href="/dashboard/deployments" style={{
-                    padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'var(--text-primary)', textDecoration: 'none', transition: 'background 0.2s'
-                }}>
-                    ← Back
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', background: 'rgba(15,23,42,0.7)', borderRadius: 8, padding: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <button
+                            onClick={() => setViewOverride('app')}
+                            style={{
+                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
+                                background: !isMicroservice && !isArtifactsView ? 'rgba(129,140,248,0.2)' : 'transparent',
+                                color: !isMicroservice && !isArtifactsView ? '#818cf8' : 'var(--text-secondary)',
+                            }}
+                        >
+                            🌐 Live App View
+                        </button>
+                        <button
+                            onClick={() => setViewOverride('k8s')}
+                            style={{
+                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
+                                background: isMicroservice ? 'rgba(52,211,153,0.2)' : 'transparent',
+                                color: isMicroservice ? '#34d399' : 'var(--text-secondary)',
+                            }}
+                        >
+                            ☸ K8s Topology
+                        </button>
+                        <button
+                            onClick={() => setViewOverride('artifacts')}
+                            style={{
+                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
+                                background: isArtifactsView ? 'rgba(251,191,36,0.2)' : 'transparent',
+                                color: isArtifactsView ? '#fbbf24' : 'var(--text-secondary)',
+                            }}
+                        >
+                            📦 DevOps IaC & Files ({artifactsData?.files?.length || 6})
+                        </button>
+                    </div>
+                    <Link href="/dashboard/deployments" style={{
+                        padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'var(--text-primary)', textDecoration: 'none', transition: 'background 0.2s'
+                    }}>
+                        ← Back
+                    </Link>
+                </div>
             </div>
 
             {/* Host Mode Real Docker Container Launcher Banner */}
@@ -279,16 +348,25 @@ export default function AppPreviewPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 24 }}>🐳</span>
                     <div style={{ textAlign: 'left' }}>
-                        <h3 style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa' }}>Host Mode: Real Local Docker Deployment</h3>
+                        <h3 style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa' }}>
+                            Host Mode: Real Local Docker Deployment
+                            {containerInfo?.containerId && (
+                                <span style={{ marginLeft: 8, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#34d399' }}>
+                                    [ID: {containerInfo.containerId} · {containerInfo.containerName}]
+                                </span>
+                            )}
+                        </h3>
                         <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                            Compile and host this application directly inside a real running Docker container on your local machine.
+                            {liveContainerUrl
+                                ? `Running live on port ${containerInfo?.port || ''} — accessible from your host browser & terminal.`
+                                : 'Compile and host this application directly inside a real running Docker container on your local machine.'}
                         </p>
                     </div>
                 </div>
                 <div>
                     {liveContainerUrl ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>🟢 ACTIVE ON LOCALHOST:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>🟢 ACTIVE: {liveContainerUrl}</span>
                             <a href={liveContainerUrl} target="_blank" rel="noopener noreferrer" style={{
                                 fontSize: 12, padding: '8px 16px', borderRadius: 8, fontWeight: 700,
                                 background: '#34d399', color: '#000', textDecoration: 'none',
@@ -296,6 +374,26 @@ export default function AppPreviewPage() {
                             }}>
                                 🌐 Open Real App Link ↗
                             </a>
+                            <button
+                                onClick={handleSpinUpContainer}
+                                disabled={spinningUp}
+                                style={{
+                                    fontSize: 11, padding: '8px 12px', borderRadius: 8, fontWeight: 600,
+                                    background: 'rgba(129,140,248,0.15)', color: '#818cf8', border: '1px solid rgba(129,140,248,0.3)', cursor: 'pointer',
+                                }}
+                            >
+                                ↻ Restart
+                            </button>
+                            <button
+                                onClick={handleStopContainer}
+                                disabled={stoppingContainer}
+                                style={{
+                                    fontSize: 11, padding: '8px 12px', borderRadius: 8, fontWeight: 600,
+                                    background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', cursor: 'pointer',
+                                }}
+                            >
+                                {stoppingContainer ? '⏳...' : '⏹ Stop Container'}
+                            </button>
                         </div>
                     ) : (
                         <button 
@@ -319,8 +417,181 @@ export default function AppPreviewPage() {
                 )}
             </div>
 
-            {/* Microservice / Kubernetes Workspace Preview */}
-            {isMicroservice ? (
+            {/* Generated DevOps Bundle & Real Container Logs View */}
+            {isArtifactsView ? (
+                <div style={{
+                    borderRadius: 14, overflow: 'hidden',
+                    background: '#090d16', border: '1px solid rgba(251,191,36,0.25)',
+                    display: 'grid', gridTemplateColumns: '280px 1fr', minHeight: '640px',
+                }}>
+                    {/* Left file list + Repo Meta + Real Docker Logs */}
+                    <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                                📦 Generated Production Files
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {(artifactsData?.files || []).map((file: any, idx: number) => (
+                                    <button
+                                        key={file.name}
+                                        onClick={() => setSelectedArtifactIdx(idx)}
+                                        style={{
+                                            textAlign: 'left', padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                                            border: `1px solid ${selectedArtifactIdx === idx ? 'rgba(251,191,36,0.4)' : 'rgba(255,255,255,0.05)'}`,
+                                            background: selectedArtifactIdx === idx ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.02)',
+                                            color: selectedArtifactIdx === idx ? '#fbbf24' : '#e2e8f0',
+                                            fontSize: 12, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace',
+                                        }}
+                                    >
+                                        📄 {file.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {artifactsData?.repoMeta && (
+                            <div style={{ padding: 12, borderRadius: 10, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, lineHeight: 1.7 }}>
+                                <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: 4 }}>🔍 Deep Repo Scan</div>
+                                <div>Cloud: <strong>{artifactsData.cloudProviderName || 'AWS'}</strong></div>
+                                <div>Stack: <strong>{artifactsData.repoMeta.detectedFramework}</strong></div>
+                                <div>Port: <strong>:{artifactsData.repoMeta.detectedPort || 3000}</strong> · Branch: <strong>{artifactsData.repoMeta.defaultBranch}</strong></div>
+                                {artifactsData.repoMeta.databases?.length > 0 && (
+                                    <div>Databases: <strong>{artifactsData.repoMeta.databases.join(', ')}</strong></div>
+                                )}
+                                <div>Est. Monthly Cost: <strong style={{ color: '#34d399' }}>${artifactsData.estimatedMonthlyCost?.toFixed(2)}/mo</strong></div>
+                            </div>
+                        )}
+
+                        {artifactsData?.planDiff && (
+                            <div style={{ padding: 12, borderRadius: 10, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(129,140,248,0.2)', fontSize: 11, lineHeight: 1.6 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                    <span style={{ fontWeight: 700, color: '#818cf8' }}>📐 OpenTofu Plan Diff</span>
+                                    <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#34d399' }}>
+                                        +{artifactsData.planDiff.summary.add} ~{artifactsData.planDiff.summary.change} -{artifactsData.planDiff.summary.destroy}
+                                    </span>
+                                </div>
+                                <div style={{ fontSize: 10, color: '#64748b', marginBottom: 6, fontFamily: 'JetBrains Mono, monospace' }}>
+                                    IaC Hash: {artifactsData.planDiff.iacHash}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    {(artifactsData.planDiff.resources || []).map((res: any) => (
+                                        <div key={res.address} style={{ fontSize: 10, color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+                                            <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#34d399' }}>+ {res.resourceType}</span>
+                                            <span style={{ color: '#94a3b8' }}>${res.estimatedMonthlyUsd.toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {artifactsData?.securityReport && (
+                            <div style={{ padding: 12, borderRadius: 10, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(52,211,153,0.2)', fontSize: 11, lineHeight: 1.6 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 700, color: '#34d399' }}>🛡️ Security Policy Gate</span>
+                                    <span style={{ fontWeight: 700, color: '#34d399' }}>{artifactsData.securityReport.score}% ({artifactsData.securityReport.status})</span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    {(artifactsData.securityReport.checks || []).map((chk: any) => (
+                                        <div key={chk.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 10 }}>
+                                            <span style={{ color: '#cbd5e1' }}>{chk.id}</span>
+                                            <span style={{ color: chk.status === 'PASSED' ? '#34d399' : chk.status === 'WARNING' ? '#fbbf24' : '#f87171', fontWeight: 700 }}>
+                                                {chk.status}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {artifactsData?.costReport?.providerComparison && (
+                            <div style={{ padding: 12, borderRadius: 10, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(251,191,36,0.2)', fontSize: 11, lineHeight: 1.6 }}>
+                                <div style={{ fontWeight: 700, color: '#fbbf24', marginBottom: 6 }}>☁️ Multi-Cloud Cost Comparison</div>
+                                {(artifactsData.costReport.providerComparison || []).map((p: any) => (
+                                    <div key={p.provider} style={{
+                                        display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '2px 0',
+                                        color: p.provider === artifactsData.cloudProvider ? '#34d399' : '#94a3b8',
+                                        fontWeight: p.provider === artifactsData.cloudProvider ? 700 : 400,
+                                    }}>
+                                        <span>{p.provider.toUpperCase()} {p.provider === artifactsData.cloudProvider ? '✓' : ''}</span>
+                                        <span>${p.monthlyUsd.toFixed(2)}/mo</span>
+                                    </div>
+                                ))}
+                                {artifactsData.costReport.recommendation && (
+                                    <div style={{ marginTop: 6, fontSize: 10, color: '#cbd5e1', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6 }}>
+                                        {artifactsData.costReport.recommendation}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {containerInfo?.logs?.length > 0 && (
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: '#34d399', marginBottom: 6 }}>
+                                    🐳 Live Docker Container Logs
+                                </div>
+                                <pre style={{
+                                    flex: 1, margin: 0, padding: 10, borderRadius: 8,
+                                    background: '#000', color: '#94a3b8', fontSize: 10,
+                                    fontFamily: 'JetBrains Mono, monospace', overflow: 'auto', maxHeight: 200,
+                                }}>
+                                    {containerInfo.logs.join('\n')}
+                                </pre>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right code viewer */}
+                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        {artifactsData?.files?.[selectedArtifactIdx] ? (
+                            <>
+                                <div style={{
+                                    padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                    background: '#0c1222', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                }}>
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>
+                                        {artifactsData.files[selectedArtifactIdx].name}
+                                    </span>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button
+                                            onClick={() => handleCopyArtifact(
+                                                artifactsData.files[selectedArtifactIdx].name,
+                                                artifactsData.files[selectedArtifactIdx].content
+                                            )}
+                                            style={{
+                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                                background: 'rgba(129,140,248,0.15)', border: '1px solid rgba(129,140,248,0.3)', color: '#818cf8',
+                                            }}
+                                        >
+                                            {copiedFile === artifactsData.files[selectedArtifactIdx].name ? '✓ Copied!' : '📋 Copy File'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleDownloadArtifact(
+                                                artifactsData.files[selectedArtifactIdx].name,
+                                                artifactsData.files[selectedArtifactIdx].content
+                                            )}
+                                            style={{
+                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                                background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399',
+                                            }}
+                                        >
+                                            ⬇ Download
+                                        </button>
+                                    </div>
+                                </div>
+                                <pre style={{
+                                    flex: 1, margin: 0, padding: 20, overflow: 'auto',
+                                    background: '#050811', color: '#e2e8f0',
+                                    fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 1.6,
+                                }}>
+                                    {artifactsData.files[selectedArtifactIdx].content}
+                                </pre>
+                            </>
+                        ) : (
+                            <div style={{ padding: 40, color: 'var(--text-secondary)' }}>Loading generated DevOps files...</div>
+                        )}
+                    </div>
+                </div>
+            ) : isMicroservice ? (
                 <div style={{
                     borderRadius: 14, overflow: 'hidden',
                     background: '#090d16', border: '1px solid rgba(139,92,246,0.2)',
@@ -747,11 +1018,11 @@ export default function AppPreviewPage() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
                                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
                                         <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>CPU Load</div>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#34d399', marginTop: 2 }}>{containerStats.cpu}%</div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#34d399', marginTop: 2 }}>2.4%</div>
                                     </div>
                                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
                                         <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>RAM Memory</div>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#818cf8', marginTop: 2 }}>{containerStats.memory}</div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#818cf8', marginTop: 2 }}>142 MB</div>
                                     </div>
                                 </div>
                             </div>

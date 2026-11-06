@@ -44,13 +44,10 @@ export default function SelfHealingPage() {
         try {
             const [data, s] = await Promise.all([
                 api.getIncidents(30),
-                fetch('/api/proxy/incidents/stats', {
-                    headers: { Authorization: `Bearer ${localStorage.getItem('orbitron_token')}` },
-                }).then(r => r.ok ? r.json() : { active: 0, resolved: 0, total: 0 }).catch(() => ({ active: 0, resolved: 0, total: 0 })),
+                api.getIncidentStats().catch(() => null),
             ]);
             setIncidents(data);
-            // Derive stats from data
-            setStats({
+            setStats(s || {
                 active: data.filter((i: any) => i.status === 'active').length,
                 resolved: data.filter((i: any) => i.status === 'resolved').length,
                 total: data.length,
@@ -60,7 +57,7 @@ export default function SelfHealingPage() {
 
     useEffect(() => {
         loadAll();
-        const interval = setInterval(loadAll, 5000);
+        const interval = setInterval(loadAll, 2500);
         return () => clearInterval(interval);
     }, [loadAll]);
 
@@ -81,10 +78,19 @@ export default function SelfHealingPage() {
         finally { setSimulating(false); }
     };
 
+    const handleAutoHeal = async (id: string) => {
+        setResolving(id);
+        try {
+            await api.autoHealIncident(id);
+            await loadAll();
+        } catch (e: any) { alert(e.message); }
+        finally { setResolving(null); }
+    };
+
     const handleResolve = async (id: string) => {
         setResolving(id);
         try {
-            await api.resolveIncident(id, 'Auto-resolved by SRE agent');
+            await api.resolveIncident(id, 'Manually resolved by operator');
             await loadAll();
         } catch (e: any) { alert(e.message); }
         finally { setResolving(null); }
@@ -242,21 +248,37 @@ export default function SelfHealingPage() {
                                             {incident.description}
                                         </div>
                                     )}
-                                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
-                                        🕐 {new Date(incident.createdAt).toLocaleString()}
+                                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <span>🕐 {new Date(incident.createdAt).toLocaleString()}</span>
+                                        <span style={{ color: '#818cf8', fontWeight: 600 }}>
+                                            🤖 SRE Agent executing SAAV Step: {HEAL_STEPS[healStep]?.label} ({HEAL_STEPS[healStep]?.desc})...
+                                        </span>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => handleResolve(incident.id)}
-                                    disabled={resolving === incident.id}
-                                    style={{
-                                        padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                        background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
-                                        color: '#34d399', whiteSpace: 'nowrap', flexShrink: 0,
-                                    }}
-                                >
-                                    {resolving === incident.id ? '⏳ Resolving...' : '✓ Resolve'}
-                                </button>
+                                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                    <button
+                                        onClick={() => handleAutoHeal(incident.id)}
+                                        disabled={resolving === incident.id}
+                                        style={{
+                                            padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                            background: 'rgba(129,140,248,0.15)', border: '1px solid rgba(129,140,248,0.35)',
+                                            color: '#818cf8', whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {resolving === incident.id ? '⏳ Healing...' : '🤖 Auto-Heal Now'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleResolve(incident.id)}
+                                        disabled={resolving === incident.id}
+                                        style={{
+                                            padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                            background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
+                                            color: '#34d399', whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        ✓ Resolve
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}

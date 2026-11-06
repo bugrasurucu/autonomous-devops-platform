@@ -1,70 +1,48 @@
-# 🪐 Orbitron: Autonomous DevOps Platform — Product Overview
+# 🪐 Orbitron: Multi-Cloud Autonomous DevOps Platform — Product Overview
 
-**Orbitron** is a fully autonomous DevOps platform powered by AI agents. It enables engineering teams to provision infrastructure, manage CI/CD pipelines, optimize cloud costs, and self-heal production incidents — all without human intervention.
+> **See [`ORBITRON_MASTER_PLAN.md`](./ORBITRON_MASTER_PLAN.md) for the complete A-to-Z architectural audit, gap analysis, and multi-cloud roadmap.**
 
-*"Ship Infrastructure, Not YAML."* — The platform transforms traditional "manage infrastructure with code" into "tell the agent your intent, it manages for you."
+**Orbitron** is an autonomous, multi-cloud DevOps Control Plane powered by specialized AI agents. It enables engineering teams to analyze repositories, generate cloud-native Infrastructure-as-Code (AWS, GCP, Azure, Kubernetes), run CI/CD pipelines, optimize cloud costs (FinOps), and self-heal production incidents (SAAV) from a unified dashboard.
 
----
-
-## 🛠 Technology Choices & Rationale
-
-Orbitron is more than a web application — it's a Platform-as-a-Service with complex AI orchestration under the hood. Every technology choice prioritizes scalability, security, and speed.
-
-### 1. Orchestration & Agent Architecture: Kubernetes & kagent (CRD)
-* **Technology:** Kubernetes, Custom Resource Definitions (CRD)
-* **Why:** Running AI agents as plain Node.js/Python scripts works locally but fails at SaaS scale. Agents need multi-tenant isolation (no cross-customer data access), stateful crash recovery (restart on failure), and horizontal pod autoscaling (HPA) under load.
-* **How:** We created a custom K8s object called `kagent`. Orbitron talks to the Kubernetes control plane and launches agents as K8s Pods — leveraging K8s power without additional orchestration software.
-
-### 2. Agent Integration: MCP (Model Context Protocol) Sidecars
-* **Technology:** Anthropic MCP, K8s Mutating Webhooks
-* **Why:** Giving LLMs direct access to AWS, Terraform, or GitHub creates security risks. Modifying agent code for every new tool creates monolithic coupling.
-* **How:** Tools (AWS Pricing, GitHub API, Kubernetes Control) are attached as **Sidecar Containers** via the MCP layer. When an agent pod starts, independent tool containers spin up alongside it — enabling plug-and-play capability management.
-
-### 3. Frontend & UI/UX: Next.js + Electric DevOps Aesthetic
-* **Technology:** Next.js 14 (TypeScript), Custom CSS Design System
-* **Why:** A B2B/SaaS product needs flawless SEO and fast first-load (SSR) for the landing page, while the dashboard requires complex state management (agent logs, token counters). Next.js App Router unifies both.
-* **Why Electric Cyan / Neon Green?** The initial purple theme looked generic. DevOps teams are familiar with dark themes, terminal screens, Kubernetes' ocean blue, and CI/CD "passed" greens. We designed a bespoke palette — `Electric Cyan (#00d4ff)` and `Neon Green (#00ff88)` — to evoke trust and technical authority.
-
-### 4. Backend & Data Layer: NestJS + Prisma/PostgreSQL
-* **Technology:** NestJS, Prisma ORM, PostgreSQL
-* **Why:** Customer billing, token budgets, and team management (RBAC) require strict business rules. Rather than loosely-typed Express, we chose NestJS — a TypeScript-first, Dependency Injection-based enterprise framework. PostgreSQL ensures transactional safety for critical financial data.
+*"Ship Infrastructure, Not YAML."*
 
 ---
 
-## 🚀 What Has Been Built & Hardened
+## 🛠 Technology Stack & Architecture
 
-1.  **🐳 Host Mode Real Docker Orchestration:** Mounts the `/var/run/docker.sock` daemon socket to spin up real, isolated containers mapped directly to local localhost ports, bringing true infrastructure capabilities to local developer boxes.
-2.  **👑 Premium Admin Limits & Badges:** Gold-neon crowned dashboards with unlimited tags configured specifically for Buğrahan Sürücü.
-3.  **🕸️ Kubernetes Topology visualizer & scale inspector:** Interactive K8s microservices architecture preview displaying live replica sets, CPU and RAM metrics, allowing dynamic pod scaling and simulated service mesh API request testing.
-4.  **Landing Page:** 6-layer marketing site:
-    *   **Terminal Hero:** Live deploy command simulation
-    *   **Pipeline Steps:** 6-step autonomous process visualization
-    *   **AI Agent Fleet:** Introduction of all 4 agents
-    *   **K8s Architecture:** Engineering-depth Kubernetes infrastructure diagram
-    *   **Tech Stack Grid:** 18 supported DevOps technologies
-    *   **Pricing:** Dynamic 3-tier pricing section
-5.  **Dashboard Integrations:**
-    *   **Token Usage & Billing:** Credit/plan tracking, fully English, bug-free
-    *   **MetricsWidget & TerminalLogger:** Real-time observability with Recharts + streaming logs
-    *   **Stabilization:** Fixed React state deadlocks on agent page transitions; optimized component architectures
-6.  **Realistic Simulation & LLM Routing:** Integrates real Gemini Pro reasoning with the `@google/genai` API SDK to execute actual logical decisions based on your real `.env` key tokens.
+### 1. Multi-Cloud Infrastructure Synthesis (AWS, GCP, Azure, Kubernetes)
+* **Supported Clouds:**
+  * **AWS:** ECS Fargate, RDS PostgreSQL, ALB, ECR, CloudWatch (`hashicorp/aws`)
+  * **Google Cloud (GCP):** Cloud Run v2, Cloud SQL, Artifact Registry, Cloud Monitoring (`hashicorp/google`)
+  * **Microsoft Azure:** Azure Container Apps, Azure Database for PostgreSQL Flexible Server, ACR, Azure Monitor (`hashicorp/azurerm`)
+  * **Kubernetes (Any Cluster):** Deployment, Service, Ingress, HorizontalPodAutoscaler (`k8s/manifest.yaml`)
+  * **Local Docker Runtime:** Live container spawning on ports `4500–4900` via `/var/run/docker.sock`
+
+### 2. 5-Stage Autonomous Agent Fleet
+1. **Auto-Bootstrap Agent:** Inspects GitHub repositories via the GitHub REST API (`/repos/:owner/:repo` & `/contents`) to detect languages, frameworks, databases, and Dockerfiles.
+2. **Infra Agent:** Synthesizes a 6-file Production DevOps Bundle (`Dockerfile`, `docker-compose.prod.yml`, provider-specific `terraform/main.tf`, `.github/workflows/orbitron-ci-cd.yml`, `k8s/manifest.yaml`, and `sre/cloudwatch-saav.tf`).
+3. **FinOps Agent:** Computes monthly cloud cost breakdowns across compute, database, networking, and storage, and provides one-click architectural cost optimization (`POST /api/finops/optimize/:id`).
+4. **Pipeline Agent:** Executes build/test stages, generates OIDC-ready GitHub Actions workflows, and supports one-click **Promote to Production**, **Redeploy**, and **Rollback**.
+5. **SRE Agent:** Runs the autonomous **SAAV (`Sense → Analyze → Act → Verify`)** loop to detect anomalies, auto-remediate incidents (`POST /api/incidents/:id/auto-heal`), and verify service recovery.
+
+### 3. Frontend & Developer Console (`frontend/`)
+* **Technology:** Next.js App Router (TypeScript), Socket.IO real-time telemetry, Recharts observability widgets.
+* **Key Capabilities:**
+  * Multi-Cloud Provider & Region selector in deployment modals
+  * Interactive 6-file DevOps IaC & CI/CD Bundle viewer and downloader
+  * Real-time WebSocket terminal log streaming & pipeline stage inspector
+  * GitHub connection via OAuth, Personal Access Token (PAT), or zero-config GitHub Username lookup
+  * Interactive Kubernetes topology visualizer & pod replica scaler
+
+### 4. Backend Control Plane (`backend/`)
+* **Technology:** NestJS, Prisma ORM, PostgreSQL 16, Redis 7, RabbitMQ 3, `@google/genai` SDK.
+* **Key Capabilities:**
+  * Persistent activity event log (`Activity` model + `@OnEvent('activity.new')`)
+  * Real Docker container status & log inspection (`GET /api/deployments/:id/container-status`)
+  * Multi-cloud Terraform & CI/CD template generator tailored to each repository's detected stack
 
 ---
 
-## 🔮 Future Vision & Product Roadmap
+## 🗺️ Strategic Roadmap Summary
 
-### Phase 1: Multi-Cloud Intelligence (Month 3)
-Currently AWS-focused, the Infra Agent will expand to support GCP and Azure. When a user says *"Set up my e-commerce infrastructure in the cheapest European region"*, the FinOps agent compares pricing across all clouds and auto-selects AWS Terraform or Azure Bicep templates.
-
-### Phase 2: BYOA Marketplace — Bring Your Own Agent (Month 6)
-A marketplace where customers can upload custom AI DevOps agents for their internal systems. Enterprise clients can run proprietary agents (e.g., custom security scanners) in isolated K8s namespaces via our CRD infrastructure.
-
-### Phase 3: Fully Autonomous Self-Healing (Year 1)
-Beyond provisioning — the system will *heal* itself. The SRE Agent reads CloudWatch/Datadog alarms before humans. Database CPU hits 99%? At 3 AM, the agent wakes up, adds a read replica, distributes traffic, and reports via Slack in the morning: *"Fixed this issue overnight — here's the cost impact."*
-
-### Phase 4: Air-Gapped On-Premise (Enterprise)
-For banks and defense contractors: an air-gapped version of Orbitron that installs directly into bare-metal Kubernetes clusters in private data centers, running local LLMs (Llama-3, Mistral) instead of cloud APIs.
-
----
-
-*Orbitron — The Future of Automated Infrastructure Engineering*
+For the detailed 11-phase engineering checklist, security remediation plan, and `CloudProvider` adapter specifications, consult [`ORBITRON_MASTER_PLAN.md`](./ORBITRON_MASTER_PLAN.md).

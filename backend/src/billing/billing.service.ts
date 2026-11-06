@@ -53,12 +53,29 @@ export class BillingService {
         }));
     }
 
-    async createCheckoutSession(orgId: string, plan: Plan, returnUrl: string) {
-        if (!this.stripe) throw new BadRequestException('Stripe not configured');
+    async createCheckoutSession(orgId: string, plan: Plan, returnUrl: string, userId?: string) {
         if (plan === 'free') throw new BadRequestException('Free plan has no checkout');
 
         const org = await this.prisma.organization.findUnique({ where: { id: orgId } });
         if (!org) throw new BadRequestException('Organization not found');
+
+        // If Stripe is not configured in local/self-hosted mode, perform direct plan upgrade
+        if (!this.stripe) {
+            await this.tenants.updatePlan(orgId, plan);
+            if (userId) {
+                const limit = PLAN_LIMITS[plan]?.deploymentsPerMonth ?? 5;
+                await this.prisma.user.update({
+                    where: { id: userId },
+                    data: { plan, deployLimit: limit === -1 ? 999999 : limit },
+                }).catch(() => {});
+            }
+            return {
+                upgraded: true,
+                plan,
+                url: `${returnUrl}?success=true&plan=${plan}`,
+                sessionId: `local-upgrade-${Date.now()}`,
+            };
+        }
 
         const priceId = PRICE_IDS[plan];
         if (!priceId) throw new BadRequestException(`No price configured for plan: ${plan}`);

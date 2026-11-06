@@ -26,10 +26,9 @@ export class TenantsController {
     @Post(':id/members')
     invite(
         @Param('id') orgId: string,
-        @Body('userId') userId: string,
-        @Body('role') role: 'admin' | 'member' | 'viewer',
+        @Body() body: { userId?: string; email?: string; role?: 'admin' | 'member' | 'viewer' },
     ) {
-        return this.tenantsService.inviteMember(orgId, userId, role);
+        return this.tenantsService.inviteMember(orgId, body.email || body.userId || '', body.role || 'member');
     }
 
     @Delete(':id/members/:userId')

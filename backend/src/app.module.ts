@@ -23,6 +23,7 @@ import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+import { validateRuntimeEnv } from './common/env.validation';
 
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { AuditLogInterceptor } from './common/audit-log.interceptor';
@@ -30,7 +31,7 @@ import { RateLimitGuard } from './common/rate-limit.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateRuntimeEnv }),
     EventEmitterModule.forRoot(),
     PrometheusModule.register(),
     PrismaModule,

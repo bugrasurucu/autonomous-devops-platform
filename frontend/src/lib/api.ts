@@ -61,6 +61,13 @@ export const api = {
     upgradePlan: (plan: string) =>
         request('/auth/plan', { method: 'PUT', body: JSON.stringify({ plan }) }),
 
+    changePassword: (currentPassword: string, newPassword: string) =>
+        request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+
+    exportData: () => request('/auth/export'),
+
+    deleteAccount: () => request('/auth/account', { method: 'DELETE' }),
+
     // Stats
     getStats: () => request('/stats'),
 
@@ -73,20 +80,35 @@ export const api = {
         request(`/agents/${id}/complete`, { method: 'POST', body: JSON.stringify({ output, success }) }),
 
     // Deployments
-    deploy: (data: { projectName: string; region?: string; environment?: string; budget?: number; sourceType?: string; sourceValue?: string }) =>
+    deploy: (data: { projectName: string; region?: string; environment?: string; budget?: number; sourceType?: string; sourceValue?: string; githubRepo?: string; githubBranch?: string }) =>
         request('/deploy', { method: 'POST', body: JSON.stringify(data) }),
     getDeployments: (limit?: number) => request(`/deployments?limit=${limit || 20}`),
+    getDeployment: (id: string) => request(`/deployments/${id}`),
     stopDeployment: (id: string) => request(`/deployments/${id}/stop`, { method: 'POST' }),
     deleteDeployment: (id: string) => request(`/deployments/${id}`, { method: 'DELETE' }),
     spinUpLiveContainer: (id: string) => request(`/deployments/${id}/live-container`, { method: 'POST' }),
+    getContainerStatus: (id: string) => request(`/deployments/${id}/container-status`),
+    stopLiveContainer: (id: string) => request(`/deployments/${id}/stop-container`, { method: 'POST' }),
+    getDeploymentArtifacts: (id: string) => request(`/deployments/${id}/artifacts`),
+    getDeploymentPlanDiff: (id: string) => request(`/deployments/${id}/plan-diff`),
+    getCloudProviders: () => request('/deployments/providers'),
+    destroyDeployment: (id: string) => request(`/deployments/${id}/destroy`, { method: 'POST' }),
+    redeployDeployment: (id: string) => request(`/deployments/${id}/redeploy`, { method: 'POST' }),
+    promoteDeployment: (id: string, targetEnvironment?: string) =>
+        request(`/deployments/${id}/promote`, { method: 'POST', body: JSON.stringify({ targetEnvironment }) }),
+    rollbackDeployment: (id: string) => request(`/deployments/${id}/rollback`, { method: 'POST' }),
 
     // FinOps
     getFinOps: () => request('/finops'),
+    applyFinOpsOptimization: (id: string) => request(`/finops/optimize/${id}`, { method: 'POST' }),
 
     // Incidents
     getIncidents: (limit?: number) => request(`/incidents?limit=${limit || 20}`),
+    getIncidentStats: () => request('/incidents/stats'),
     resolveIncident: (id: string, resolution?: string) =>
         request(`/incidents/${id}/resolve`, { method: 'POST', body: JSON.stringify({ resolution }) }),
+    autoHealIncident: (id: string) =>
+        request(`/incidents/${id}/auto-heal`, { method: 'POST' }),
     simulateIncident: () =>
         request('/incidents/simulate', { method: 'POST' }),
     createIncident: (title: string, description?: string, severity?: string) =>
@@ -108,6 +130,8 @@ export const api = {
     github: {
         getOAuthUrl: () => request('/github/oauth-url'),
         getStatus: () => request('/github/status'),
+        connect: (data: { username?: string; token?: string }) =>
+            request('/github/connect', { method: 'POST', body: JSON.stringify(data) }),
         listRepos: (search?: string) => request(`/github/repos${search ? `?search=${encodeURIComponent(search)}` : ''}`),
         disconnect: () => request('/github/disconnect', { method: 'DELETE' }),
     },
@@ -141,8 +165,8 @@ export const api = {
     tenant: {
         getMe: () => request('/tenants/me'),
         getMembers: (orgId: string) => request(`/tenants/${orgId}/members`),
-        invite: (orgId: string, userId: string, role: string) =>
-            request(`/tenants/${orgId}/members`, { method: 'POST', body: JSON.stringify({ userId, role }) }),
+        invite: (orgId: string, emailOrUserId: string, role: string) =>
+            request(`/tenants/${orgId}/members`, { method: 'POST', body: JSON.stringify({ email: emailOrUserId, userId: emailOrUserId, role }) }),
         remove: (orgId: string, userId: string) =>
             request(`/tenants/${orgId}/members/${userId}`, { method: 'DELETE' }),
     },

@@ -44,8 +44,16 @@ export class LogStreamService implements OnModuleInit {
 
     @OnEvent('activity.new')
     onActivityNew(payload: any) {
-        const msg = payload?.message ?? `Activity: ${payload?.type ?? 'unknown'}`;
-        this.emit('info', 'system', msg);
+        const msg = payload?.text ?? payload?.message ?? `Activity: ${payload?.type ?? 'unknown'}`;
+        const level: LogEvent['level'] =
+            payload?.type?.includes('failed') || payload?.type?.includes('error')
+                ? 'error'
+                : payload?.type?.includes('complete')
+                ? 'success'
+                : payload?.type?.includes('budget')
+                ? 'warn'
+                : 'info';
+        this.emit(level, payload?.agentId ?? 'system', msg);
     }
 
     @OnEvent('deployment.created')
@@ -56,12 +64,41 @@ export class LogStreamService implements OnModuleInit {
     @OnEvent('deployment.completed')
     onDeploymentCompleted(payload: any) {
         const level = payload?.status === 'success' ? 'success' : 'error';
-        this.emit(level, 'deploy', `Deployment ${payload?.status ?? 'finished'}: ${payload?.projectName ?? 'unknown'} [${payload?.deployId ?? ''}]`);
+        this.emit(level, 'deploy', `Deployment ${payload?.status ?? 'finished'}: ${payload?.projectName ?? 'unknown'} [${payload?.deployId ?? payload?.deploymentId ?? ''}]`);
+    }
+
+    @OnEvent('deploy.success')
+    onDeploySuccess(payload: any) {
+        this.emit('success', 'deploy', `Deployment succeeded: ${payload?.projectName ?? 'unknown'} (${payload?.environment ?? 'production'} / ${payload?.region ?? 'us-east-1'})`);
+    }
+
+    @OnEvent('deploy.failed')
+    onDeployFailed(payload: any) {
+        this.emit('error', 'deploy', `Deployment failed: ${payload?.projectName ?? 'unknown'} — ${payload?.error ?? 'stage failure'}`);
     }
 
     @OnEvent('agent.triggered')
     onAgentTriggered(payload: any) {
         this.emit('info', payload?.agentId ?? 'agent', `Agent triggered — task: ${payload?.task ?? 'default'}`);
+    }
+
+    @OnEvent('agent.trigger')
+    onAgentTrigger(payload: any) {
+        this.emit('info', payload?.agentId ?? 'agent', `Auto-triggering ${payload?.agentId ?? 'agent'} — ${payload?.task ?? 'autonomous task'}`);
+    }
+
+    @OnEvent('agent.step')
+    onAgentStep(payload: any) {
+        const step = payload?.step;
+        if (!step) return;
+        const tool = step.tool ?? step.toolName;
+        const output = step.output ?? step.toolOutput;
+        const content = step.content ?? step.thought;
+        const idx = (payload?.stepIndex ?? step.step ?? 0) + 1;
+        const msg = tool
+            ? `[Step ${idx}] Tool ${tool} → ${output ? String(output).slice(0, 120) : 'executed'}`
+            : `[Step ${idx}] ${content ? String(content).slice(0, 140) : 'reasoning...'}`;
+        this.emit('debug', payload?.agentId ?? 'agent', msg);
     }
 
     @OnEvent('incident.created')

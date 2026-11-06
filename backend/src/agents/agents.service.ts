@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { KagentBridgeService } from '../kagent-bridge/kagent-bridge.service';
 import { TokenBudgetService } from '../token-budget/token-budget.service';
 import { TenantsService } from '../tenants/tenants.service';
@@ -104,9 +104,44 @@ export class AgentsService {
         return agent;
     }
 
+    async getAgentConfigForUser(userId: string, agentId: string, defaultTaskType: AgentTaskType) {
+        const config = await this.prisma.agentConfig.findUnique({
+            where: { userId_agentId: { userId, agentId } },
+        }).catch(() => null);
+
+        return {
+            enabled: config?.enabled ?? true,
+            model: config?.model || this.tokenBudget.selectModel(defaultTaskType),
+            maxTokens: config?.maxTokens ?? 4096,
+            temperature: config?.temperature ?? 0.7,
+            customPrompt: config?.customPrompt ?? null,
+        };
+    }
+
+    @OnEvent('agent.trigger')
+    async onAgentTriggerEvent(payload: { userId?: string; agentId: string; task?: string }) {
+        if (!payload?.agentId) return;
+        let targetUserId = payload.userId;
+        if (!targetUserId) {
+            const firstUser = await this.prisma.user.findFirst({ orderBy: { createdAt: 'asc' } }).catch(() => null);
+            targetUserId = firstUser?.id;
+        }
+        if (!targetUserId) return;
+        this.triggerAgent(targetUserId, payload.agentId, payload.task).catch(() => null);
+    }
+
     async triggerAgent(userId: string, agentId: string, task?: string) {
         const agent = this.getAgent(userId, agentId);
-        const taskStr = task ?? `${agent.name}: Standard health check and optimization scan`;
+        const agentCfg = await this.getAgentConfigForUser(userId, agentId, agent.taskType);
+
+        if (!agentCfg.enabled) {
+            throw new BadRequestException(`${agent.name} is currently disabled in Agent Settings.`);
+        }
+
+        const baseTask = task ?? `${agent.name}: Standard health check and optimization scan`;
+        const taskStr = agentCfg.customPrompt
+            ? `${baseTask}\n\nAdditional Agent Instructions:\n${agentCfg.customPrompt}`
+            : baseTask;
 
         // Get or create tenant org
         const org = await this.tenants.getOrCreateOrgForUser(userId);
@@ -115,25 +150,27 @@ export class AgentsService {
         const estimatedTokens = 3000;
         await this.tokenBudget.checkBudget(org.id, estimatedTokens);
 
-        // Select model based on task type
-        const model = this.tokenBudget.selectModel(agent.taskType);
+        // Use user-configured model or task-type default
+        const model = agentCfg.model;
 
         // Update in-memory status
         agent.status = 'working';
         agent.lastActivity = new Date().toISOString();
         agent.stats.totalRuns++;
         this.eventEmitter.emit('agent.updated', { userId, agent });
+        this.eventEmitter.emit('agent.triggered', { userId, agentId: agent.id, task: baseTask, model });
         this.eventEmitter.emit('activity.new', {
             userId,
-            text: `${agent.emoji} ${agent.name}: Starting → "${taskStr.substring(0, 60)}..."`,
+            agentId: agent.id,
+            text: `${agent.emoji} ${agent.name}: Starting → "${baseTask.substring(0, 60)}..."`,
             color: agent.color,
             type: 'task_start',
         });
 
         // Run async — don't block the HTTP response
-        this.runAgentAsync(userId, org.id, agent, taskStr, model);
+        this.runAgentAsync(userId, org.id, agent, taskStr, model, agentCfg.maxTokens);
 
-        return { message: `${agent.name} triggered`, task: taskStr, model };
+        return { message: `${agent.name} triggered`, task: baseTask, model };
     }
 
     private async runAgentAsync(
@@ -142,6 +179,7 @@ export class AgentsService {
         agent: AgentState,
         task: string,
         model: string,
+        maxTokens = 4096,
     ) {
         const startTime = Date.now();
 
@@ -163,7 +201,7 @@ export class AgentsService {
                     task,
                     namespace: `tenant-${orgId.substring(0, 8)}`,
                     model,
-                    maxTokens: 4096,
+                    maxTokens,
                 },
                 (step, index) => {
                     steps.push(step);

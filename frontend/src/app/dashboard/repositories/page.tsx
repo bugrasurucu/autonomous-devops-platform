@@ -42,6 +42,9 @@ export default function RepositoriesPage() {
     const [deployConfig, setDeployConfig] = useState({ region: 'us-east-1', environment: 'production', budget: 100 });
     const [deploySuccess, setDeploySuccess] = useState<string | null>(null);
     const [langFilter, setLangFilter] = useState<string>('all');
+    const [showConnectModal, setShowConnectModal] = useState(false);
+    const [connectForm, setConnectForm] = useState({ username: 'bugrasurucu', token: '' });
+    const [connectingGh, setConnectingGh] = useState(false);
 
     useEffect(() => {
         checkStatus();
@@ -75,9 +78,33 @@ export default function RepositoriesPage() {
 
     const connectGitHub = async () => {
         try {
-            const { url } = await api.github.getOAuthUrl();
-            window.location.href = url;
-        } catch (e: any) { alert(e.message); }
+            const res = await api.github.getOAuthUrl();
+            if (res?.configured && res?.url) {
+                window.location.href = res.url;
+            } else {
+                setShowConnectModal(true);
+            }
+        } catch {
+            setShowConnectModal(true);
+        }
+    };
+
+    const handleConnectSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!connectForm.username.trim() && !connectForm.token.trim()) return;
+        setConnectingGh(true);
+        try {
+            await api.github.connect({
+                username: connectForm.username.trim(),
+                token: connectForm.token.trim() || undefined,
+            });
+            setShowConnectModal(false);
+            await checkStatus();
+        } catch (err: any) {
+            alert(err.message || 'Failed to connect GitHub');
+        } finally {
+            setConnectingGh(false);
+        }
     };
 
     const handleDeploy = async () => {
@@ -259,11 +286,25 @@ export default function RepositoriesPage() {
                                 )}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 5 }}>Region</label>
+                                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 5 }}>Cloud Provider & Region</label>
                                         <select className="input-field" value={deployConfig.region} onChange={e => setDeployConfig({ ...deployConfig, region: e.target.value })}>
-                                            <option value="us-east-1">US East (N. Virginia)</option>
-                                            <option value="eu-west-1">EU West (Ireland)</option>
-                                            <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
+                                            <optgroup label="☁️ Amazon Web Services (AWS)">
+                                                <option value="aws:us-east-1">AWS — US East (N. Virginia)</option>
+                                                <option value="aws:eu-west-1">AWS — EU West (Ireland)</option>
+                                                <option value="aws:ap-southeast-1">AWS — Asia Pacific (Singapore)</option>
+                                                <option value="us-east-1">AWS — Default (us-east-1)</option>
+                                            </optgroup>
+                                            <optgroup label="🌐 Google Cloud Platform (GCP)">
+                                                <option value="gcp:us-central1">GCP — Iowa (us-central1)</option>
+                                                <option value="gcp:europe-west1">GCP — Belgium (europe-west1)</option>
+                                            </optgroup>
+                                            <optgroup label="🔷 Microsoft Azure">
+                                                <option value="azure:eastus">Azure — East US (eastus)</option>
+                                                <option value="azure:westeurope">Azure — West Europe (westeurope)</option>
+                                            </optgroup>
+                                            <optgroup label="☸️ Kubernetes (Cloud-Agnostic)">
+                                                <option value="k8s:cluster-default">Kubernetes — Production Cluster</option>
+                                            </optgroup>
                                         </select>
                                     </div>
                                     <div>
@@ -292,6 +333,50 @@ export default function RepositoriesPage() {
                         </div>
                     )}
                 </div>
+
+                {showConnectModal && (
+                    <div style={{
+                        position: 'fixed', inset: 0, zIndex: 100,
+                        background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }} onClick={e => e.target === e.currentTarget && setShowConnectModal(false)}>
+                        <div className="glass-card" style={{ padding: 28, width: 460, maxWidth: '90vw' }}>
+                            <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>🐙 Connect GitHub Account</h3>
+                            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 18, lineHeight: 1.5 }}>
+                                Enter your GitHub username to immediately import all your public repositories, or provide a Personal Access Token (PAT) for private repositories.
+                            </p>
+                            <form onSubmit={handleConnectSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>GitHub Username (Public Repos)</label>
+                                    <input
+                                        className="input-field"
+                                        placeholder="bugrasurucu"
+                                        value={connectForm.username}
+                                        onChange={e => setConnectForm({ ...connectForm, username: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Personal Access Token (Optional — for private repos)</label>
+                                    <input
+                                        className="input-field"
+                                        type="password"
+                                        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                                        value={connectForm.token}
+                                        onChange={e => setConnectForm({ ...connectForm, token: e.target.value })}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                                    <button type="submit" className="btn-primary" disabled={connectingGh} style={{ flex: 1, justifyContent: 'center' }}>
+                                        {connectingGh ? '⏳ Connecting...' : '🔗 Connect & Load Repos'}
+                                    </button>
+                                    <button type="button" onClick={() => setShowConnectModal(false)} style={{
+                                        padding: '10px 16px', borderRadius: 8, background: 'none',
+                                        border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer',
+                                    }}>Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -489,12 +574,26 @@ export default function RepositoriesPage() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 5 }}>Region</label>
+                                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 5 }}>Cloud Provider & Region</label>
                                     <select className="input-field" value={deployConfig.region}
                                         onChange={e => setDeployConfig({ ...deployConfig, region: e.target.value })}>
-                                        <option value="us-east-1">US East (N. Virginia)</option>
-                                        <option value="eu-west-1">EU West (Ireland)</option>
-                                        <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
+                                        <optgroup label="☁️ Amazon Web Services (AWS)">
+                                            <option value="aws:us-east-1">AWS — US East (N. Virginia)</option>
+                                            <option value="aws:eu-west-1">AWS — EU West (Ireland)</option>
+                                            <option value="aws:ap-southeast-1">AWS — Asia Pacific (Singapore)</option>
+                                            <option value="us-east-1">AWS — Default (us-east-1)</option>
+                                        </optgroup>
+                                        <optgroup label="🌐 Google Cloud Platform (GCP)">
+                                            <option value="gcp:us-central1">GCP — Iowa (us-central1)</option>
+                                            <option value="gcp:europe-west1">GCP — Belgium (europe-west1)</option>
+                                        </optgroup>
+                                        <optgroup label="🔷 Microsoft Azure">
+                                            <option value="azure:eastus">Azure — East US (eastus)</option>
+                                            <option value="azure:westeurope">Azure — West Europe (westeurope)</option>
+                                        </optgroup>
+                                        <optgroup label="☸️ Kubernetes (Cloud-Agnostic)">
+                                            <option value="k8s:cluster-default">Kubernetes — Production Cluster</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                                 <div>

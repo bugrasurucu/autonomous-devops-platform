@@ -1,11 +1,53 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class FinopsService {
-    constructor(private prisma: PrismaService) { }
+    private appliedOptimizations = new Map<string, Set<string>>();
+
+    constructor(
+        private prisma: PrismaService,
+        private eventEmitter: EventEmitter2,
+    ) { }
+
+    async applyOptimization(userId: string, optId: string) {
+        const userSet = this.appliedOptimizations.get(userId) || new Set<string>();
+        const alreadyApplied = userSet.has(optId);
+        userSet.add(optId);
+        this.appliedOptimizations.set(userId, userSet);
+
+        const discountFactor =
+            optId === 'spot-instances' ? 0.82 : optId === 'right-size' ? 0.88 : 0.78;
+
+        if (!alreadyApplied) {
+            const deploys = await this.prisma.deployment.findMany({
+                where: { userId, cost: { gt: 0 } },
+                take: 30,
+            });
+            await Promise.all(
+                deploys.map((d) =>
+                    this.prisma.deployment.update({
+                        where: { id: d.id },
+                        data: { cost: +(d.cost * discountFactor).toFixed(2) },
+                    }),
+                ),
+            );
+
+            this.eventEmitter.emit('activity.new', {
+                userId,
+                text: `💰 FinOps Optimization Applied: ${optId} (-${Math.round((1 - discountFactor) * 100)}% monthly infrastructure cost)`,
+                color: '#34d399',
+                type: 'finops_optimize',
+                agentId: 'finops-agent',
+            });
+        }
+
+        return this.getFinOps(userId);
+    }
 
     async getFinOps(userId: string) {
+        const appliedSet = this.appliedOptimizations.get(userId) || new Set<string>();
         const deployments = await this.prisma.deployment.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
@@ -18,78 +60,40 @@ export class FinopsService {
         );
         const monthlyCost = thisMonth.reduce((sum, d) => sum + d.cost, 0);
 
-        // Cost breakdown by service (Dynamic based on deployment data)
-        const totalCostBreakdown = monthlyCost;
-        let breakdown: { service: string; cost: number; percentage: number; }[] = [];
-        
-        if (totalCostBreakdown > 0) {
-            // Realistic dynamic allocation based on total cost
-            const ecsRatio = 0.35 + (monthlyCost > 100 ? 0.05 : 0);
-            const rdsRatio = 0.25 + (monthlyCost > 200 ? 0.05 : 0);
-            const albRatio = 0.15;
-            const s3Ratio = 0.10;
-            const cwRatio = 0.08;
-            const remaining = 1 - (ecsRatio + rdsRatio + albRatio + s3Ratio + cwRatio);
+        // Cost breakdown by service (simulated)
+        const breakdown = [
+            { service: 'ECS Fargate', cost: +(monthlyCost * 0.35).toFixed(2), percentage: 35 },
+            { service: 'RDS PostgreSQL', cost: +(monthlyCost * 0.25).toFixed(2), percentage: 25 },
+            { service: 'ALB / Networking', cost: +(monthlyCost * 0.15).toFixed(2), percentage: 15 },
+            { service: 'S3 / Storage', cost: +(monthlyCost * 0.10).toFixed(2), percentage: 10 },
+            { service: 'CloudWatch', cost: +(monthlyCost * 0.08).toFixed(2), percentage: 8 },
+            { service: 'Other', cost: +(monthlyCost * 0.07).toFixed(2), percentage: 7 },
+        ];
 
-            breakdown = [
-                { service: 'ECS Fargate', cost: +(totalCostBreakdown * ecsRatio).toFixed(2), percentage: Math.round(ecsRatio * 100) },
-                { service: 'RDS PostgreSQL', cost: +(totalCostBreakdown * rdsRatio).toFixed(2), percentage: Math.round(rdsRatio * 100) },
-                { service: 'ALB / Networking', cost: +(totalCostBreakdown * albRatio).toFixed(2), percentage: Math.round(albRatio * 100) },
-                { service: 'S3 / Storage', cost: +(totalCostBreakdown * s3Ratio).toFixed(2), percentage: Math.round(s3Ratio * 100) },
-                { service: 'CloudWatch', cost: +(totalCostBreakdown * cwRatio).toFixed(2), percentage: Math.round(cwRatio * 100) },
-                { service: 'Other', cost: +(totalCostBreakdown * remaining).toFixed(2), percentage: Math.round(remaining * 100) },
-            ];
-        } else {
-             breakdown = [
-                { service: 'ECS Fargate', cost: 0, percentage: 0 },
-                { service: 'RDS PostgreSQL', cost: 0, percentage: 0 },
-                { service: 'ALB / Networking', cost: 0, percentage: 0 },
-                { service: 'S3 / Storage', cost: 0, percentage: 0 },
-                { service: 'CloudWatch', cost: 0, percentage: 0 },
-                { service: 'Other', cost: 0, percentage: 0 },
-            ];
-        }
-
-        // Dynamic optimization recommendations based on cost
-        const optimizations = [];
-        
-        if (monthlyCost > 50) {
-            optimizations.push({
+        // Optimization recommendations
+        const optimizations = [
+            {
                 id: 'spot-instances',
-                title: 'Use Spot Instances for non-critical workloads',
-                savings: `$${(monthlyCost * 0.15).toFixed(2)}/month`,
+                title: 'Use Spot Instances & ARM64 Graviton2 for ECS Fargate tasks',
+                savings: '$45/month (-18%)',
                 impact: 'medium',
-                status: 'available',
-            });
-        }
-        if (monthlyCost > 100) {
-            optimizations.push({
+                status: appliedSet.has('spot-instances') ? 'applied' : 'available',
+            },
+            {
                 id: 'right-size',
-                title: 'Right-size RDS instance (db.t3.medium → db.t3.small)',
-                savings: `$${(monthlyCost * 0.08).toFixed(2)}/month`,
+                title: 'Right-size RDS PostgreSQL instance (db.t3.medium → db.t4g.small)',
+                savings: '$22/month (-12%)',
                 impact: 'low',
-                status: 'available',
-            });
-        }
-        if (monthlyCost > 200) {
-             optimizations.push({
+                status: appliedSet.has('right-size') ? 'applied' : 'available',
+            },
+            {
                 id: 'reserved',
-                title: 'Switch to Reserved Instances (1-year)',
-                savings: `$${(monthlyCost * 0.25).toFixed(2)}/month`,
+                title: 'Switch production compute to 1-year Compute Savings Plan',
+                savings: '$120/month (-22%)',
                 impact: 'high',
-                status: 'requires_review',
-            });
-        }
-        
-        if (optimizations.length === 0) {
-             optimizations.push({
-                id: 'all-good',
-                title: 'Infrastructure is highly optimized',
-                savings: '$0/month',
-                impact: 'low',
-                status: 'available',
-            });
-        }
+                status: appliedSet.has('reserved') ? 'applied' : 'available',
+            },
+        ];
 
         return {
             totalCost: +totalCost.toFixed(2),

@@ -35,25 +35,6 @@ services:
     networks:
       - orbitron
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: orbitron-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: devops
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-devops_mq_2026}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-    networks:
-      - orbitron
-
   # ─── Application ────────────────────────────────────────────────
   backend:
     build:
@@ -65,14 +46,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://devops_user:${POSTGRES_PASSWORD:-devops_secret_2026}@postgres:5432/devops_platform?schema=public
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       REDIS_URL: redis://redis:6379
-      RABBITMQ_URL: amqp://devops:${RABBITMQ_PASSWORD:-devops_mq_2026}@rabbitmq:5672
       PORT: 3001
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change-me-in-production}
@@ -145,7 +123,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  rabbitmq_data:
   prometheus_data:
   grafana_data:
 

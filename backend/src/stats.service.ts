@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from './prisma/prisma.service';
 import { AgentsService } from './agents/agents.service';
 
@@ -8,6 +9,40 @@ export class StatsService {
         private prisma: PrismaService,
         private agentsService: AgentsService,
     ) { }
+
+    @OnEvent('activity.new')
+    async handleNewActivity(payload: {
+        userId: string;
+        text: string;
+        color?: string;
+        type?: string;
+        deployId?: string;
+        agentId?: string;
+    }) {
+        if (!payload?.userId || !payload?.text) return;
+        try {
+            await this.prisma.activity.create({
+                data: {
+                    userId: payload.userId,
+                    text: payload.text,
+                    color: payload.color || '#818cf8',
+                    type: payload.type || 'info',
+                    deployId: payload.deployId || null,
+                    agentId: payload.agentId || null,
+                },
+            });
+        } catch {
+            // Non-blocking activity log write
+        }
+    }
+
+    async getActivities(userId: string, limit = 30) {
+        return this.prisma.activity.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+        });
+    }
 
     async getStats(userId: string) {
         const [

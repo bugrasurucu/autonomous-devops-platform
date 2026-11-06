@@ -24,7 +24,7 @@ export class BillingController {
         @Body('returnUrl') returnUrl: string,
     ) {
         const org = await this.tenants.getOrCreateOrgForUser(req.user.userId);
-        return this.billing.createCheckoutSession(org.id, plan, returnUrl);
+        return this.billing.createCheckoutSession(org.id, plan, returnUrl, req.user.userId);
     }
 
     @Post('portal')

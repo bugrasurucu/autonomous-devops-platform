@@ -35,7 +35,19 @@ export default function FinOpsPage() {
     const [estimates, setEstimates] = useState<any>(null);
     const [finopsData, setFinopsData] = useState<any>(null);
     const [tab, setTab] = useState<'overview' | 'tiers' | 'free-tier' | 'estimates'>('overview');
-    const [scaling, setScaling] = useState(false);
+    const [applyingOpt, setApplyingOpt] = useState<string | null>(null);
+
+    const handleApplyOptimization = async (optId: string) => {
+        setApplyingOpt(optId);
+        try {
+            const updated = await api.applyFinOpsOptimization(optId);
+            setFinopsData(updated);
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setApplyingOpt(null);
+        }
+    };
 
     useEffect(() => {
         Promise.all([
@@ -169,16 +181,37 @@ export default function FinOpsPage() {
                                 <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Optimization Recommendations</h3>
                                 {finopsData.optimizations?.map((o: any) => (
                                     <div key={o.id} style={{ padding: 12, borderRadius: 10, marginBottom: 8, background: 'rgba(15,23,42,0.5)', border: '1px solid var(--border-color)' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                                             <div>
                                                 <div style={{ fontSize: 13, fontWeight: 500 }}>{o.title}</div>
                                                 <div style={{ fontSize: 12, color: '#34d399', fontWeight: 600, marginTop: 4 }}>Savings: {o.savings}</div>
                                             </div>
-                                            <span style={{
-                                                fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                                                background: o.impact === 'high' ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)',
-                                                color: o.impact === 'high' ? '#f87171' : '#fbbf24',
-                                            }}>{o.impact}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <span style={{
+                                                    fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                                                    background: o.impact === 'high' ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)',
+                                                    color: o.impact === 'high' ? '#f87171' : '#fbbf24',
+                                                }}>{o.impact}</span>
+                                                {o.status === 'applied' ? (
+                                                    <span style={{
+                                                        fontSize: 11, padding: '4px 10px', borderRadius: 6, fontWeight: 700,
+                                                        background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)',
+                                                    }}>
+                                                        ✓ Applied
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleApplyOptimization(o.id)}
+                                                        disabled={applyingOpt === o.id}
+                                                        style={{
+                                                            fontSize: 11, padding: '5px 10px', borderRadius: 6, fontWeight: 700, cursor: 'pointer',
+                                                            background: 'rgba(129,140,248,0.15)', color: '#818cf8', border: '1px solid rgba(129,140,248,0.35)',
+                                                        }}
+                                                    >
+                                                        {applyingOpt === o.id ? '⏳...' : '⚡ Apply'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

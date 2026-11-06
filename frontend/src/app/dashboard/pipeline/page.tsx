@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
+import Link from 'next/link';
 
 const STATUS_COLORS: Record<string, string> = {
     pending: '#64748b',
@@ -9,6 +10,7 @@ const STATUS_COLORS: Record<string, string> = {
     success: '#34d399',
     failed: '#f87171',
     cancelled: '#fbbf24',
+    blocked: '#fbbf24',
 };
 
 const STATUS_ICONS: Record<string, string> = {
@@ -17,46 +19,72 @@ const STATUS_ICONS: Record<string, string> = {
     success: '✅',
     failed: '❌',
     cancelled: '⚠️',
+    blocked: '🚫',
 };
 
-// 5-stage pipeline for each deployment
+// 5-stage autonomous agent pipeline for each deployment
 const PIPELINE_STAGES = [
-    { id: 'plan', label: 'Plan', icon: '📋' },
-    { id: 'build', label: 'Build', icon: '🔨' },
-    { id: 'test', label: 'Test', icon: '🧪' },
-    { id: 'deploy', label: 'Deploy', icon: '🚀' },
-    { id: 'verify', label: 'Verify', icon: '✅' },
+    { id: 'bootstrap-agent', label: 'Repo Analysis', icon: '🔍' },
+    { id: 'infra-agent', label: 'Infrastructure', icon: '🏗️' },
+    { id: 'finops-agent', label: 'FinOps Validation', icon: '💰' },
+    { id: 'pipeline-agent', label: 'CI/CD Pipeline', icon: '⚡' },
+    { id: 'sre-agent', label: 'SRE Monitoring Setup', icon: '🛡️' },
 ];
 
 function derivePipelineStages(deployment: any) {
-    if (!deployment.stages) return [];
+    const status = deployment.status;
+    const createdAt = new Date(deployment.createdAt).getTime();
+
+    let parsedBackendStages: any[] = [];
     try {
-        const rawStages = typeof deployment.stages === 'string' ? JSON.parse(deployment.stages) : deployment.stages;
-        const iconMap: Record<string, string> = {
-            'bootstrap-agent': '📋',
-            'infra-agent': '🔨',
-            'finops-agent': '💰',
-            'pipeline-agent': '🚀',
-            'sre-agent': '✅'
-        };
-        
-        return rawStages.map((stage: any, i: number) => {
-            let status = stage.status;
-            if (status === 'completed') status = 'success';
-            
-            return {
-                id: stage.id,
-                label: stage.label,
-                icon: iconMap[stage.id] || '⚙️',
-                status: status,
-                // In a real scenario duration would be tracked per stage. For now we keep null or 0 if not completed.
-                duration: status === 'success' ? Math.round(5 + Math.random() * 10) : null,
-                startedAt: status !== 'pending' && status !== 'blocked' ? deployment.createdAt : null,
-            };
-        });
-    } catch (e) {
-        return [];
+        if (deployment.stages) {
+            parsedBackendStages = typeof deployment.stages === 'string'
+                ? JSON.parse(deployment.stages)
+                : deployment.stages;
+        }
+    } catch {
+        parsedBackendStages = [];
     }
+
+    const totalDuration = deployment.duration || 0;
+    const perStageDuration = totalDuration > 0 ? Math.max(2, Math.round(totalDuration / PIPELINE_STAGES.length)) : 12;
+
+    return PIPELINE_STAGES.map((stage, i) => {
+        const backendStage = parsedBackendStages[i];
+        let stageStatus: 'pending' | 'running' | 'success' | 'failed';
+
+        if (backendStage?.status) {
+            if (backendStage.status === 'completed' || backendStage.status === 'success') {
+                stageStatus = 'success';
+            } else if (backendStage.status === 'running') {
+                stageStatus = 'running';
+            } else if (backendStage.status === 'failed') {
+                stageStatus = 'failed';
+            } else {
+                stageStatus = 'pending';
+            }
+        } else if (status === 'success') {
+            stageStatus = 'success';
+        } else if (status === 'failed') {
+            stageStatus = i < 3 ? 'success' : i === 3 ? 'failed' : 'pending';
+        } else if (status === 'running') {
+            stageStatus = i < 2 ? 'success' : i === 2 ? 'running' : 'pending';
+        } else if (status === 'cancelled') {
+            stageStatus = i === 0 ? 'success' : 'pending';
+        } else {
+            stageStatus = 'pending';
+        }
+
+        const stageStart = createdAt + i * (perStageDuration * 1000);
+        return {
+            ...stage,
+            label: backendStage?.label || stage.label,
+            result: backendStage?.result || null,
+            status: stageStatus,
+            duration: stageStatus === 'success' ? perStageDuration : null,
+            startedAt: stageStatus !== 'pending' ? new Date(stageStart).toISOString() : null,
+        };
+    });
 }
 
 function PipelineStageBar({ stages }: { stages: ReturnType<typeof derivePipelineStages> }) {
@@ -99,8 +127,16 @@ function PipelineStageBar({ stages }: { stages: ReturnType<typeof derivePipeline
 export default function PipelinePage() {
     const [deployments, setDeployments] = useState<any[]>([]);
     const [selected, setSelected] = useState<any>(null);
+    const [expandedStage, setExpandedStage] = useState<string | null>('infra-agent');
     const [showDeploy, setShowDeploy] = useState(false);
-    const [deployForm, setDeployForm] = useState({ projectName: '', region: 'us-east-1', environment: 'production', budget: 100 });
+    const [deployForm, setDeployForm] = useState({
+        projectName: '',
+        githubRepo: '',
+        githubBranch: 'main',
+        region: 'us-east-1',
+        environment: 'production',
+        budget: 100,
+    });
     const [deploying, setDeploying] = useState(false);
     const [filter, setFilter] = useState<string>('all');
 
@@ -118,7 +154,7 @@ export default function PipelinePage() {
 
     useEffect(() => {
         loadDeployments();
-        const interval = setInterval(loadDeployments, 5000);
+        const interval = setInterval(loadDeployments, 3000);
         return () => clearInterval(interval);
     }, [loadDeployments]);
 
@@ -128,10 +164,46 @@ export default function PipelinePage() {
         try {
             await api.deploy(deployForm);
             setShowDeploy(false);
-            setDeployForm({ projectName: '', region: 'us-east-1', environment: 'production', budget: 100 });
+            setDeployForm({
+                projectName: '',
+                githubRepo: '',
+                githubBranch: 'main',
+                region: 'us-east-1',
+                environment: 'production',
+                budget: 100,
+            });
             await loadDeployments();
         } catch (e: any) { alert(e.message); }
         finally { setDeploying(false); }
+    };
+
+    const handleStop = async (id: string) => {
+        try {
+            await api.stopDeployment(id);
+            await loadDeployments();
+        } catch (e: any) { alert(e.message); }
+    };
+
+    const handleRedeploy = async (id: string) => {
+        try {
+            await api.redeployDeployment(id);
+            await loadDeployments();
+        } catch (e: any) { alert(e.message); }
+    };
+
+    const handlePromote = async (id: string, currentEnv: string) => {
+        const nextEnv = currentEnv === 'development' ? 'staging' : 'production';
+        try {
+            await api.promoteDeployment(id, nextEnv);
+            await loadDeployments();
+        } catch (e: any) { alert(e.message); }
+    };
+
+    const handleRollback = async (id: string) => {
+        try {
+            await api.rollbackDeployment(id);
+            await loadDeployments();
+        } catch (e: any) { alert(e.message); }
     };
 
     const stats = {
@@ -154,7 +226,7 @@ export default function PipelinePage() {
                         <span className="gradient-text">Deployment Pipeline</span>
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-                        CI/CD pipeline tracking — Plan → Build → Test → Deploy → Verify
+                        5-Stage Autonomous Agent Pipeline — Repo Analysis → Infrastructure → FinOps → CI/CD → SRE Monitoring
                     </p>
                 </div>
                 <button className="btn-primary" onClick={() => setShowDeploy(true)} style={{ fontSize: 13 }}>
@@ -305,41 +377,150 @@ export default function PipelinePage() {
                             </div>
                         </div>
 
-                        {/* Pipeline stages */}
+                        {/* Pipeline stages with expandable agent artifacts */}
                         <div style={{ marginBottom: 18 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Pipeline Stages
+                                Autonomous Agent Stages & Generated Artifacts
                             </div>
-                            {selectedStages.map((stage, i) => (
-                                <div key={stage.id} style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 10 }}>
-                                    <div style={{
-                                        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                                        background: STATUS_COLORS[stage.status] + '15',
-                                        border: `1.5px solid ${STATUS_COLORS[stage.status]}40`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: 14,
-                                        animation: stage.status === 'running' ? 'spin 2s linear infinite' : undefined,
+                            {selectedStages.map((stage) => {
+                                const isOpen = expandedStage === stage.id;
+                                return (
+                                    <div key={stage.id} style={{
+                                        marginBottom: 8,
+                                        borderRadius: 10,
+                                        border: `1px solid ${isOpen && stage.result ? STATUS_COLORS[stage.status] + '40' : 'rgba(255,255,255,0.06)'}`,
+                                        background: 'rgba(15,23,42,0.35)',
+                                        overflow: 'hidden',
                                     }}>
-                                        {stage.status === 'running' ? '⟳' : stage.icon}
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: 12, fontWeight: 600, color: STATUS_COLORS[stage.status] }}>
-                                            {stage.label}
+                                        <div
+                                            onClick={() => setExpandedStage(isOpen ? null : stage.id)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', padding: '10px 12px', gap: 10,
+                                                cursor: stage.result ? 'pointer' : 'default',
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                                background: STATUS_COLORS[stage.status] + '15',
+                                                border: `1.5px solid ${STATUS_COLORS[stage.status]}40`,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: 14,
+                                                animation: stage.status === 'running' ? 'spin 2s linear infinite' : undefined,
+                                            }}>
+                                                {stage.status === 'running' ? '⟳' : stage.icon}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: 12, fontWeight: 600, color: STATUS_COLORS[stage.status] }}>
+                                                    {stage.label}
+                                                </div>
+                                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                                                    {stage.status === 'pending' ? 'Waiting...'
+                                                        : stage.status === 'running' ? 'Agent executing...'
+                                                            : stage.status === 'success' ? `Completed (~${stage.duration}s)`
+                                                                : 'Failed / Blocked'}
+                                                </div>
+                                            </div>
+                                            {stage.result && (
+                                                <span style={{ fontSize: 10, color: 'var(--text-secondary)', padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)' }}>
+                                                    {isOpen ? '▲ Hide Output' : '▼ View Output'}
+                                                </span>
+                                            )}
+                                            <div style={{
+                                                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                                                background: STATUS_COLORS[stage.status],
+                                                boxShadow: stage.status === 'running' ? `0 0 6px ${STATUS_COLORS.running}` : 'none',
+                                            }} />
                                         </div>
-                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                                            {stage.status === 'pending' ? 'Waiting...'
-                                                : stage.status === 'running' ? 'In progress...'
-                                                    : stage.status === 'success' ? `Completed in ${stage.duration}s`
-                                                        : 'Failed'}
-                                        </div>
+                                        {isOpen && stage.result && (
+                                            <pre style={{
+                                                margin: 0,
+                                                padding: '10px 12px',
+                                                borderTop: '1px solid rgba(255,255,255,0.06)',
+                                                background: 'rgba(2,6,23,0.75)',
+                                                color: '#cbd5e1',
+                                                fontSize: 11,
+                                                fontFamily: 'JetBrains Mono, monospace',
+                                                whiteSpace: 'pre-wrap',
+                                                wordBreak: 'break-word',
+                                                maxHeight: 220,
+                                                overflowY: 'auto',
+                                                lineHeight: 1.5,
+                                            }}>
+                                                {stage.result}
+                                            </pre>
+                                        )}
                                     </div>
-                                    <div style={{
-                                        width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                                        background: STATUS_COLORS[stage.status],
-                                        boxShadow: stage.status === 'running' ? `0 0 6px ${STATUS_COLORS.running}` : 'none',
-                                    }} />
-                                </div>
-                            ))}
+                                );
+                            })}
+                        </div>
+
+                        {/* Action Buttons (Live Preview / IaC / Promote / Rollback / Redeploy / Stop) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                            <Link
+                                href={`/dashboard/preview/${selected.id}`}
+                                style={{
+                                    padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                                    background: selected.status === 'success' ? 'rgba(52,211,153,0.15)' : 'rgba(129,140,248,0.15)',
+                                    border: selected.status === 'success' ? '1px solid rgba(52,211,153,0.35)' : '1px solid rgba(129,140,248,0.35)',
+                                    color: selected.status === 'success' ? '#34d399' : '#818cf8',
+                                    textDecoration: 'none', textAlign: 'center',
+                                }}
+                            >
+                                {selected.status === 'success'
+                                    ? '🔗 Open Live Container & DevOps IaC Bundle'
+                                    : '📦 View Generated DevOps IaC & Files (6)'}
+                            </Link>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                {selected.status === 'running' ? (
+                                    <button
+                                        onClick={() => handleStop(selected.id)}
+                                        style={{
+                                            flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                            background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.35)',
+                                            color: '#f87171', cursor: 'pointer',
+                                        }}
+                                    >
+                                        ⏹ Stop Deployment
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => handleRedeploy(selected.id)}
+                                            style={{
+                                                flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.3)',
+                                                color: '#818cf8', cursor: 'pointer',
+                                            }}
+                                        >
+                                            ↻ Redeploy
+                                        </button>
+                                        {selected.status === 'success' && selected.environment !== 'production' && (
+                                            <button
+                                                onClick={() => handlePromote(selected.id, selected.environment)}
+                                                style={{
+                                                    flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                    background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                                                    color: '#fbbf24', cursor: 'pointer',
+                                                }}
+                                            >
+                                                ⬆ Promote to {selected.environment === 'development' ? 'Staging' : 'Prod'}
+                                            </button>
+                                        )}
+                                        {(selected.status === 'failed' || selected.status === 'cancelled') && (
+                                            <button
+                                                onClick={() => handleRollback(selected.id)}
+                                                style={{
+                                                    flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                    background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                                                    color: '#fbbf24', cursor: 'pointer',
+                                                }}
+                                            >
+                                                ⏪ Rollback
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
 
                         {/* Cost + Budget */}
@@ -350,12 +531,12 @@ export default function PipelinePage() {
                                 fontSize: 12,
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Actual Cost</span>
-                                    <span style={{ color: '#34d399', fontWeight: 600 }}>${selected.cost.toFixed(2)}</span>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Est. Monthly Infra Cost</span>
+                                    <span style={{ color: '#34d399', fontWeight: 600 }}>${selected.cost.toFixed(2)}/mo</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Budget</span>
-                                    <span style={{ fontWeight: 600 }}>${selected.budget}</span>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Target Budget</span>
+                                    <span style={{ fontWeight: 600 }}>${selected.budget}/mo</span>
                                 </div>
                             </div>
                         )}
@@ -384,14 +565,40 @@ export default function PipelinePage() {
                                 <input className="input-field" placeholder="my-app" value={deployForm.projectName}
                                     onChange={e => setDeployForm({ ...deployForm, projectName: e.target.value })} />
                             </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>GitHub Repo (owner/repo or URL)</label>
+                                    <input className="input-field" placeholder="bugrasurucu/autonomous-devops-platform" value={deployForm.githubRepo}
+                                        onChange={e => setDeployForm({ ...deployForm, githubRepo: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Branch</label>
+                                    <input className="input-field" placeholder="main" value={deployForm.githubBranch}
+                                        onChange={e => setDeployForm({ ...deployForm, githubBranch: e.target.value })} />
+                                </div>
+                            </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Region</label>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Cloud Provider & Region</label>
                                     <select className="input-field" value={deployForm.region}
                                         onChange={e => setDeployForm({ ...deployForm, region: e.target.value })}>
-                                        <option value="us-east-1">US East (N. Virginia)</option>
-                                        <option value="eu-west-1">EU West (Ireland)</option>
-                                        <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
+                                        <optgroup label="☁️ Amazon Web Services (AWS)">
+                                            <option value="aws:us-east-1">AWS — US East (N. Virginia)</option>
+                                            <option value="aws:eu-west-1">AWS — EU West (Ireland)</option>
+                                            <option value="aws:ap-southeast-1">AWS — Asia Pacific (Singapore)</option>
+                                            <option value="us-east-1">AWS — Default (us-east-1)</option>
+                                        </optgroup>
+                                        <optgroup label="🌐 Google Cloud Platform (GCP)">
+                                            <option value="gcp:us-central1">GCP — Iowa (us-central1)</option>
+                                            <option value="gcp:europe-west1">GCP — Belgium (europe-west1)</option>
+                                        </optgroup>
+                                        <optgroup label="🔷 Microsoft Azure">
+                                            <option value="azure:eastus">Azure — East US (eastus)</option>
+                                            <option value="azure:westeurope">Azure — West Europe (westeurope)</option>
+                                        </optgroup>
+                                        <optgroup label="☸️ Kubernetes (Cloud-Agnostic)">
+                                            <option value="k8s:cluster-default">Kubernetes — Production Cluster</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                                 <div>

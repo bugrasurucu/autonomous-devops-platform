@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import * as express from 'express';
-import helmet from 'helmet';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -12,11 +11,14 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  // Security headers
-  app.use(helmet({
-    contentSecurityPolicy: false, // Disabled for development; enable in production with proper CSP
-    crossOriginEmbedderPolicy: false,
-  }));
+  // Security headers (Faz 0 — A6)
+  app.use((_req: express.Request, res: express.Response, next: express.NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    next();
+  });
 
   // Enable CORS with strict origin
   const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000').split(',');
