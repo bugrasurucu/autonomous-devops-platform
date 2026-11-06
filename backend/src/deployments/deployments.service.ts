@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentsService } from '../agents/agents.service';
 import { KagentBridgeService } from '../kagent-bridge/kagent-bridge.service';
@@ -103,18 +103,20 @@ export class DeploymentsService implements OnModuleInit {
             where: { id: userId },
             include: { orgMemberships: true },
         });
-        if (!user) throw new Error('User not found');
+        if (!user) throw new BadRequestException('User not found. Please sign in again.');
 
         const adminEmails = (process.env.ADMIN_EMAILS || '')
             .split(',')
             .map((e) => e.trim().toLowerCase())
             .filter(Boolean);
         const isUnlimitedRole =
+            process.env.NODE_ENV !== 'production' ||
             user.plan === 'enterprise' ||
+            user.plan === 'pro' ||
             adminEmails.includes(user.email.toLowerCase()) ||
             user.orgMemberships?.some((m) => m.role === 'owner' || m.role === 'admin');
         if (!isUnlimitedRole && user.deployLimit !== -1 && user.deployCount >= user.deployLimit) {
-            throw new Error(`Deploy limit reached (${user.deployLimit}). Please upgrade your plan.`);
+            throw new BadRequestException(`Deploy limit reached (${user.deployLimit}). Please upgrade your plan.`);
         }
 
         const deployId = `DEP-${Date.now()}`;
@@ -127,15 +129,20 @@ export class DeploymentsService implements OnModuleInit {
             githubRepo: normalizedRepo,
             githubBranch: normalizedBranch,
         };
+        const targetCloud = this.resolveCloudTarget(data.region ?? 'us-east-1');
+        const prismaProvider = (['aws', 'gcp', 'azure'].includes(targetCloud.provider)
+            ? targetCloud.provider
+            : 'aws') as 'aws' | 'gcp' | 'azure';
 
         await this.prisma.deployment.create({
             data: {
                 userId,
                 deployId,
-                projectName: data.projectName,
+                projectName: data.projectName || 'orbitron-app',
+                provider: prismaProvider,
                 region: data.region ?? 'us-east-1',
                 environment: data.environment ?? 'production',
-                budget: data.budget ?? 0,
+                budget: Number(data.budget) || 0,
                 status: 'running',
                 stages: JSON.stringify(flowNodes),
                 githubRepo: normalizedRepo,

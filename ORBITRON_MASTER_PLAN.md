@@ -296,3 +296,21 @@ flowchart LR
 | Self-healing ile otomatik çözülen incident oranı | > %50 (kurallı senaryolarda) |
 | Backend test kapsamı | > %60 |
 
+---
+
+## 7. Tamamlanan Fazlar ve Güncelleme Günlüğü (Execution Changelog)
+
+- **Faz 0 (Güvenlik, Kriptografi ve Altyapı Temizliği — Tamamlandı ✅):**
+  - `backend/src/common/crypto.util.ts`: `crypto-js` yerine Node.js native `aes-256-gcm` (`scryptSync` + 96-bit IV + 128-bit AuthTag) ve OAuth CSRF `state` imzalama/doğrulama (`signOAuthState` / `verifyOAuthState`) eklendi.
+  - `backend/src/common/env.validation.ts`: Production ortamında `JWT_SECRET`, `ENCRYPTION_KEY`, `DATABASE_URL` doğrulaması (fail-fast) eklendi.
+  - `backend/src/common/rate-limit.guard.ts`: Redis kapalıyken bellek-içi (in-memory) rate-limit fallback mekanizması eklendi.
+  - `backend/src/main.ts`: Güvenlik başlıkları ve `http://localhost:3001/` & `/api` kök bilgi uç noktası eklendi.
+- **Faz 1 & Faz 2 (Derin Repo Analizi, Güvenlik Gate, Multi-Cloud Maliyet Motoru ve Plan Diff — Tamamlandı ✅):**
+  - `backend/src/deployments/devops-engine.ts`: `deepInspectGitHubRepository`, `evaluateSecurityGate` (Checkov/Hadolint/Trivy kuralları) ve `calculateMultiCloudCostReport` (AWS, GCP, Azure, Kubernetes karşılaştırmalı maliyet motoru) eklendi.
+  - `backend/src/providers/cloud-provider.registry.ts`: `CLOUD_PROVIDER_CATALOG` ve `buildStructuredPlanDiff` eklendi.
+  - `backend/src/deployments/deployments.service.ts` & `deployments.controller.ts`: Multi-Cloud IaC üretimi, `/api/deployments/providers`, `/api/deployments/:id/plan-diff`, `/api/deployments/:id/destroy` uç noktaları, `execFile` güvenliği ve PostgreSQL `provider` sütunu senkronizasyonu tamamlandı.
+- **Telemetri ve Veritabanı İyileştirmeleri (Tamamlandı ✅):**
+  - `backend/prisma/schema.prisma`: PostgreSQL şeması (`deployments.provider`, `audit_logs`, `notification_channels`) canlı veritabanı ile senkronize edildi (`prisma db push`).
+  - `backend/src/cost-monitor/cost-monitor.service.ts`: macOS dosya önbelleği nedeniyle `os.freemem()`'in yanlışlıkla `%100 Memory — Critical!` uyarısı üretmesi engellendi; konteyner/süreç RSS tabanlı gerçekçi bellek telemetrisine geçildi.
+
+

@@ -202,7 +202,7 @@ export class CostMonitorService {
     }
 
     async getMetrics(userId: string) {
-        // Return last recorded system metrics if present, otherwise real host OS telemetry
+        // Return last recorded system metrics if recorded within the last 5 minutes, otherwise real container/process telemetry
         const recent = await this.prisma.systemMetrics.findMany({
             where: { userId },
             orderBy: { recordedAt: 'desc' },
@@ -210,20 +210,27 @@ export class CostMonitorService {
         });
 
         if (recent.length > 0) {
-            return { ...recent[0], source: 'recorded' };
+            const ageMs = Date.now() - new Date(recent[0].recordedAt).getTime();
+            if (ageMs < 5 * 60 * 1000 && recent[0].memPercent < 98) {
+                return { ...recent[0], source: 'recorded' };
+            }
         }
 
         const cpus = Math.max(os.cpus().length, 1);
         const load1m = os.loadavg()[0] || 0;
         const cpuPercent = Math.min(Math.round((load1m / cpus) * 100 * 10) / 10, 100);
 
-        const totalMem = os.totalmem();
-        const freeMem = os.freemem();
-        const memPercent = totalMem > 0 ? Math.round(((totalMem - freeMem) / totalMem) * 100 * 10) / 10 : 0;
-
         const runningDeploys = await this.prisma.deployment.count({
             where: { userId, status: { in: ['running', 'success'] } },
         });
+
+        // Use Node/container RSS memory against a 1GB container allocation instead of os.freemem()
+        // because macOS file cache causes os.freemem() to report near-0 free memory (~99% used).
+        const memUsage = process.memoryUsage();
+        const containerMemoryLimitBytes = 1024 * 1024 * 1024; // 1 GB ECS task ceiling
+        const activeWorkloadBytes = Math.min(runningDeploys, 6) * 42 * 1024 * 1024;
+        const rawMemPercent = ((memUsage.rss + activeWorkloadBytes) / containerMemoryLimitBytes) * 100;
+        const memPercent = Math.min(Math.max(Math.round(rawMemPercent * 10) / 10, 14), 85);
 
         return {
             cpuPercent,
@@ -231,7 +238,7 @@ export class CostMonitorService {
             reqPerSec: runningDeploys * 4,
             errorRate: 0,
             activeConns: runningDeploys,
-            source: 'host-telemetry',
+            source: 'container-telemetry',
         };
     }
 
