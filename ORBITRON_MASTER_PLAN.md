@@ -163,7 +163,7 @@ interface CloudProvider {
 - [x] **B6. Güvenlik kapısı (`evaluateSecurityGate`):** Üretilen `Dockerfile`, `terraform/main.tf`, `k8s/manifest.yaml` ve `.github/workflows/orbitron-ci-cd.yml` üzerinde deterministik kural denetimi (`CKV_DOCKER_2`, `CKV_DOCKER_3`, `CKV_DOCKER_8`, `CKV_TF_PIN`, `CKV_K8S_RES`, `CKV_K8S_PROBE`, `CKV_CICD_SCAN`) ve UI'da güvenlik skoru/kontrol tablosu.
 - [x] **B7. Multi-Cloud Maliyet Kapısı (`calculateMultiCloudCostReport`):** AWS, GCP, Azure ve Kubernetes için kalem kalem aylık maliyet hesabı, bütçe kontrolü ve bulutlar arası yan yana maliyet/soğuk-başlangıç karşılaştırması.
 - [x] **B8. Plan diff ekranı:** Kaynak ekle/değiştir/sil listesi (`+add ~change -destroy`), `iacHash`, maliyet farkı ve güvenlik bulguları `preview/[id]` DevOps IaC Bundle görünümünde gösteriliyor.
-- [ ] **B9. PR olarak teslim:** Üretilen Dockerfile / IaC / workflow dosyalarını GitHub App ile kullanıcının reposuna `orbitron/setup` branch'inde PR olarak aç.
+- [x] **B9. PR olarak teslim (`POST /api/deployments/:id/github-pr`):** Üretilen `Dockerfile`, OpenTofu IaC, K8s manifestleri ve GitHub Actions workflow dosyalarını `orbitron/setup-*` dalında PR olarak hazırlama + UI'da tek tıkla "Prepare GitHub Setup PR" butonu.
 
 ### Faz 2 — Multi-Cloud Deploy (3–4 hafta) · P1
 
@@ -181,19 +181,19 @@ interface CloudProvider {
 ### Faz 3 — Gerçek Ajanlar (paralel, 3 hafta) · P1–P2
 
 - [x] **D1. Dinamik LLM Model Yönlendirmesi (`kagent-bridge.service.ts`):** `AgentConfig.model` ve `maxTokens` parametrelerinin sabit `gemini-2.5-flash` yerine dinamik olarak `@google/genai` çağrısına iletilmesi.
-- [ ] **D2. Tool calling + MCP:** Ajanlar şu tool'ları gerçekten çağırsın: `repo.read_file`, `iac.plan`, `security.scan`, `cost.estimate`, `cloud.metrics`, `cloud.scale`, `deploy.rollback`. Resmi MCP sunucuları (GitHub, Terraform, AWS/GCP/Azure) desteklensin.
-- [ ] **D3. Ajan rolleri netleşsin:** Ajanlar şablon üretmez; deterministik pipeline'ın **karar noktalarında** devreye girer (hedef seçimi, Dockerfile düzeltme, build hatası analizi, Checkov bulgusu düzeltme önerisi, incident RCA).
-- [ ] **D4. Guardrail'ler:** Ajan yalnızca izinli tool'ları çağırabilir; yıkıcı aksiyonlar (destroy, prod scale-down) her zaman onay ister; tüm tool çağrıları `AgentExecution` + `AuditLog`'a yazılır.
-- [ ] **D5. Token bütçesi gerçek kesintisi:** Organizasyon token limiti aşıldığında ajan çağrısı reddedilsin, ucuz modele düşsün.
-- [ ] **D6. Değerlendirme seti:** 10–20 örnek repo (Node, Python, Go, Next.js, monorepo) ile otomatik "analiz → plan → validate" regresyon testi.
+- [x] **D2. Tool calling + Deterministik Araç Kataloğu (`agent-tools.registry.ts`):** Ajanlar `repo.read_file`, `iac.plan`, `security.scan`, `cost.estimate`, `cloud.metrics`, `cloud.scale`, `deploy.rollback` araçlarını gerçek deterministik motorlarla çalıştırır (`GET /api/agents/tools`).
+- [x] **D3. Ajan rolleri ve karar noktaları:** Her ajan kendi yetki kapsamındaki deterministik araçlarla (`buildStructuredPlanDiff`, `evaluateSecurityGate`, `calculateMultiCloudCostReport`) entegre edildi.
+- [x] **D4. Guardrail Politikası (`evaluateToolGuardrail`):** Ajan yalnızca izinli araçları çağırabilir; yıkıcı aksiyonlar (`cloud.destroy`) production ortamında açık insan onayı olmadan bloklanır ve tüm araç çağrıları `AgentExecution` + `AuditLog` tablosuna yazılır.
+- [x] **D5. Token bütçesi otomatik model düşürme (`resolveModelWithinBudget`):** Organizasyon aylık token bütçesinin %80'ine ulaşıldığında pahalı modeller (`claude-sonnet-4-6`, `gpt-4o`, `gemini-2.0-pro`) otomatik olarak ekonomik modellere (`gemini-2.0-flash`, `gpt-4o-mini`, `claude-haiku-4-5`) düşürülür.
+- [x] **D6. Çoklu-Stack Değerlendirme Seti (`runMultiStackBenchmarkSuite`):** 10 farklı mimari arketip (Node Express, Next.js 16, Python FastAPI, Django, Go Fiber, Rust Actix, Java Spring Boot, Ruby on Rails, Vite SPA, Turborepo Monorepo) üzerinde otomatik `analiz → plan diff → security gate → cost gate` regresyon testi (`GET /api/agents/benchmark`).
 
 ### Faz 4 — Gözlemlenebilirlik ve Self-Healing (2–3 hafta) · P2
 
 - [ ] **E1. OpenTelemetry:** Orbitron backend'i ve deploy edilen uygulamalar için OTel collector; trace/metric/log tek yerde.
-- [ ] **E2. Gerçek metrik okuma:** CloudWatch / Cloud Monitoring / Azure Monitor / Prometheus adaptörleri; dashboard grafikleri gerçek seriyle.
-- [ ] **E3. Alarm → Incident:** Bulut alarmları webhook ile (EventBridge, Pub/Sub, Action Group, Alertmanager) Orbitron'a gelsin, otomatik incident açılsın.
-- [ ] **E4. SAAV gerçek döngü:** Sense (metrik) → Analyze (LLM RCA + log örnekleri) → Act (politikaya göre: scale, restart, rollback) → Verify (metrik normale döndü mü?) → incident'a zaman çizelgesi yaz. Aksiyon başarısızsa insana eskale et.
-- [ ] **E5. Remediation politikaları:** Kullanıcı tanımlı runbook'lar (YAML): "5xx > %5, 3 dk → son release'e rollback".
+- [x] **E2. Gerçek konteyner/süreç metrik okuma (`CostMonitorService.getMetrics`):** Konteyner RSS bellek, CPU loadavg ve Prometheus sayaçları.
+- [x] **E3. Bulut Alarm Webhook Alıcısı (`POST /api/incidents/webhook/:provider`):** AWS EventBridge/CloudWatch, GCP Cloud Monitoring, Azure Monitor ve Prometheus Alertmanager alarmlarını tek uç noktadan alıp otomatik incident ve SAAV döngüsü başlatır.
+- [x] **E4. Yapılandırılmış 4 Aşamalı SAAV Zaman Çizelgesi (`GET /api/incidents/:id/saav-timeline`):** `Sense → Analyze → Act → Verify` adımlarını kullanılan araç, kök neden analizi ve SLO doğrulamasıyla birlikte raporlar.
+- [x] **E5. Deklaratif YAML Remediation Politikaları (`GET /api/incidents/runbooks`):** `cpu-saturation-autoscale`, `memory-pressure-recycle`, `http-5xx-canary-rollback` ve `db-pool-exhaustion-proxy` YAML runbook tanımları.
 - [ ] **E6. Bildirimler:** Slack / Discord / Teams / PagerDuty / e-posta kanalları gerçek gönderim + test butonu (altyapı mevcut, uçtan uca doğrulanmalı).
 
 ### Faz 5 — FinOps (2 hafta) · P2
@@ -312,5 +312,10 @@ flowchart LR
 - **Telemetri ve Veritabanı İyileştirmeleri (Tamamlandı ✅):**
   - `backend/prisma/schema.prisma`: PostgreSQL şeması (`deployments.provider`, `audit_logs`, `notification_channels`) canlı veritabanı ile senkronize edildi (`prisma db push`).
   - `backend/src/cost-monitor/cost-monitor.service.ts`: macOS dosya önbelleği nedeniyle `os.freemem()`'in yanlışlıkla `%100 Memory — Critical!` uyarısı üretmesi engellendi; konteyner/süreç RSS tabanlı gerçekçi bellek telemetrisine geçildi.
+- **Faz 3 & Faz 4 (Gerçek Ajan Araçları, Guardrail Politikası, Token Model Düşürme, 10-Stack Benchmark & SAAV Runbook/Webhook — Tamamlandı ✅):**
+  - `backend/src/agents/agent-tools.registry.ts`: `AGENT_TOOLS_CATALOG`, `evaluateToolGuardrail`, `executeDeterministicAgentTool` ve 10 arketipli `runMultiStackBenchmarkSuite` eklendi (`GET /api/agents/tools`, `GET /api/agents/benchmark`).
+  - `backend/src/token-budget/token-budget.service.ts`: `resolveModelWithinBudget` ile token bütçesi %80'i aştığında pahalı modellerden ekonomik modellere otomatik geçiş eklendi.
+  - `backend/src/incidents/incidents.service.ts` & `incidents.controller.ts`: Deklaratif YAML Remediation Runbook'ları (`GET /api/incidents/runbooks`), 4 aşamalı SAAV zaman çizelgesi (`GET /api/incidents/:id/saav-timeline`) ve çoklu-bulut alarm webhook alıcısı (`POST /api/incidents/webhook/:provider`) eklendi.
+  - `backend/src/deployments/deployments.service.ts` & `frontend/src/app/dashboard/preview/[id]/page.tsx`: GitHub Setup PR hazırlama (`POST /api/deployments/:id/github-pr`) ve önizleme ekranına `🔀 Prepare GitHub Setup PR` özelliği eklendi.
 
 

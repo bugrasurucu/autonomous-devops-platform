@@ -60,4 +60,23 @@ export class IncidentsController {
     getStats(@Request() req: any) {
         return this.incidentsService.getStats(req.user.userId);
     }
+
+    @Get('runbooks')
+    getRunbooks() {
+        return this.incidentsService.getRemediationRunbooks();
+    }
+
+    @Get(':id/saav-timeline')
+    getSaavTimeline(@Request() req: any, @Param('id') id: string) {
+        return this.incidentsService.getSaavTimeline(req.user.userId, id);
+    }
+
+    @Post('webhook/:provider')
+    ingestWebhook(
+        @Request() req: any,
+        @Param('provider') provider: string,
+        @Body() payload: Record<string, any>,
+    ) {
+        return this.incidentsService.ingestCloudWebhook(req.user.userId, provider, payload || {});
+    }
 }

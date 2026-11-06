@@ -21,6 +21,16 @@ export class AgentsController {
         return this.agentsService.getAgents(req.user.userId);
     }
 
+    @Get('tools')
+    getToolsCatalog() {
+        return this.agentsService.getToolsCatalog();
+    }
+
+    @Get('benchmark')
+    runBenchmark() {
+        return this.agentsService.runEvaluationBenchmark();
+    }
+
     @Get(':id')
     getAgent(@Request() req: any, @Param('id') id: string) {
         return this.agentsService.getAgent(req.user.userId, id);

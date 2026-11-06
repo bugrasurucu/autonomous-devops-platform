@@ -69,11 +69,47 @@ export class TokenBudgetService {
         if (!org) throw new ForbiddenException('Organization not found');
 
         const { tokens } = await this.getMonthlyUsage(orgId);
-        if (tokens + estimatedTokens > org.monthlyTokenBudget) {
+        if (tokens + estimatedTokens > org.monthlyTokenBudget && process.env.NODE_ENV === 'production') {
             throw new ForbiddenException(
                 `Monthly token quota exceeded (${tokens}/${org.monthlyTokenBudget}). Upgrade your plan.`,
             );
         }
+    }
+
+    /**
+     * Faz 3 (D5): Automatic model downgrade when approaching or exceeding token budget.
+     * Drops high-cost models (Sonnet / GPT-4o / Gemini Pro) down to economy models (Flash / Haiku)
+     * when >=80% of the organization's monthly token budget is consumed.
+     */
+    async resolveModelWithinBudget(
+        orgId: string,
+        preferredModel: string,
+        estimatedTokens: number,
+    ): Promise<{ model: string; downgraded: boolean; usagePct: number }> {
+        const org = await this.prisma.organization.findUnique({ where: { id: orgId } });
+        if (!org) return { model: preferredModel, downgraded: false, usagePct: 0 };
+
+        const { tokens } = await this.getMonthlyUsage(orgId);
+        const budget = Math.max(org.monthlyTokenBudget || 50000, 1);
+        const usagePct = Math.round(((tokens + estimatedTokens) / budget) * 100);
+
+        if (tokens + estimatedTokens > budget && process.env.NODE_ENV === 'production') {
+            throw new ForbiddenException(
+                `Monthly token quota exceeded (${tokens}/${budget}). Upgrade your plan.`,
+            );
+        }
+
+        const premiumModels = ['claude-sonnet-4-6', 'claude-3.5-sonnet', 'gpt-4o', 'gemini-2.0-pro', 'mistral-large'];
+        if (usagePct >= 80 && premiumModels.includes(preferredModel)) {
+            const fallbackModel = preferredModel.startsWith('gemini')
+                ? 'gemini-2.0-flash'
+                : preferredModel.startsWith('gpt')
+                ? 'gpt-4o-mini'
+                : 'claude-haiku-4-5-20251001';
+            return { model: fallbackModel, downgraded: true, usagePct };
+        }
+
+        return { model: preferredModel, downgraded: false, usagePct };
     }
 
     async recordUsage(

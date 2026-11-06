@@ -1687,4 +1687,62 @@ resource "aws_cloudwatch_metric_alarm" "http_5xx_${tfSlug}" {
             status: updated.status,
         };
     }
+
+    /**
+     * Faz 1 (B9): Deliver generated Dockerfile, OpenTofu/Terraform IaC, K8s manifests,
+     * and GitHub Actions workflow as a GitHub Pull Request (`orbitron/setup-*` branch).
+     */
+    async createGithubSetupPullRequest(userId: string, id: string) {
+        const bundle = await this.getGeneratedArtifacts(userId, id);
+        const branchName = `orbitron/setup-${bundle.deployId.toLowerCase()}`;
+        const ownerRepo = bundle.repoMeta?.ownerRepo || 'org/repository';
+        const prTitle = `chore(devops): autonomous multi-cloud IaC & CI/CD setup [${bundle.cloudProvider.toUpperCase()}]`;
+        const prBody = [
+            `## 🚀 Orbitron Autonomous DevOps Setup (${bundle.cloudProviderName})`,
+            ``,
+            `- **Deployment ID:** \`${bundle.deployId}\``,
+            `- **Target Cloud / Region:** \`${bundle.cloudProvider.toUpperCase()}\` (\`${bundle.region}\`)`,
+            `- **OpenTofu Plan Hash:** \`${bundle.planDiff?.iacHash}\` (+${bundle.planDiff?.summary?.add ?? 0} resources planned)`,
+            `- **Security Gate Score:** \`${bundle.securityReport?.score ?? 100}/100\` (${bundle.securityReport?.status === 'PASSED' ? 'PASSED ✅' : 'REVIEW ⚠️'})`,
+            `- **Estimated Monthly Cost:** \`$${bundle.estimatedMonthlyCost}/mo\``,
+            ``,
+            `### Generated Files Included`,
+            ...bundle.files.map((f: any) => `- \`${f.name}\``),
+        ].join('\n');
+
+        const cliCommand = `git checkout -b ${branchName} && git add Dockerfile docker-compose.prod.yml terraform/ k8s/ .github/workflows/orbitron-ci-cd.yml && git commit -m "${prTitle}" && git push -u origin ${branchName} && gh pr create --repo ${ownerRepo} --title "${prTitle}" --body-file .orbitron-pr.md`;
+
+        this.eventEmitter.emit('activity.new', {
+            userId,
+            text: `🔀 Prepared GitHub Setup PR on branch "${branchName}" for ${bundle.projectName} (${ownerRepo})`,
+            color: '#38bdf8',
+            type: 'github_pr_prepared',
+            deployId: bundle.deployId,
+        });
+
+        await this.prisma.auditLog.create({
+            data: {
+                userId,
+                action: 'deployment.github_pr',
+                resource: `${ownerRepo}#${branchName}`,
+                metadata: JSON.stringify({
+                    deployId: bundle.deployId,
+                    cloudProvider: bundle.cloudProvider,
+                    iacHash: bundle.planDiff?.iacHash,
+                }),
+            },
+        }).catch(() => {});
+
+        return {
+            status: 'prepared',
+            deployId: bundle.deployId,
+            ownerRepo,
+            branchName,
+            prTitle,
+            prBody,
+            filesCount: bundle.files.length,
+            cliCommand,
+            compareUrl: `https://github.com/${ownerRepo}/compare/main...${branchName}?expand=1`,
+        };
+    }
 }

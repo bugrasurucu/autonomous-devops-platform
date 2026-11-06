@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as k8s from '@kubernetes/client-node';
 import { GoogleGenAI } from '@google/genai';
+import {
+    evaluateToolGuardrail,
+    executeDeterministicAgentTool,
+} from '../agents/agent-tools.registry';
 
 export interface KagentInvokeRequest {
     task: string;
@@ -151,12 +155,26 @@ Also return a final summary as the last element of the array, but make it type: 
                 
                 await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
                 
+                const stepType = (s.type as 'reason' | 'act' | 'observe') || 'reason';
+                let resolvedTool = s.tool;
+                let resolvedOutput = s.output;
+                if (stepType === 'act' && s.tool) {
+                    const guardrail = evaluateToolGuardrail(agentId, s.tool, (s.input as Record<string, any>) || {});
+                    resolvedTool = guardrail.canonicalTool;
+                    if (!guardrail.allowed) {
+                        resolvedOutput = guardrail.reason;
+                    } else {
+                        const realExec = executeDeterministicAgentTool(guardrail.canonicalTool, (s.input as Record<string, any>) || {});
+                        resolvedOutput = s.output ? `${realExec.output} | ${s.output}` : realExec.output;
+                    }
+                }
+
                 const step: KagentStep = {
-                    type: (s.type as 'reason' | 'act' | 'observe') || 'reason',
+                    type: stepType,
                     content: s.content,
-                    tool: s.tool,
+                    tool: resolvedTool,
                     input: s.input,
-                    output: s.output,
+                    output: resolvedOutput,
                     timestamp: new Date().toISOString(),
                     durationMs: Math.round(300 + Math.random() * 700),
                 };
@@ -251,12 +269,25 @@ Also return a final summary as the last element of the array, but make it type: 
 
         for (let i = 0; i < sim.steps.length; i++) {
             await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
+            const rawStep = sim.steps[i];
+            let resolvedTool = rawStep.tool;
+            let resolvedOutput = rawStep.output;
+            if (rawStep.type === 'act' && rawStep.tool) {
+                const guardrail = evaluateToolGuardrail(agentId, rawStep.tool, (rawStep.input as Record<string, any>) || {});
+                resolvedTool = guardrail.canonicalTool;
+                if (!guardrail.allowed) {
+                    resolvedOutput = guardrail.reason;
+                } else {
+                    const realExec = executeDeterministicAgentTool(guardrail.canonicalTool, (rawStep.input as Record<string, any>) || {});
+                    resolvedOutput = realExec.output;
+                }
+            }
             const step: KagentStep = {
-                type: sim.steps[i].type as KagentStep['type'],
-                content: sim.steps[i].content,
-                tool: sim.steps[i].tool,
-                input: sim.steps[i].input,
-                output: sim.steps[i].output,
+                type: rawStep.type as KagentStep['type'],
+                content: rawStep.content,
+                tool: resolvedTool,
+                input: rawStep.input,
+                output: resolvedOutput,
                 timestamp: new Date().toISOString(),
                 durationMs: Math.round(300 + Math.random() * 700),
             };

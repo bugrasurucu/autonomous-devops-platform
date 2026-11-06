@@ -79,6 +79,26 @@ export default function AppPreviewPage() {
         setTimeout(() => setCopiedFile(null), 2000);
     };
 
+    const [prResult, setPrResult] = useState<any>(null);
+    const [prLoading, setPrLoading] = useState(false);
+
+    const handleCreateGithubPr = async () => {
+        if (!deployment) return;
+        setPrLoading(true);
+        try {
+            const targetId = deployment.id || deployment.deployId || id;
+            const res = await api.createGithubSetupPr(targetId);
+            setPrResult(res);
+            if (res?.cliCommand) {
+                navigator.clipboard.writeText(res.cliCommand);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setPrLoading(false);
+        }
+    };
+
     const handleDownloadArtifact = (fileName: string, content: string) => {
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
@@ -576,8 +596,38 @@ export default function AppPreviewPage() {
                                         >
                                             ⬇ Download
                                         </button>
+                                        <button
+                                            onClick={handleCreateGithubPr}
+                                            disabled={prLoading}
+                                            style={{
+                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                                background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.35)', color: '#38bdf8',
+                                            }}
+                                        >
+                                            {prLoading ? '⏳ Preparing PR...' : prResult ? '✓ PR Branch Ready (CLI Copied)' : '🔀 Prepare GitHub Setup PR'}
+                                        </button>
                                     </div>
                                 </div>
+                                {prResult && (
+                                    <div style={{
+                                        padding: '10px 20px', background: 'rgba(56,189,248,0.08)',
+                                        borderBottom: '1px solid rgba(56,189,248,0.2)', fontSize: 11, color: '#cbd5e1',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                                    }}>
+                                        <div>
+                                            <strong style={{ color: '#38bdf8' }}>🔀 PR Branch Prepared:</strong>{' '}
+                                            <code style={{ color: '#fbbf24' }}>{prResult.branchName}</code> · CLI command copied to clipboard!
+                                        </div>
+                                        <a
+                                            href={prResult.compareUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline' }}
+                                        >
+                                            Open GitHub Compare ↗
+                                        </a>
+                                    </div>
+                                )}
                                 <pre style={{
                                     flex: 1, margin: 0, padding: 20, overflow: 'auto',
                                     background: '#050811', color: '#e2e8f0',

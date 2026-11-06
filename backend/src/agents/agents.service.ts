@@ -4,6 +4,11 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { KagentBridgeService } from '../kagent-bridge/kagent-bridge.service';
 import { TokenBudgetService } from '../token-budget/token-budget.service';
 import { TenantsService } from '../tenants/tenants.service';
+import {
+    AGENT_TOOLS_CATALOG,
+    evaluateToolGuardrail,
+    runMultiStackBenchmarkSuite,
+} from './agent-tools.registry';
 
 // Mirror of Prisma enum — available before `prisma generate` runs
 type AgentTaskType = 'analysis' | 'iac_generation' | 'k8s_ops' | 'cost_calc' | 'incident_rca' | 'monitoring' | 'pipeline';
@@ -98,6 +103,14 @@ export class AgentsService {
         return this.getUserAgents(userId);
     }
 
+    getToolsCatalog() {
+        return AGENT_TOOLS_CATALOG;
+    }
+
+    runEvaluationBenchmark() {
+        return runMultiStackBenchmarkSuite();
+    }
+
     getAgent(userId: string, agentId: string) {
         const agent = this.getUserAgents(userId).find((a) => a.id === agentId);
         if (!agent) throw new NotFoundException('Agent not found');
@@ -146,12 +159,23 @@ export class AgentsService {
         // Get or create tenant org
         const org = await this.tenants.getOrCreateOrgForUser(userId);
 
-        // Estimated tokens for budget pre-check (conservative estimate)
+        // Faz 3 (D5): Check token budget and automatically downgrade model when >=80% consumed
         const estimatedTokens = 3000;
-        await this.tokenBudget.checkBudget(org.id, estimatedTokens);
-
-        // Use user-configured model or task-type default
-        const model = agentCfg.model;
+        const budgetDecision = await this.tokenBudget.resolveModelWithinBudget(
+            org.id,
+            agentCfg.model,
+            estimatedTokens,
+        );
+        const model = budgetDecision.model;
+        if (budgetDecision.downgraded) {
+            this.eventEmitter.emit('activity.new', {
+                userId,
+                agentId: agent.id,
+                text: `💡 FinOps Token Guardrail: Org token budget at ${budgetDecision.usagePct}% — downgraded ${agentCfg.model} → ${model}`,
+                color: '#fbbf24',
+                type: 'token_downgrade',
+            });
+        }
 
         // Update in-memory status
         agent.status = 'working';
@@ -206,7 +230,29 @@ export class AgentsService {
                 (step, index) => {
                     steps.push(step);
                     if (step.type === 'act') {
-                        toolCalls.push({ tool: step.tool, input: step.input, output: step.output, durationMs: step.durationMs, timestamp: step.timestamp });
+                        const guardrail = evaluateToolGuardrail(agent.id, step.tool || '', (step.input as Record<string, any>) || {});
+                        toolCalls.push({
+                            tool: guardrail.canonicalTool,
+                            rawTool: step.tool,
+                            input: step.input,
+                            output: step.output,
+                            guardrailAllowed: guardrail.allowed,
+                            guardrailReason: guardrail.reason,
+                            durationMs: step.durationMs,
+                            timestamp: step.timestamp,
+                        });
+                        this.prisma.auditLog.create({
+                            data: {
+                                userId,
+                                action: guardrail.allowed ? 'agent.tool_call' : 'agent.tool_blocked',
+                                resource: `${agent.id}:${guardrail.canonicalTool}`,
+                                metadata: JSON.stringify({
+                                    executionId: execution?.id,
+                                    allowed: guardrail.allowed,
+                                    reason: guardrail.reason,
+                                }),
+                            },
+                        }).catch(() => {});
                     }
                     this.eventEmitter.emit('agent.step', {
                         userId,

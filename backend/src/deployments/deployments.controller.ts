@@ -88,6 +88,11 @@ export class DeploymentsController {
         return this.deploymentsService.destroyEnvironment(req.user.userId, id);
     }
 
+    @Post('deployments/:id/github-pr')
+    createGithubSetupPr(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.createGithubSetupPullRequest(req.user.userId, id);
+    }
+
     @Post('deployments/:id/redeploy')
     redeploy(@Request() req: any, @Param('id') id: string) {
         return this.deploymentsService.redeploy(req.user.userId, id);

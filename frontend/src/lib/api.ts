@@ -91,6 +91,7 @@ export const api = {
     stopLiveContainer: (id: string) => request(`/deployments/${id}/stop-container`, { method: 'POST' }),
     getDeploymentArtifacts: (id: string) => request(`/deployments/${id}/artifacts`),
     getDeploymentPlanDiff: (id: string) => request(`/deployments/${id}/plan-diff`),
+    createGithubSetupPr: (id: string) => request(`/deployments/${id}/github-pr`, { method: 'POST' }),
     getCloudProviders: () => request('/deployments/providers'),
     destroyDeployment: (id: string) => request(`/deployments/${id}/destroy`, { method: 'POST' }),
     redeployDeployment: (id: string) => request(`/deployments/${id}/redeploy`, { method: 'POST' }),
