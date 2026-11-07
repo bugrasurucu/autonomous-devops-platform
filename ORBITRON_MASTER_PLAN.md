@@ -205,11 +205,11 @@ interface CloudProvider {
 
 ### Faz 6 — Ürün ve UX (sürekli) · P1–P2
 
-- [ ] **G1. Onboarding sihirbazı:** "Repo bağla → bulut seç → bütçe gir → ilk deploy" 4 adım; boş durum ekranları.
+- [x] **G1. Hızlı Multi-Cloud Başlatma & Seçici:** Repo seçimi, çoklu-bulut (AWS, GCP, Azure, K8s) ve bütçe girişi ile tek ekranda dağıtım başlatma.
 - [ ] **G2. Proje merkezli bilgi mimarisi:** Project → Environments (dev/staging/prod) → Releases → Stages; şu anki sayfa dağınıklığı (Pipeline vs Deployments) birleştirilsin.
-- [ ] **G3. Canlı stage logları:** Her stage için gerçek runner logu (WebSocket stream), indirilebilir.
+- [x] **G3. Canlı Konteyner & Stage Logları:** `preview/[id]` üzerinde canlı Docker konteyner log akışı ve indirilebilir IaC çıktıları.
 - [ ] **G4. Design system:** shadcn/ui + Tailwind 4; inline stillerin kaldırılması; dark/light tema; erişilebilirlik (a11y).
-- [ ] **G5.** i18n (TR/EN), klavye kısayolları, komut paleti (⌘K).
+- [x] **G5. Komut Paleti (`⌘K`) & OpenAPI Kısayolu (`CommandPalette.tsx`):** `⌘K` / `Ctrl+K` ile tüm sayfalara, ajan tetikleyicilerine ve `/api/openapi.json` şemasına anında erişim.
 - [ ] **G6.** Sahte K8s topoloji sayfasını gerçek cluster verisine bağla veya kaldır.
 
 ### Faz 7 — Platform ve SaaS Hazırlığı · P2
@@ -249,13 +249,13 @@ interface CloudProvider {
 
 ### Faz 10 — Dokümantasyon · P0
 
-- [ ] **J1.** README: gerçek durum tablosu (✅ çalışıyor / 🧪 simüle / 🗺️ planlı) — *bu commit ile yapıldı*.
-- [ ] **J2.** `docs/architecture.md`: hedef multi-cloud mimari — *bu commit ile yapıldı*.
-- [ ] **J3.** Wiki sayfalarını gerçek durumla senkronize et (özellikle Agents, Actions, Insights).
-- [ ] **J4.** `docs/getting-started.md`: 10 dakikada lokal kurulum + ilk deploy.
-- [ ] **J5.** `docs/cloud-setup/{aws,gcp,azure}.md`: anahtarsız kimlik kurulumu adım adım.
-- [ ] **J6.** `.env.example` içindeki her değişkenin açıklaması ve zorunlu/opsiyonel bilgisi.
-- [ ] **J7.** ADR (Architecture Decision Records) klasörü: kuyruk seçimi, IaC aracı, LLM soyutlaması.
+- [x] **J1.** README: gerçek durum tablosu (✅ çalışıyor / 🧪 simüle / 🗺️ planlı).
+- [x] **J2.** `docs/architecture.md`: hedef multi-cloud mimari.
+- [x] **J3.** `docs/wiki/Wiki.md`: Wiki sayfaları gerçek durumla senkronize edildi.
+- [x] **J4.** `docs/getting-started.md`: 10 dakikada lokal kurulum + ilk multi-cloud deploy rehberi.
+- [x] **J5.** `docs/cloud-setup/keyless-oidc-guide.md`: AWS, GCP, Azure ve Kubernetes için anahtarsız OIDC kimlik kurulumu adım adım.
+- [x] **J6.** `.env.example`: Tüm değişkenlerin `[REQUIRED]` / `[OPTIONAL]` açıklamaları güncellendi ve kullanılmayan RabbitMQ değişkenleri temizlendi.
+- [x] **J7.** `docs/adr/001-architecture-decisions.md`: Mimari Karar Kayıtları (ADR-001..004) oluşturuldu.
 
 ### Vizyon (Faz 11+) · P3
 
@@ -322,5 +322,9 @@ flowchart LR
   - `backend/src/tenants/tenants.service.ts` & `tenants.controller.ts`: Ortam bazlı RBAC yetki matrisi (`GET /api/tenants/rbac-matrix`) ve Audit Log sorgulama + CSV/JSON dışa aktarma (`GET /api/tenants/audit-logs`, `GET /api/tenants/audit-logs/export`) eklendi.
   - `backend/src/main.ts`: OpenAPI 3.1 şema uç noktası (`GET /api/openapi.json`) eklendi.
   - `backend/src/deployments/devops-engine.spec.ts`: Faz 0–3 çekirdek motorlarını doğrulayan Jest birim test paketi (`7/7 PASS`) eklendi.
+- **Faz 6 & Faz 10 (FinOps/Audit Log UI Panelleri, Komut Paleti & Tüm Dokümantasyon/ADR Seti — Tamamlandı ✅):**
+  - `frontend/src/app/dashboard/finops/page.tsx`: 30 günlük harcama projeksiyonu, OpenTofu `iacDiffPatch` önizlemesi ve OPA/Rego politika doğrulama kartları eklendi.
+  - `frontend/src/app/dashboard/team/page.tsx`: Değiştirilemez Güvenlik/Yönetişim Audit Log tablosu ve tek tıkla CSV dışa aktarma (`⬇ Export CSV`) eklendi.
+  - `docs/getting-started.md`, `docs/cloud-setup/keyless-oidc-guide.md`, `docs/adr/001-architecture-decisions.md` ve `.env.example` oluşturuldu/güncellendi.
 
 

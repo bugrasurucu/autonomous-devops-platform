@@ -162,7 +162,7 @@ export const api = {
     // Token Usage
     getTokenUsage: () => request('/token-usage'),
 
-    // Tenants / Team
+    // Tenants / Team / Audit Logs / RBAC
     tenant: {
         getMe: () => request('/tenants/me'),
         getMembers: (orgId: string) => request(`/tenants/${orgId}/members`),
@@ -170,6 +170,9 @@ export const api = {
             request(`/tenants/${orgId}/members`, { method: 'POST', body: JSON.stringify({ email: emailOrUserId, userId: emailOrUserId, role }) }),
         remove: (orgId: string, userId: string) =>
             request(`/tenants/${orgId}/members/${userId}`, { method: 'DELETE' }),
+        getRbacMatrix: () => request('/tenants/rbac-matrix'),
+        getAuditLogs: (limit = 30) => request(`/tenants/audit-logs?limit=${limit}`),
+        exportAuditLogs: (format: 'json' | 'csv' = 'csv') => request(`/tenants/audit-logs/export?format=${format}`),
     },
 
     // Billing

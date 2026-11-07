@@ -38,7 +38,7 @@ const COMMANDS: CommandItem[] = [
     // External
     { id: 'ext-prometheus', label: 'Open Prometheus', icon: '📊', category: 'External', keywords: ['prometheus', 'metrics', 'monitoring'] },
     { id: 'ext-grafana', label: 'Open Grafana', icon: '📈', category: 'External', keywords: ['grafana', 'dashboard', 'charts'] },
-    { id: 'ext-rabbitmq', label: 'Open RabbitMQ', icon: '🐇', category: 'External', keywords: ['rabbitmq', 'queue', 'messages'] },
+    { id: 'ext-openapi', label: 'OpenAPI 3.1 Spec (/api/openapi.json)', icon: '📜', category: 'External', keywords: ['openapi', 'swagger', 'api', 'docs'] },
 ];
 
 function fuzzyMatch(text: string, query: string): boolean {
@@ -119,8 +119,8 @@ export default function CommandPalette() {
             window.open('http://localhost:9090', '_blank');
         } else if (cmd.id === 'ext-grafana') {
             window.open('http://localhost:3002', '_blank');
-        } else if (cmd.id === 'ext-rabbitmq') {
-            window.open('http://localhost:15672', '_blank');
+        } else if (cmd.id === 'ext-openapi') {
+            window.open('http://localhost:3001/api/openapi.json', '_blank');
         }
     }, [router]);
 

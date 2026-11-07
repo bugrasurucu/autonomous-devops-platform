@@ -127,6 +127,7 @@ export default function FinOpsPage() {
                             {[
                                 { label: 'Total Cost', value: `$${finopsData?.totalCost || 0}`, color: '#818cf8' },
                                 { label: 'This Month', value: `$${finopsData?.monthlyCost || 0}`, color: '#34d399' },
+                                { label: '30-Day Projection', value: `$${finopsData?.projectedMonthEndUsd ?? finopsData?.monthlyCost ?? 0}`, color: '#38bdf8' },
                                 { label: 'Avg/Deploy', value: `$${finopsData?.avgCostPerDeploy || 0}`, color: '#fbbf24' },
                                 { label: 'Deploys', value: finopsData?.deployCount || 0, color: '#94a3b8' },
                             ].map(s => (
@@ -185,6 +186,14 @@ export default function FinOpsPage() {
                                             <div>
                                                 <div style={{ fontSize: 13, fontWeight: 500 }}>{o.title}</div>
                                                 <div style={{ fontSize: 12, color: '#34d399', fontWeight: 600, marginTop: 4 }}>Savings: {o.savings}</div>
+                                                {o.iacDiffPatch && (
+                                                    <pre style={{
+                                                        marginTop: 8, padding: '6px 8px', borderRadius: 6,
+                                                        background: 'rgba(2,12,27,0.85)', border: '1px solid rgba(52,211,153,0.2)',
+                                                        color: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono, monospace',
+                                                        overflowX: 'auto',
+                                                    }}>{o.iacDiffPatch}</pre>
+                                                )}
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                 <span style={{
@@ -213,6 +222,36 @@ export default function FinOpsPage() {
                                                 )}
                                             </div>
                                         </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Faz 5 (F4): OPA/Rego Policy Gate & Multi-Cloud Spend Breakdown */}
+                    {finopsData?.opaEvaluation && (
+                        <div className="glass-card" style={{ padding: 20, marginTop: 16 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <h3 style={{ fontSize: 15, fontWeight: 700 }}>🛡️ {finopsData.opaEvaluation.policyEngine} — FinOps Policy Gate</h3>
+                                <span style={{
+                                    fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12,
+                                    background: finopsData.opaEvaluation.passed ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
+                                    color: finopsData.opaEvaluation.passed ? '#34d399' : '#f87171',
+                                }}>
+                                    {finopsData.opaEvaluation.passed ? '✓ ALL OPA POLICIES PASSED' : '⚠ POLICY VIOLATION'}
+                                </span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                                {(finopsData.opaEvaluation.rules || []).map((rule: any) => (
+                                    <div key={rule.id} style={{
+                                        padding: 12, borderRadius: 8, background: 'rgba(15,23,42,0.55)',
+                                        border: `1px solid ${rule.status === 'PASSED' ? 'rgba(52,211,153,0.25)' : 'rgba(251,191,36,0.3)'}`,
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>
+                                            <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#818cf8' }}>{rule.id}</span>
+                                            <span style={{ color: rule.status === 'PASSED' ? '#34d399' : '#fbbf24' }}>{rule.status}</span>
+                                        </div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{rule.message}</div>
                                     </div>
                                 ))}
                             </div>

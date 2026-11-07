@@ -51,16 +51,42 @@ export default function TeamPage() {
     const [inviteRole, setInviteRole] = useState<'member' | 'admin' | 'viewer'>('member');
     const [inviting, setInviting] = useState(false);
     const [removing, setRemoving] = useState<string | null>(null);
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [exportingCsv, setExportingCsv] = useState(false);
 
     const fetchOrg = async () => {
         try {
-            const data: any = await api.tenant.getMe();
+            const [data, logs]: any = await Promise.all([
+                api.tenant.getMe(),
+                api.tenant.getAuditLogs(25).catch(() => []),
+            ]);
             setOrg(data);
+            setAuditLogs(Array.isArray(logs) ? logs : []);
             setError(null);
         } catch (e: any) {
             setError(e?.message ?? 'Failed to load team data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleExportAuditCsv = async () => {
+        setExportingCsv(true);
+        try {
+            const res: any = await api.tenant.exportAuditLogs('csv');
+            const csvText = res?.data || 'id,action,resource,ipAddress,createdAt,metadata';
+            const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `orbitron-audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            success('Audit Logs Exported', `Downloaded ${res?.count ?? auditLogs.length} audit log records as CSV.`);
+        } catch (err: any) {
+            toastError('Export Failed', err?.message ?? 'Could not export audit logs');
+        } finally {
+            setExportingCsv(false);
         }
     };
 
@@ -314,9 +340,9 @@ export default function TeamPage() {
             )}
 
             {/* Role legend */}
-            <div className="glass-card" style={{ padding: '16px 20px' }}>
+            <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12, letterSpacing: '0.05em' }}>
-                    ROLE PERMISSIONS
+                    ROLE PERMISSIONS & ENVIRONMENT RBAC MATRIX
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                     {Object.entries(ROLE_META).map(([role, meta]) => (
@@ -333,6 +359,61 @@ export default function TeamPage() {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* Faz 7 (H3): Immutable Audit Log & CSV Export */}
+            <div className="glass-card" style={{ padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 700 }}>🛡️ Immutable Security & Governance Audit Logs</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                            Tracks agent tool executions, guardrail blocks, GitHub PR creations, and FinOps policy actions
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleExportAuditCsv}
+                        disabled={exportingCsv}
+                        style={{
+                            padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                            background: 'rgba(56,189,248,0.14)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8',
+                        }}
+                    >
+                        {exportingCsv ? '⏳ Exporting...' : '⬇ Export CSV'}
+                    </button>
+                </div>
+
+                {auditLogs.length === 0 ? (
+                    <div style={{ padding: '18px 0', fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center' }}>
+                        No audit log events recorded yet. Trigger an agent or deployment to populate governance events.
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+                        {auditLogs.map((log: any) => (
+                            <div key={log.id} style={{
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                padding: '8px 12px', borderRadius: 8, background: 'rgba(15,23,42,0.55)',
+                                border: '1px solid rgba(255,255,255,0.05)', fontSize: 11,
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{
+                                        padding: '2px 8px', borderRadius: 4, fontWeight: 700,
+                                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                                        background: log.action?.includes('blocked') ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)',
+                                        color: log.action?.includes('blocked') ? '#f87171' : '#34d399',
+                                    }}>
+                                        {log.action}
+                                    </span>
+                                    <span style={{ color: '#e2e8f0', fontFamily: 'JetBrains Mono, monospace' }}>
+                                        {log.resource || 'system'}
+                                    </span>
+                                </div>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>
+                                    {new Date(log.createdAt).toLocaleString()}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
