@@ -474,9 +474,9 @@ export default function AppPreviewPage() {
                                 <span style={{ color: '#34d399', fontWeight: 700 }}>
                                     ${artifactsData.estimatedMonthlyCost?.toFixed?.(2) ?? artifactsData.estimatedMonthlyCost ?? '34.50'}/mo
                                 </span>
-                                {artifactsData.costReport?.providerComparison && (
+                                {Array.isArray(artifactsData.costReport?.providerComparison) && (
                                     <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8' }}>
-                                        ({artifactsData.costReport.providerComparison.map((p: any) => `${p.provider.toUpperCase()}: $${p.monthlyUsd.toFixed(0)}`).join(' · ')})
+                                        ({artifactsData.costReport.providerComparison.map((p: any) => `${p.provider.toUpperCase()}: $${Number(p.monthlyUsd || 0).toFixed(0)}`).join(' · ')})
                                     </span>
                                 )}
                             </div>

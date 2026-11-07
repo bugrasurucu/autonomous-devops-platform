@@ -123,6 +123,15 @@ export default function FinOpsPage() {
     }, []);
 
     const budgetPct = finopsData?.budgetUsage || 0;
+    const providerSpendList = Array.isArray(finopsData?.cloudSpendByProvider)
+        ? finopsData.cloudSpendByProvider
+        : finopsData?.cloudSpendByProvider && typeof finopsData.cloudSpendByProvider === 'object'
+            ? Object.entries(finopsData.cloudSpendByProvider).map(([provider, costUsd]: [string, any]) => ({
+                provider: provider.toUpperCase(),
+                costUsd: Number(costUsd) || 0,
+                sharePercent: finopsData?.monthlyCost > 0 ? Math.round(((Number(costUsd) || 0) / finopsData.monthlyCost) * 100) : 0,
+            }))
+            : [];
 
     const TABS = [
         { id: 'overview', label: '📊 Overview' },
@@ -224,8 +233,8 @@ export default function FinOpsPage() {
                         <div className="glass-card" style={{ padding: 20, marginBottom: 16 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                                 <h3 style={{ fontSize: 15, fontWeight: 700 }}>🛡️ {finopsData.opaEvaluation.policyEngine} — FinOps Policy Gate</h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    {(finopsData.cloudSpendByProvider || []).map((cp: any) => (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                    {providerSpendList.map((cp: any) => (
                                         <span key={cp.provider} style={{
                                             fontSize: 11, padding: '3px 8px', borderRadius: 6,
                                             background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.25)',
@@ -244,7 +253,7 @@ export default function FinOpsPage() {
                                 </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                                {(finopsData.opaEvaluation.rules || []).map((rule: any) => (
+                                {(Array.isArray(finopsData.opaEvaluation.rules) ? finopsData.opaEvaluation.rules : []).map((rule: any) => (
                                     <div key={rule.id} style={{
                                         padding: 12, borderRadius: 8, background: 'rgba(15,23,42,0.55)',
                                         border: `1px solid ${rule.status === 'PASSED' ? 'rgba(52,211,153,0.25)' : 'rgba(251,191,36,0.3)'}`,
@@ -264,7 +273,7 @@ export default function FinOpsPage() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div className="glass-card" style={{ padding: 24 }}>
                                 <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Cost Breakdown</h3>
-                                {finopsData.breakdown?.map((b: any) => (
+                                {(Array.isArray(finopsData.breakdown) ? finopsData.breakdown : []).map((b: any) => (
                                     <div key={b.service} style={{ marginBottom: 12 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                                             <span>{b.service}</span>
@@ -278,7 +287,7 @@ export default function FinOpsPage() {
                             </div>
                             <div className="glass-card" style={{ padding: 24 }}>
                                 <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Optimization Recommendations (OpenTofu IaC Patch)</h3>
-                                {finopsData.optimizations?.map((o: any) => (
+                                {(Array.isArray(finopsData.optimizations) ? finopsData.optimizations : []).map((o: any) => (
                                     <div key={o.id} style={{ padding: 12, borderRadius: 10, marginBottom: 8, background: 'rgba(15,23,42,0.5)', border: '1px solid var(--border-color)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                                             <div>
