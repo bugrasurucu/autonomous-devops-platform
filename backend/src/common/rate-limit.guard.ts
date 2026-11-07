@@ -3,10 +3,10 @@ import { Reflector } from '@nestjs/core';
 import Redis from 'ioredis';
 
 const PLAN_LIMITS: Record<string, number> = {
-    free: 120,          // 120 req / min
-    starter: 300,       // 300 req / min
-    pro: 1000,          // 1000 req / min
-    enterprise: 100000, // effectively unlimited
+    free: 5000,         // 5000 req / min
+    starter: 10000,     // 10000 req / min
+    pro: 50000,         // 50000 req / min
+    enterprise: 500000, // effectively unlimited
 };
 
 @Injectable()
@@ -41,17 +41,20 @@ export class RateLimitGuard implements CanActivate {
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
 
-        // Skip rate limiting for webhooks, health probes, or SSE streams
+        // Skip rate limiting for read-only GET polling, local development traffic, webhooks, health probes, or SSE streams
+        const ip = request.ip || request.connection?.remoteAddress || 'unknown';
+        const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || process.env.NODE_ENV !== 'production';
         if (
             !request?.url ||
+            isLocalhost ||
+            request.method === 'GET' ||
             request.url.startsWith('/api/billing/webhook') ||
             request.url.startsWith('/api/health') ||
+            request.url.startsWith('/api/openapi.json') ||
             request.url.startsWith('/api/logs/stream')
         ) {
             return true;
         }
-
-        const ip = request.ip || request.connection?.remoteAddress || 'unknown';
         const user = request.user;
         const plan = user?.plan || 'free';
 

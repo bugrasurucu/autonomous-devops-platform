@@ -35,10 +35,10 @@ const COMMANDS: CommandItem[] = [
     { id: 'act-trigger-pipeline', label: 'Trigger Pipeline Agent', icon: '🔄', category: 'Actions', href: '/dashboard/agents', keywords: ['pipeline', 'ci', 'cd', 'build'] },
     { id: 'act-trigger-sre', label: 'Trigger SRE Agent', icon: '🛡️', category: 'Actions', href: '/dashboard/agents', keywords: ['sre', 'monitor', 'health', 'heal'] },
 
-    // External
+    // External & API Specs
+    { id: 'ext-openapi', label: 'OpenAPI 3.1 Spec (/dashboard/openapi)', icon: '📜', category: 'Navigation', href: '/dashboard/openapi', keywords: ['openapi', 'open api', 'swagger', 'api', 'docs', 'spec'] },
     { id: 'ext-prometheus', label: 'Open Prometheus', icon: '📊', category: 'External', keywords: ['prometheus', 'metrics', 'monitoring'] },
     { id: 'ext-grafana', label: 'Open Grafana', icon: '📈', category: 'External', keywords: ['grafana', 'dashboard', 'charts'] },
-    { id: 'ext-openapi', label: 'OpenAPI 3.1 Spec (/api/openapi.json)', icon: '📜', category: 'External', keywords: ['openapi', 'swagger', 'api', 'docs'] },
 ];
 
 function fuzzyMatch(text: string, query: string): boolean {
@@ -88,8 +88,13 @@ export default function CommandPalette() {
                 setOpen(false);
             }
         };
+        const handleOpenEvent = () => setOpen(true);
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener('open-command-palette', handleOpenEvent);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('open-command-palette', handleOpenEvent);
+        };
     }, []);
 
     // Focus input on open

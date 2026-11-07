@@ -63,16 +63,16 @@ export default function DashboardPage() {
         try {
             const [s, d, sug, m, u] = await Promise.all([
                 api.getStats().catch(() => null),
-                api.getDeployments(5).catch(() => []),
-                api.cost.getSuggestions().catch(() => []),
+                api.getDeployments(5).catch(() => null),
+                api.cost.getSuggestions().catch(() => null),
                 api.cost.getMetrics().catch(() => null),
                 api.cost.getUsage().catch(() => null),
             ]);
-            setStats(s);
-            setDeployments(d || []);
-            setSuggestions(sug || []);
-            setMetrics(m);
-            setUsage(u);
+            if (s) setStats(s);
+            if (Array.isArray(d)) setDeployments(d);
+            if (Array.isArray(sug)) setSuggestions(sug);
+            if (m) setMetrics(m);
+            if (u) setUsage(u);
         } catch { }
     }, []);
 
@@ -329,31 +329,44 @@ export default function DashboardPage() {
 
                 {/* Recent deployments */}
                 <div className="glass-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>🚀 Recent Deployments</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 600 }}>🚀 Recent Deployments</h3>
+                        <Link href="/dashboard/deployments" style={{ fontSize: 11, color: '#818cf8', textDecoration: 'none', fontWeight: 600 }}>
+                            View All →
+                        </Link>
+                    </div>
                     {deployments.length === 0 ? (
                         <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No deployments yet</div>
                     ) : deployments.map((d: any) => (
                         <div key={d.id} style={{
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            padding: '8px 0', borderBottom: '1px solid rgba(30,41,59,0.5)',
+                            padding: '10px 0', borderBottom: '1px solid rgba(30,41,59,0.5)', gap: 8, flexWrap: 'wrap',
                         }}>
                             <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                     <div style={{ fontSize: 12, fontWeight: 600 }}>{d.projectName}</div>
-                                    {d.status === 'success' && (
-                                        <Link 
-                                            href={`/dashboard/preview/${d.id}`}
-                                            style={{
-                                                fontSize: 10, color: '#34d399', textDecoration: 'none',
-                                                background: 'rgba(52,211,153,0.1)', padding: '1px 6px', borderRadius: 4,
-                                                fontWeight: 700, border: '1px solid rgba(52,211,153,0.2)'
-                                            }}
-                                        >
-                                            🔗 Live App
-                                        </Link>
-                                    )}
+                                    <Link 
+                                        href={`/dashboard/preview/${d.id}`}
+                                        style={{
+                                            fontSize: 10, color: '#34d399', textDecoration: 'none',
+                                            background: 'rgba(52,211,153,0.1)', padding: '2px 7px', borderRadius: 4,
+                                            fontWeight: 700, border: '1px solid rgba(52,211,153,0.25)'
+                                        }}
+                                    >
+                                        🌐 Live Preview
+                                    </Link>
+                                    <Link 
+                                        href={`/dashboard/preview/${d.id}?tab=artifacts`}
+                                        style={{
+                                            fontSize: 10, color: '#fbbf24', textDecoration: 'none',
+                                            background: 'rgba(251,191,36,0.12)', padding: '2px 7px', borderRadius: 4,
+                                            fontWeight: 700, border: '1px solid rgba(251,191,36,0.3)'
+                                        }}
+                                    >
+                                        📦 IaC & Plan Diff
+                                    </Link>
                                 </div>
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{d.deployId} · {d.region}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{d.deployId} · {d.region}</div>
                             </div>
                             <span style={{
                                 fontSize: 11, padding: '2px 8px', borderRadius: 6, fontWeight: 600,

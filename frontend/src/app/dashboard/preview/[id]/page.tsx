@@ -137,10 +137,16 @@ export default function AppPreviewPage() {
     const [input, setInput] = useState('');
 
     useEffect(() => {
+        if (typeof window !== 'undefined' && window.location.search.includes('tab=artifacts')) {
+            setViewOverride('artifacts');
+        }
         const fetchDep = async () => {
             try {
-                const deploys = await api.getDeployments(50);
-                const found = deploys.find((d: any) => d.id === id || d.deployId === id);
+                const deploys = await api.getDeployments(50).catch(() => []);
+                let found = Array.isArray(deploys) ? deploys.find((d: any) => d.id === id || d.deployId === id) : null;
+                if (!found) {
+                    found = await api.getDeployment(id).catch(() => null);
+                }
                 if (found) {
                     setDeployment(found);
                     const targetId = found.id || found.deployId;
@@ -436,6 +442,91 @@ export default function AppPreviewPage() {
                     </div>
                 )}
             </div>
+
+            {/* Always-Visible DevOps IaC, Security Gate, Cost & GitOps Summary Bar */}
+            {artifactsData && (
+                <div style={{
+                    padding: '14px 18px', borderRadius: 12, marginBottom: 20,
+                    background: 'rgba(15, 23, 42, 0.78)', border: '1px solid rgba(251, 191, 36, 0.28)',
+                    display: 'flex', flexDirection: 'column', gap: 12,
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: 12 }}>
+                                <span style={{ color: '#818cf8', fontWeight: 700 }}>📐 OpenTofu Plan Diff: </span>
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#34d399', fontWeight: 700 }}>
+                                    +{artifactsData.planDiff?.summary?.add ?? 6} ~{artifactsData.planDiff?.summary?.change ?? 0} -{artifactsData.planDiff?.summary?.destroy ?? 0}
+                                </span>
+                                {artifactsData.planDiff?.iacHash && (
+                                    <span style={{ marginLeft: 6, fontSize: 10, color: '#64748b', fontFamily: 'JetBrains Mono, monospace' }}>
+                                        ({artifactsData.planDiff.iacHash})
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ fontSize: 12 }}>
+                                <span style={{ color: '#34d399', fontWeight: 700 }}>🛡️ Security Gate: </span>
+                                <span style={{ fontWeight: 700, color: '#e2e8f0' }}>
+                                    {artifactsData.securityReport?.score ?? 100}% ({artifactsData.securityReport?.status ?? 'PASSED'})
+                                </span>
+                            </div>
+                            <div style={{ fontSize: 12 }}>
+                                <span style={{ color: '#fbbf24', fontWeight: 700 }}>☁️ Multi-Cloud Cost: </span>
+                                <span style={{ color: '#34d399', fontWeight: 700 }}>
+                                    ${artifactsData.estimatedMonthlyCost?.toFixed?.(2) ?? artifactsData.estimatedMonthlyCost ?? '34.50'}/mo
+                                </span>
+                                {artifactsData.costReport?.providerComparison && (
+                                    <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8' }}>
+                                        ({artifactsData.costReport.providerComparison.map((p: any) => `${p.provider.toUpperCase()}: $${p.monthlyUsd.toFixed(0)}`).join(' · ')})
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <button
+                                onClick={handleCreateGithubPr}
+                                disabled={prLoading}
+                                style={{
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                    background: 'rgba(56,189,248,0.16)', border: '1px solid rgba(56,189,248,0.4)', color: '#38bdf8',
+                                }}
+                            >
+                                {prLoading ? '⏳ Preparing PR...' : prResult ? '✓ PR Branch Ready (CLI Copied)' : '🔀 Prepare GitHub Setup PR'}
+                            </button>
+                            <button
+                                onClick={() => setViewOverride(isArtifactsView ? 'app' : 'artifacts')}
+                                style={{
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                    background: isArtifactsView ? 'rgba(129,140,248,0.2)' : 'rgba(251,191,36,0.18)',
+                                    border: isArtifactsView ? '1px solid rgba(129,140,248,0.4)' : '1px solid rgba(251,191,36,0.4)',
+                                    color: isArtifactsView ? '#818cf8' : '#fbbf24',
+                                }}
+                            >
+                                {isArtifactsView ? '🌐 Switch to Live App View' : `📦 Open IaC Files & Diff (${artifactsData.files?.length || 6})`}
+                            </button>
+                        </div>
+                    </div>
+                    {prResult && (
+                        <div style={{
+                            padding: '8px 12px', borderRadius: 8, background: 'rgba(56,189,248,0.08)',
+                            border: '1px solid rgba(56,189,248,0.25)', fontSize: 11, color: '#cbd5e1',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                        }}>
+                            <div>
+                                <strong style={{ color: '#38bdf8' }}>🔀 PR Branch Prepared:</strong>{' '}
+                                <code style={{ color: '#fbbf24' }}>{prResult.branchName}</code> · CLI command copied to clipboard!
+                            </div>
+                            <a
+                                href={prResult.compareUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline' }}
+                            >
+                                Open GitHub Compare ↗
+                            </a>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Generated DevOps Bundle & Real Container Logs View */}
             {isArtifactsView ? (

@@ -42,6 +42,7 @@ const NAV_ITEMS = [
     { href: '/dashboard/self-healing', label: 'Self-Healing', icon: '↻' },
     { href: '/dashboard/token-usage', label: 'Token Usage', icon: '⬡' },
     { href: '/dashboard/team', label: 'Team', icon: '⊞' },
+    { href: '/dashboard/openapi', label: 'OpenAPI 3.1', icon: '📜' },
     { href: '/dashboard/billing', label: 'Billing', icon: '◎' },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙' },
 ];
@@ -291,6 +292,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     flexShrink: 0,
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {/* Quick OpenAPI 3.1 Explorer Link */}
+                        <Link
+                            href="/dashboard/openapi"
+                            style={{
+                                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                                background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)',
+                                color: '#38bdf8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                            }}
+                        >
+                            📜 OpenAPI 3.1
+                        </Link>
+
+                        {/* Command Palette Trigger */}
+                        <button
+                            onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+                            style={{
+                                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                                background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.25)',
+                                color: '#818cf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                            }}
+                        >
+                            <span>⌘K</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Search</span>
+                        </button>
+
                         {/* Theme Toggle */}
                         <ThemeToggle />
 

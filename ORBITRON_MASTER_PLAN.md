@@ -326,5 +326,12 @@ flowchart LR
   - `frontend/src/app/dashboard/finops/page.tsx`: 30 günlük harcama projeksiyonu, OpenTofu `iacDiffPatch` önizlemesi ve OPA/Rego politika doğrulama kartları eklendi.
   - `frontend/src/app/dashboard/team/page.tsx`: Değiştirilemez Güvenlik/Yönetişim Audit Log tablosu ve tek tıkla CSV dışa aktarma (`⬇ Export CSV`) eklendi.
   - `docs/getting-started.md`, `docs/cloud-setup/keyless-oidc-guide.md`, `docs/adr/001-architecture-decisions.md` ve `.env.example` oluşturuldu/güncellendi.
+- **UI Kararlılık, Polling Koruma, IaC Özet Şeridi ve Etkileşimli OpenAPI 3.1 Gezgini İyileştirmeleri (Tamamlandı ✅):**
+  - `backend/src/common/rate-limit.guard.ts`: Global `APP_GUARD` seviyesinde çalışan `RateLimitGuard`'ın yoğun dashboard `GET` polling isteklerinde `429 Too Many Requests` döndürerek arayüz verilerini sıfırlaması engellendi (`GET` ve yerel geliştirme trafiği muaf tutuldu, plan limitleri yükseltildi).
+  - `frontend/src/app/dashboard/page.tsx` & `frontend/src/app/dashboard/deployments/page.tsx`: Polling sırasında geçici ağ hatalarında mevcut `deployments`, `stats`, `metrics` ve `usage` state'lerinin korunması sağlandı; her deployment satırına doğrudan `🌐 Live Preview` ve `📦 IaC & Plan Diff` (`?tab=artifacts`) butonları eklendi.
+  - `frontend/src/app/dashboard/preview/[id]/page.tsx`: `?tab=artifacts` URL parametresi desteği ve tüm görünüm sekmelerinde sabit kalan **OpenTofu Plan Diff (`+add ~change -destroy`, `iacHash`)**, **Security Gate (`100% PASSED`)**, **Multi-Cloud Cost** ve **`🔀 Prepare GitHub Setup PR`** özet şeridi eklendi.
+  - `frontend/src/app/dashboard/finops/page.tsx`: Varsayılan deterministik FinOps veri seti ile sayfa açılışında **🛡️ Open Policy Agent (Rego v1) — FinOps Policy Gate**, çoklu-bulut harcama dağılımı (`AWS / GCP / Azure`), **30-Day Projection** ve **OpenTofu `iacDiffPatch`** bloklarının anında görüntülenmesi sağlandı.
+  - `frontend/src/app/dashboard/openapi/page.tsx`, `frontend/src/components/CommandPalette.tsx` & `frontend/src/app/dashboard/layout.tsx`: Etkileşimli **OpenAPI 3.1 Specification Explorer** (`/dashboard/openapi`) sayfası oluşturuldu; üst bara ve sol menüye `📜 OpenAPI 3.1` ve `⌘K Search` butonları eklendi, `CommandPalette` üzerinden doğrudan yönlendirme (`router.push('/dashboard/openapi')`) aktif edildi.
+
 
 

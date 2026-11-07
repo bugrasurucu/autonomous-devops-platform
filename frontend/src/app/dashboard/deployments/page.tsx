@@ -37,11 +37,11 @@ export default function DeploymentsPage() {
     const loadData = useCallback(async () => {
         try {
             const [deploys, usageData] = await Promise.all([
-                api.getDeployments(50),
-                api.getUsage(),
+                api.getDeployments(50).catch(() => null),
+                api.getUsage().catch(() => null),
             ]);
-            setDeployments(deploys || []);
-            setUsage(usageData);
+            if (Array.isArray(deploys)) setDeployments(deploys);
+            if (usageData) setUsage(usageData);
         } catch (e: any) {
             console.error('Failed to load deployments page data:', e);
         } finally {
@@ -274,15 +274,27 @@ export default function DeploymentsPage() {
                                                         href={`/dashboard/preview/${dep.id}`}
                                                         style={{
                                                             padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                                            background: dep.status === 'success' ? 'rgba(52,211,153,0.15)' : 'rgba(129,140,248,0.12)',
-                                                            border: dep.status === 'success' ? '1px solid rgba(52,211,153,0.3)' : '1px solid rgba(129,140,248,0.25)',
-                                                            color: dep.status === 'success' ? '#34d399' : '#818cf8',
+                                                            background: 'rgba(52,211,153,0.15)',
+                                                            border: '1px solid rgba(52,211,153,0.3)',
+                                                            color: '#34d399',
                                                             textDecoration: 'none', cursor: 'pointer', transition: 'background 0.2s',
                                                             display: 'inline-flex', alignItems: 'center'
                                                         }}
-                                                        className="btn-success-hover"
                                                     >
-                                                        {dep.status === 'success' ? '🔗 Live & IaC' : '📦 IaC Files'}
+                                                        🌐 Live Preview
+                                                    </Link>
+                                                    <Link 
+                                                        href={`/dashboard/preview/${dep.id}?tab=artifacts`}
+                                                        style={{
+                                                            padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                            background: 'rgba(251,191,36,0.15)',
+                                                            border: '1px solid rgba(251,191,36,0.35)',
+                                                            color: '#fbbf24',
+                                                            textDecoration: 'none', cursor: 'pointer', transition: 'background 0.2s',
+                                                            display: 'inline-flex', alignItems: 'center'
+                                                        }}
+                                                    >
+                                                        📦 IaC & Plan Diff
                                                     </Link>
                                                     {dep.status === 'success' && dep.environment !== 'production' && (
                                                         <button
