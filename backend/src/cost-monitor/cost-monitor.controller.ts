@@ -42,6 +42,11 @@ export class CostMonitorController {
         return this.costMonitorService.getScalingHistory(req.user.userId);
     }
 
+    @Get('traces')
+    getOpenTelemetryTraces(@Request() req: any) {
+        return this.costMonitorService.getOpenTelemetryTraces(req.user.userId);
+    }
+
     @Post('scale')
     applyScaling(@Request() req: any, @Body() body: { action: string }) {
         return this.costMonitorService.applyScaling(req.user.userId, body.action);

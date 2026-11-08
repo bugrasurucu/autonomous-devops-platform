@@ -13,10 +13,12 @@ const TABS = [
 ];
 
 const CHANNEL_TYPES = [
-    { id: 'slack',     label: 'Slack Webhook',  icon: '💬', configField: 'webhookUrl',  placeholder: 'https://hooks.slack.com/services/...' },
-    { id: 'webhook',   label: 'Generic Webhook',icon: '🔗', configField: 'webhookUrl',  placeholder: 'https://your-server.com/webhook' },
-    { id: 'email',     label: 'Email',          icon: '📧', configField: 'email',        placeholder: 'alerts@company.com' },
-    { id: 'pagerduty', label: 'PagerDuty',      icon: '📟', configField: 'routingKey',  placeholder: 'your-pagerduty-routing-key' },
+    { id: 'slack',     label: 'Slack Webhook',           icon: '💬', configField: 'webhookUrl', placeholder: 'https://hooks.slack.com/services/...' },
+    { id: 'discord',   label: 'Discord Webhook',         icon: '🎮', configField: 'webhookUrl', placeholder: 'https://discord.com/api/webhooks/...' },
+    { id: 'teams',     label: 'Microsoft Teams Webhook', icon: '🟦', configField: 'webhookUrl', placeholder: 'https://outlook.office.com/webhook/...' },
+    { id: 'pagerduty', label: 'PagerDuty Events v2',     icon: '📟', configField: 'routingKey', placeholder: 'your-pagerduty-routing-key' },
+    { id: 'email',     label: 'Email (SMTP)',            icon: '📧', configField: 'email',      placeholder: 'alerts@company.com' },
+    { id: 'webhook',   label: 'Generic Webhook',         icon: '🔗', configField: 'webhookUrl', placeholder: 'https://your-server.com/webhook' },
 ];
 
 const EVENT_OPTIONS = [

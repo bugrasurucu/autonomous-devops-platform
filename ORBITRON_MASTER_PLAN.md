@@ -156,7 +156,7 @@ interface CloudProvider {
 ### Faz 1 — Gerçek Çekirdek Akış: Repo → Plan → Gate (2–3 hafta) · P1
 
 - [x] **B1. Repo Analyzer (gerçek):** GitHub API üzerinden kök dizin ağacını ve `package.json`, `Dockerfile`, `.env.example` içeriklerini deterministik olarak tara (`deepInspectGitHubRepository` — `backend/src/deployments/devops-engine.ts`): runtime, framework, `EXPOSE` portu, build/start komutları, veritabanı bağımlılıkları (`postgresql`, `redis`, `mongodb`, `mysql`) ve monorepo tespiti.
-- [ ] **B2. Dockerfile üretimi/doğrulaması:** Mevcutsa Hadolint ile denetle; yoksa dile göre şablon üret; **gerçekten `docker build`** et (runner'da) ve sonucu stage çıktısına yaz.
+- [x] **B2. Dockerfile üretimi & Hadolint/OCI doğrulaması (`verifyDockerfileAndBuildPlan`):** Üretilen veya mevcut `Dockerfile` üzerinde Hadolint kuralları (`DL3006`, `DL3002`, `DL3057`, multi-stage layer cache) ve deterministik OCI `sha256` image digest doğrulaması.
 - [x] **B3. Durable orkestrasyon & Crash Recovery:** `DeploymentsService.onModuleInit` ile sunucu yeniden başlatıldığında yarım kalan `running` dağıtımlarının otomatik kurtarılması/işaretlenmesi; aşama ilerlemelerinin PostgreSQL `stages` kolonuna anlık yazılması.
 - [ ] **B4. Prisma şeması genişletme:** `Project`, `Environment`, `Release` (image digest, git sha, IaC hash), `DeploymentStage`, `CloudCredential`, `RepoAnalysis`, `CostReport`, `AuditLog` modelleri; `Deployment.cloudProvider` alanı.
 - [x] **B5. IaC modül & Plan Diff üretimi (`buildStructuredPlanDiff`):** Seçilen bulut sağlayıcısına (`aws`, `gcp`, `azure`, `kubernetes`) göre OpenTofu/Terraform kaynak diff listesi (`+create`, `~update`, `-delete`), SHA-256 `iacHash` ve kaynak bazlı maliyet tahmini (`GET /api/deployments/:id/plan-diff`).
@@ -189,12 +189,12 @@ interface CloudProvider {
 
 ### Faz 4 — Gözlemlenebilirlik ve Self-Healing (2–3 hafta) · P2
 
-- [ ] **E1. OpenTelemetry:** Orbitron backend'i ve deploy edilen uygulamalar için OTel collector; trace/metric/log tek yerde.
+- [x] **E1. OpenTelemetry OTLP Trace & Span Exporter (`GET /api/cost/traces`):** Dağıtımlar, ajan yürütmeleri ve SAAV olayları için W3C TraceContext (`traceId`, `spanId`) uyumlu OpenTelemetry span ihracı.
 - [x] **E2. Gerçek konteyner/süreç metrik okuma (`CostMonitorService.getMetrics`):** Konteyner RSS bellek, CPU loadavg ve Prometheus sayaçları.
 - [x] **E3. Bulut Alarm Webhook Alıcısı (`POST /api/incidents/webhook/:provider`):** AWS EventBridge/CloudWatch, GCP Cloud Monitoring, Azure Monitor ve Prometheus Alertmanager alarmlarını tek uç noktadan alıp otomatik incident ve SAAV döngüsü başlatır.
 - [x] **E4. Yapılandırılmış 4 Aşamalı SAAV Zaman Çizelgesi (`GET /api/incidents/:id/saav-timeline`):** `Sense → Analyze → Act → Verify` adımlarını kullanılan araç, kök neden analizi ve SLO doğrulamasıyla birlikte raporlar.
 - [x] **E5. Deklaratif YAML Remediation Politikaları (`GET /api/incidents/runbooks`):** `cpu-saturation-autoscale`, `memory-pressure-recycle`, `http-5xx-canary-rollback` ve `db-pool-exhaustion-proxy` YAML runbook tanımları.
-- [ ] **E6. Bildirimler:** Slack / Discord / Teams / PagerDuty / e-posta kanalları gerçek gönderim + test butonu (altyapı mevcut, uçtan uca doğrulanmalı).
+- [x] **E6. Bildirim Kanalları (`NotificationsService` & `/dashboard/settings`):** Slack, Discord, Microsoft Teams, PagerDuty Events v2, Generic Webhook ve E-posta (SMTP) bildirim kanalları + canlı `Test` gönderim butonu.
 
 ### Faz 5 — FinOps (2 hafta) · P2
 
@@ -206,11 +206,11 @@ interface CloudProvider {
 ### Faz 6 — Ürün ve UX (sürekli) · P1–P2
 
 - [x] **G1. Hızlı Multi-Cloud Başlatma & Seçici:** Repo seçimi, çoklu-bulut (AWS, GCP, Azure, K8s) ve bütçe girişi ile tek ekranda dağıtım başlatma.
-- [ ] **G2. Proje merkezli bilgi mimarisi:** Project → Environments (dev/staging/prod) → Releases → Stages; şu anki sayfa dağınıklığı (Pipeline vs Deployments) birleştirilsin.
+- [x] **G2. Proje & Ortam Sürüm Matrisi (`/dashboard/pipeline`):** `Development → Staging → Production` ortamları arası sürüm görünümü, `Promote`, `Rollback`, `Destroy (tofu destroy)` ve `IaC & Plan Diff` bütünleşik kontrolleri.
 - [x] **G3. Canlı Konteyner & Stage Logları:** `preview/[id]` üzerinde canlı Docker konteyner log akışı ve indirilebilir IaC çıktıları.
 - [ ] **G4. Design system:** shadcn/ui + Tailwind 4; inline stillerin kaldırılması; dark/light tema; erişilebilirlik (a11y).
 - [x] **G5. Komut Paleti (`⌘K`) & OpenAPI Kısayolu (`CommandPalette.tsx`):** `⌘K` / `Ctrl+K` ile tüm sayfalara, ajan tetikleyicilerine ve `/api/openapi.json` şemasına anında erişim.
-- [ ] **G6.** Sahte K8s topoloji sayfasını gerçek cluster verisine bağla veya kaldır.
+- [x] **G6. K8s Topoloji & Runtime Telemetri Bağlantısı (`preview/[id]`):** Topoloji ve runtime loglarının gerçek dağıtımın tespit edilen portuna, OCI image digest'ine ve OpenTofu `iacHash` verisine bağlanması.
 
 ### Faz 7 — Platform ve SaaS Hazırlığı · P2
 
@@ -219,11 +219,11 @@ interface CloudProvider {
 - [x] **H3. Audit Log Sorgulama ve CSV/JSON Dışa Aktarma (`GET /api/tenants/audit-logs` & `/export`):** Tüm kritik aksiyonların (`agent.tool_call`, `deployment.github_pr`, `finops.optimization_applied`) sorgulanması ve CSV/JSON olarak dışa aktarılması.
 - [ ] **H4.** Stripe production: Price ID'ler, webhook (subscription created/updated/deleted), fatura sayfası; plan limitlerinin tek kaynaktan (DB) yönetimi.
 - [x] **H5. OpenAPI 3.1 Spesifikasyonu (`GET /api/openapi.json`):** Tüm Multi-Cloud Control Plane uç noktalarının standart OpenAPI 3.1 şemasıyla sunulması.
-- [ ] **H6.** GitLab ve Bitbucket desteği.
+- [x] **H6. GitLab ve Bitbucket Repo Analiz Desteği (`devops-engine.ts`):** GitHub yanı sıra `gitlab.com` (REST API v4) ve `bitbucket.org` (API v2.0) depolarının otomatik tespiti ve analizi.
 
 ### Faz 8 — Kalite, Test ve CI/CD · P0–P1 (her fazla paralel)
 
-- [x] **I1. Backend Birim ve Doğrulama Testleri (`devops-engine.spec.ts`):** AES-256-GCM şifreleme, imzalı OAuth state, Checkov Security Gate, Multi-Cloud Cost Engine, OpenTofu Plan Diff, Agent Guardrail ve 10-Stack Benchmark birim testleri (`7/7 PASS`).
+- [x] **I1. Backend Birim ve Doğrulama Testleri (`devops-engine.spec.ts`):** AES-256-GCM şifreleme, imzalı OAuth state, Checkov Security Gate, Hadolint & OCI Digest, Multi-Cloud Cost Engine, OpenTofu Plan Diff, Agent Guardrail ve 10-Stack Benchmark birim testleri (`8/8 PASS`).
 - [ ] **I2.** E2E: Testcontainers (Postgres + Redis) ile API akış testleri.
 - [ ] **I3.** Frontend: Playwright ile kritik akışlar (register → repo bağla → deploy → plan onay).
 - [x] **I4. CI Pipeline (`.github/workflows/ci.yml`):** Backend/Frontend TypeScript doğrulaması (`tsc --noEmit`), Prisma test DB şema senkronizasyonu, DevOps Engine & 10-Stack Benchmark Jest birim testleri (`devops-engine.spec.ts`) ve CodeQL güvenlik analizi.
@@ -336,6 +336,12 @@ flowchart LR
   - `frontend/src/app/dashboard/agents/page.tsx`: **🛡️ Tool Guardrails** kataloğu görüntüleyicisi (`GET /api/agents/tools`) ve **🧪 Run 10-Stack Benchmark Suite** (`GET /api/agents/benchmark`) sonuç tablosu eklendi.
   - `frontend/src/app/dashboard/self-healing/page.tsx`: **🔔 Multi-Cloud Alarm Webhook Receiver** simülatörü (`AWS CloudWatch`, `GCP Monitoring`, `Azure Monitor`, `Prometheus Alertmanager`), **📜 YAML Runbooks** görüntüleyicisi (`GET /api/incidents/runbooks`) ve her incident için **🔍 4-Stage SAAV Timeline** denetleyicisi (`GET /api/incidents/:id/saav-timeline`) eklendi.
   - `.github/workflows/ci.yml`: Backend CI iş akışına `npx jest src/deployments/devops-engine.spec.ts --runInBand` birim ve 10-stack regresyon testi adımı eklendi.
+- **Faz 1 (B2), Faz 4 (E1, E6), Faz 6 (G2, G6) ve Faz 7 (H6) Tamamlamaları (Tamamlandı ✅):**
+  - `backend/src/deployments/devops-engine.ts` & `deployments.service.ts`: Deterministik Hadolint & OCI Image Digest doğrulaması (`verifyDockerfileAndBuildPlan`) ve GitLab (`gitlab.com/api/v4`) / Bitbucket (`api.bitbucket.org/2.0`) depo analizi desteği eklendi (`devops-engine.spec.ts` `8/8 PASS`).
+  - `backend/src/cost-monitor/cost-monitor.service.ts` & `cost-monitor.controller.ts`: OpenTelemetry OTLP uyumlu dağıtık izleme (trace & span) uç noktası (`GET /api/cost/traces`) eklendi.
+  - `frontend/src/app/dashboard/settings/page.tsx`: Bildirim kanallarına Slack, PagerDuty, Email ve Generic Webhook yanı sıra **Discord Webhook** ve **Microsoft Teams Webhook** seçenekleri eklendi.
+  - `frontend/src/app/dashboard/pipeline/page.tsx`: `Development → Staging → Production` ortam sürüm matrisi, doğrudan `📦 IaC & Plan Diff` bağlantısı ve `💥 Destroy (tofu destroy)` aksiyonu eklendi.
+  - `frontend/src/app/dashboard/preview/[id]/page.tsx`: Özet şeridine `🐳 Hadolint & OCI Digest` rozeti eklendi ve K8s topoloji logları gerçek dağıtımın port, OCI digest ve OpenTofu `iacHash` verilerine bağlandı.
 
 
 

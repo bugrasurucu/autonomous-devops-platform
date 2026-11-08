@@ -1,4 +1,4 @@
-import { evaluateSecurityGate, calculateMultiCloudCostReport } from './devops-engine';
+import { evaluateSecurityGate, calculateMultiCloudCostReport, verifyDockerfileAndBuildPlan } from './devops-engine';
 import { CLOUD_PROVIDER_CATALOG, buildStructuredPlanDiff } from '../providers/cloud-provider.registry';
 import {
     evaluateToolGuardrail,
@@ -71,6 +71,13 @@ describe('Orbitron Autonomous DevOps Engine & Multi-Cloud Verification Suite', (
             expect(diff.iacHash).toHaveLength(16);
             expect(diff.summary.add).toBeGreaterThanOrEqual(3);
             expect(CLOUD_PROVIDER_CATALOG.azure.id).toBe('azure');
+        });
+
+        it('verifies Dockerfile with Hadolint rules and computes deterministic OCI image digest', () => {
+            const verification = verifyDockerfileAndBuildPlan(sampleFiles[0].content, 'orbitron-api', 3000);
+            expect(verification.valid).toBe(true);
+            expect(verification.imageDigest.startsWith('sha256:')).toBe(true);
+            expect(verification.hadolintFindings.every((f) => f.status === 'PASSED')).toBe(true);
         });
     });
 

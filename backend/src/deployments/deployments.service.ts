@@ -13,6 +13,7 @@ import {
     deepInspectGitHubRepository,
     evaluateSecurityGate,
     calculateMultiCloudCostReport,
+    verifyDockerfileAndBuildPlan,
     DeepRepoAnalysis,
 } from './devops-engine';
 import { CLOUD_PROVIDER_CATALOG, buildStructuredPlanDiff } from '../providers/cloud-provider.registry';
@@ -1632,6 +1633,12 @@ resource "aws_cloudwatch_metric_alarm" "http_5xx_${tfSlug}" {
             files,
         });
 
+        const dockerfileVerification = verifyDockerfileAndBuildPlan(
+            files.find((f) => f.name === 'Dockerfile')?.content || '',
+            deployment.projectName,
+            repoMeta.detectedPort || 3000,
+        );
+
         return {
             deployId: deployment.deployId,
             projectName: deployment.projectName,
@@ -1644,6 +1651,7 @@ resource "aws_cloudwatch_metric_alarm" "http_5xx_${tfSlug}" {
             securityReport,
             costReport,
             planDiff,
+            dockerfileVerification,
             files,
         };
     }

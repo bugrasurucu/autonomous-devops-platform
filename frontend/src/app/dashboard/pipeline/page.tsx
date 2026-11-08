@@ -206,6 +206,14 @@ export default function PipelinePage() {
         } catch (e: any) { alert(e.message); }
     };
 
+    const handleDestroy = async (id: string) => {
+        if (!confirm('Destroy all cloud resources (tofu destroy) for this deployment?')) return;
+        try {
+            await api.destroyDeployment(id);
+            await loadDeployments();
+        } catch (e: any) { alert(e.message); }
+    };
+
     const stats = {
         total: deployments.length,
         running: deployments.filter(d => d.status === 'running').length,
@@ -235,7 +243,7 @@ export default function PipelinePage() {
             </div>
 
             {/* Stats row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                 {[
                     { label: 'Total Deployments', value: stats.total, color: '#818cf8', icon: '🚀' },
                     { label: 'Running', value: stats.running, color: '#818cf8', icon: '🔄' },
@@ -247,6 +255,36 @@ export default function PipelinePage() {
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{s.icon} {s.label}</div>
                     </div>
                 ))}
+            </div>
+
+            {/* Faz 6 (G2): Project → Environment Release Matrix (Dev → Staging → Production) */}
+            <div className="glass-card" style={{ padding: '14px 18px', marginBottom: 18 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    🌍 Environment Release Lifecycle (Development → Staging → Production)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                    {(['development', 'staging', 'production'] as const).map((envName) => {
+                        const latestInEnv = deployments.find((d: any) => (d.environment || 'production').toLowerCase() === envName);
+                        return (
+                            <div key={envName} style={{
+                                padding: 12, borderRadius: 10, background: 'rgba(15,23,42,0.55)',
+                                border: '1px solid rgba(129,140,248,0.2)',
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: envName === 'production' ? '#34d399' : envName === 'staging' ? '#fbbf24' : '#38bdf8' }}>
+                                        {envName}
+                                    </span>
+                                    <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'JetBrains Mono, monospace' }}>
+                                        {latestInEnv ? latestInEnv.deployId : 'No release'}
+                                    </span>
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 600 }}>
+                                    {latestInEnv ? `${latestInEnv.projectName} (${latestInEnv.region})` : 'Ready for promotion'}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 420px' : '1fr', gap: 16 }}>
@@ -454,23 +492,31 @@ export default function PipelinePage() {
                             })}
                         </div>
 
-                        {/* Action Buttons (Live Preview / IaC / Promote / Rollback / Redeploy / Stop) */}
+                        {/* Action Buttons (Live Preview / IaC / Promote / Rollback / Redeploy / Destroy / Stop) */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                            <Link
-                                href={`/dashboard/preview/${selected.id}`}
-                                style={{
-                                    padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                                    background: selected.status === 'success' ? 'rgba(52,211,153,0.15)' : 'rgba(129,140,248,0.15)',
-                                    border: selected.status === 'success' ? '1px solid rgba(52,211,153,0.35)' : '1px solid rgba(129,140,248,0.35)',
-                                    color: selected.status === 'success' ? '#34d399' : '#818cf8',
-                                    textDecoration: 'none', textAlign: 'center',
-                                }}
-                            >
-                                {selected.status === 'success'
-                                    ? '🔗 Open Live Container & DevOps IaC Bundle'
-                                    : '📦 View Generated DevOps IaC & Files (6)'}
-                            </Link>
-                            <div style={{ display: 'flex', gap: 8 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                <Link
+                                    href={`/dashboard/preview/${selected.id}`}
+                                    style={{
+                                        padding: '9px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                        background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.35)',
+                                        color: '#34d399', textDecoration: 'none', textAlign: 'center',
+                                    }}
+                                >
+                                    🌐 Live Container
+                                </Link>
+                                <Link
+                                    href={`/dashboard/preview/${selected.id}?tab=artifacts`}
+                                    style={{
+                                        padding: '9px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                        background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)',
+                                        color: '#fbbf24', textDecoration: 'none', textAlign: 'center',
+                                    }}
+                                >
+                                    📦 IaC & Plan Diff
+                                </Link>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                 {selected.status === 'running' ? (
                                     <button
                                         onClick={() => handleStop(selected.id)}
@@ -503,7 +549,7 @@ export default function PipelinePage() {
                                                     color: '#fbbf24', cursor: 'pointer',
                                                 }}
                                             >
-                                                ⬆ Promote to {selected.environment === 'development' ? 'Staging' : 'Prod'}
+                                                ⬆ Promote
                                             </button>
                                         )}
                                         {(selected.status === 'failed' || selected.status === 'cancelled') && (
@@ -518,6 +564,17 @@ export default function PipelinePage() {
                                                 ⏪ Rollback
                                             </button>
                                         )}
+                                        <button
+                                            onClick={() => handleDestroy(selected.id)}
+                                            style={{
+                                                padding: '8px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                                background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)',
+                                                color: '#f87171', cursor: 'pointer',
+                                            }}
+                                            title="Destroy infrastructure (tofu destroy)"
+                                        >
+                                            💥 Destroy
+                                        </button>
                                     </>
                                 )}
                             </div>
