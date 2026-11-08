@@ -105,5 +105,12 @@ describe('Orbitron Autonomous DevOps Engine & Multi-Cloud Verification Suite', (
             expect(benchmark.totalArchetypes).toBe(10);
             expect(benchmark.passRatePercent).toBe(100);
         });
+
+        it('validates multi-cloud provider catalog & keyless OIDC identity templates across AWS, GCP, Azure, and Kubernetes', () => {
+            expect(CLOUD_PROVIDER_CATALOG.aws.keylessAuth.setupCliSnippet).toContain('sts.amazonaws.com');
+            expect(CLOUD_PROVIDER_CATALOG.gcp.keylessAuth.setupCliSnippet).toContain('workload-identity-pools');
+            expect(CLOUD_PROVIDER_CATALOG.azure.keylessAuth.setupCliSnippet).toContain('federated-credential');
+            expect(CLOUD_PROVIDER_CATALOG.kubernetes.keylessAuth.setupCliSnippet).toContain('serviceaccount');
+        });
     });
 });

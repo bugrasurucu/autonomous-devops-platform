@@ -81,6 +81,27 @@ export default function AppPreviewPage() {
 
     const [prResult, setPrResult] = useState<any>(null);
     const [prLoading, setPrLoading] = useState(false);
+    const [nlPrompt, setNlPrompt] = useState("staging'i Avrupa'ya taşı, maliyeti %20 düşür ve multi-region failover aç");
+    const [nlMutating, setNlMutating] = useState(false);
+    const [nlResult, setNlResult] = useState<any>(null);
+
+    const handleNaturalLanguageMutate = async (customPrompt?: string) => {
+        if (!deployment) return;
+        const promptToUse = (customPrompt ?? nlPrompt).trim();
+        if (!promptToUse) return;
+        setNlMutating(true);
+        try {
+            const targetId = deployment.id || deployment.deployId || id;
+            const res = await api.mutateDeploymentByNaturalLanguage(targetId, promptToUse);
+            setNlResult(res);
+            const updatedArt = await api.getDeploymentArtifacts(targetId).catch(() => null);
+            if (updatedArt) setArtifactsData(updatedArt);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setNlMutating(false);
+        }
+    };
 
     const handleCreateGithubPr = async () => {
         if (!deployment) return;
@@ -542,6 +563,61 @@ export default function AppPreviewPage() {
                             </a>
                         </div>
                     )}
+
+                    {/* Faz 11 (Z3 & Z4): Natural-Language Infrastructure Mutation & Multi-Region Failover Copilot */}
+                    <div style={{
+                        padding: '10px 12px', borderRadius: 10,
+                        background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.28)',
+                        display: 'flex', flexDirection: 'column', gap: 8,
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#c084fc', whiteSpace: 'nowrap' }}>
+                                ✨ AI Infra Copilot (NL Mutate & Active-Active Failover):
+                            </span>
+                            <input
+                                value={nlPrompt}
+                                onChange={(e) => setNlPrompt(e.target.value)}
+                                placeholder="e.g., staging'i Avrupa'ya taşı, maliyeti %20 düşür, multi-region failover aç"
+                                style={{
+                                    flex: 1, minWidth: 260, padding: '6px 10px', borderRadius: 7, fontSize: 12,
+                                    background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(168, 85, 247, 0.35)',
+                                    color: '#f8fafc', outline: 'none',
+                                }}
+                            />
+                            <button
+                                onClick={() => handleNaturalLanguageMutate()}
+                                disabled={nlMutating}
+                                style={{
+                                    padding: '6px 14px', borderRadius: 7, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                                    background: 'linear-gradient(135deg, #a855f7, #6366f1)', color: '#fff', border: 'none',
+                                }}
+                            >
+                                {nlMutating ? '⏳ Applying IaC Mutation...' : '⚡ Mutate Infrastructure'}
+                            </button>
+                        </div>
+                        {nlResult && (
+                            <div style={{
+                                padding: '8px 10px', borderRadius: 8, background: 'rgba(2, 6, 23, 0.75)',
+                                border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: 11, color: '#cbd5e1',
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+                                    <span style={{ color: '#34d399', fontWeight: 700 }}>
+                                        ✅ Applied: {nlResult.appliedMutations?.join(' · ')}
+                                    </span>
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#fbbf24', fontWeight: 700 }}>
+                                        ${nlResult.previousCostUsd} → ${nlResult.newCostUsd}/mo (Saved ${nlResult.monthlySavingsUsd}/mo)
+                                    </span>
+                                </div>
+                                <pre style={{
+                                    margin: 0, padding: 8, borderRadius: 6, background: '#050811',
+                                    color: '#a5b4fc', fontSize: 10, fontFamily: 'JetBrains Mono, monospace',
+                                    overflowX: 'auto', maxHeight: 130,
+                                }}>
+                                    {nlResult.openTofuPatch}
+                                </pre>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

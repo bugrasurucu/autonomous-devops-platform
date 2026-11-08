@@ -30,6 +30,38 @@ export default function AgentsPage() {
     const [benchmarkData, setBenchmarkData] = useState<any>(null);
     const [runningBenchmark, setRunningBenchmark] = useState(false);
     const [showToolsModal, setShowToolsModal] = useState(false);
+    const [showByoaModal, setShowByoaModal] = useState(false);
+    const [runtimeProfile, setRuntimeProfile] = useState<any>(null);
+    const [byoaName, setByoaName] = useState('Security Compliance Auditor');
+    const [byoaRole, setByoaRole] = useState('SOC2 & HIPAA Compliance');
+    const [byoaDesc, setByoaDesc] = useState('Audits multi-cloud OpenTofu plans and K8s manifests against SOC2 Type II & HIPAA controls in an isolated namespace.');
+    const [registeringByoa, setRegisteringByoa] = useState(false);
+
+    const handleRegisterByoa = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!byoaName.trim() || !byoaRole.trim()) return;
+        setRegisteringByoa(true);
+        try {
+            const res: any = await api.registerCustomAgent({
+                name: byoaName.trim(),
+                role: byoaRole.trim(),
+                description: byoaDesc.trim(),
+                emoji: '🧩',
+                color: '#c084fc',
+                capabilities: ['soc2-audit', 'hipaa-gate', 'opa-policy', 'sbom-verify'],
+                mcpServers: ['byoa-compliance-mcp', 'opa-rego-mcp'],
+            });
+            if (res?.agent) {
+                const updated = await api.getAgents();
+                setAgents(updated);
+                setShowByoaModal(false);
+            }
+        } catch {
+            // ignore
+        } finally {
+            setRegisteringByoa(false);
+        }
+    };
 
     const handleRunBenchmark = async () => {
         setRunningBenchmark(true);
@@ -49,6 +81,9 @@ export default function AgentsPage() {
                 if (Array.isArray(res?.tools)) setToolCatalog(res.tools);
                 else if (Array.isArray(res)) setToolCatalog(res);
             })
+            .catch(() => {});
+        api.getAgentRuntimeProfile()
+            .then((profile: any) => setRuntimeProfile(profile))
             .catch(() => {});
     }, []);
 
@@ -184,6 +219,15 @@ export default function AgentsPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
+                        onClick={() => setShowByoaModal(v => !v)}
+                        style={{
+                            padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            background: 'rgba(192,132,252,0.15)', border: '1px solid rgba(192,132,252,0.35)', color: '#c084fc',
+                        }}
+                    >
+                        🧩 BYOA & Air-Gapped Runtime
+                    </button>
+                    <button
                         onClick={() => setShowToolsModal(v => !v)}
                         style={{
                             padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
@@ -204,6 +248,59 @@ export default function AgentsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* BYOA & Air-Gapped Runtime Modal (Faz 11 — Z1 & Z2) */}
+            {showByoaModal && (
+                <div className="glass-card" style={{ padding: 18, marginBottom: 18, border: '1px solid rgba(192,132,252,0.35)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#c084fc' }}>
+                            🧩 Bring Your Own Agent (BYOA) & Air-Gapped / On-Prem Runtime Profile
+                        </h3>
+                        <button onClick={() => setShowByoaModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12 }}>✕ Close</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <form onSubmit={handleRegisterByoa} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>Register Custom Agent in Isolated Namespace</div>
+                            <input
+                                value={byoaName}
+                                onChange={e => setByoaName(e.target.value)}
+                                placeholder="Agent Name"
+                                style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(15,23,42,0.8)', border: '1px solid var(--border-color)', color: '#fff', fontSize: 12 }}
+                            />
+                            <input
+                                value={byoaRole}
+                                onChange={e => setByoaRole(e.target.value)}
+                                placeholder="Role / Specialty"
+                                style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(15,23,42,0.8)', border: '1px solid var(--border-color)', color: '#fff', fontSize: 12 }}
+                            />
+                            <textarea
+                                value={byoaDesc}
+                                onChange={e => setByoaDesc(e.target.value)}
+                                rows={2}
+                                style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(15,23,42,0.8)', border: '1px solid var(--border-color)', color: '#fff', fontSize: 12 }}
+                            />
+                            <button
+                                type="submit"
+                                disabled={registeringByoa}
+                                style={{
+                                    padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                                    background: 'linear-gradient(135deg, #c084fc, #818cf8)', color: '#0f172a', border: 'none',
+                                }}
+                            >
+                                {registeringByoa ? '⏳ Provisioning Namespace...' : '➕ Deploy Custom BYOA Agent'}
+                            </button>
+                        </form>
+                        <div style={{ padding: 12, borderRadius: 10, background: 'rgba(15,23,42,0.65)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#38bdf8' }}>🔒 Air-Gapped / On-Premises Configuration (Z2)</div>
+                            <div><strong>Mode:</strong> <code style={{ color: '#34d399' }}>{runtimeProfile?.mode || 'hybrid-cloud-control-plane'}</code></div>
+                            <div><strong>Local LLM (Ollama):</strong> <code style={{ color: '#cbd5e1' }}>{runtimeProfile?.llmProviders?.ollamaLocal || 'http://localhost:11434'}</code></div>
+                            <div><strong>Private Harbor Registry:</strong> <code style={{ color: '#cbd5e1' }}>{runtimeProfile?.registries?.harborOnPrem || 'harbor.internal.corp/orbitron'}</code></div>
+                            <div><strong>OpenTofu Provider Mirror:</strong> <code style={{ color: '#cbd5e1' }}>{runtimeProfile?.registries?.openTofuProviderMirror || 'https://mirror.internal.corp/opentofu'}</code></div>
+                            <div><strong>Namespace Isolation:</strong> <code style={{ color: '#fbbf24' }}>{runtimeProfile?.kagentRuntime?.namespaceIsolation || 'tenant-<orgId> NetworkPolicy enforced'}</code></div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Deterministic Tool Guardrail Catalog */}
             {showToolsModal && toolCatalog.length > 0 && (

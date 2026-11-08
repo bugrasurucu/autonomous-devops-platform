@@ -93,6 +93,24 @@ export class DeploymentsController {
         return this.deploymentsService.createGithubSetupPullRequest(req.user.userId, id);
     }
 
+    @Get('deployments/:id/releases')
+    getReleaseHistory(@Request() req: any, @Param('id') id: string) {
+        return this.deploymentsService.getReleaseHistory(req.user.userId, id);
+    }
+
+    @Post('deployments/:id/nl-mutate')
+    mutateByNaturalLanguage(
+        @Request() req: any,
+        @Param('id') id: string,
+        @Body() body: { prompt: string },
+    ) {
+        return this.deploymentsService.mutateInfrastructureByNaturalLanguage(
+            req.user.userId,
+            id,
+            body.prompt,
+        );
+    }
+
     @Post('deployments/:id/redeploy')
     redeploy(@Request() req: any, @Param('id') id: string) {
         return this.deploymentsService.redeploy(req.user.userId, id);

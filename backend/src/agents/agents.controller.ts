@@ -31,6 +31,30 @@ export class AgentsController {
         return this.agentsService.runEvaluationBenchmark();
     }
 
+    @Get('runtime-profile')
+    getRuntimeProfile() {
+        return this.agentsService.getRuntimeProfile();
+    }
+
+    @Post('custom')
+    registerCustomAgent(
+        @Request() req: any,
+        @Body()
+        body: {
+            name: string;
+            role: string;
+            description: string;
+            emoji?: string;
+            color?: string;
+            capabilities?: string[];
+            mcpServers?: string[];
+            customPrompt?: string;
+            model?: string;
+        },
+    ) {
+        return this.agentsService.registerCustomAgent(req.user.userId, body);
+    }
+
     @Get(':id')
     getAgent(@Request() req: any, @Param('id') id: string) {
         return this.agentsService.getAgent(req.user.userId, id);

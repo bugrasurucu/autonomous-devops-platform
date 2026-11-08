@@ -71,6 +71,10 @@ export default function SettingsPage() {
     const [addingChannel, setAddingChannel] = useState(false);
     const [testingChannel, setTestingChannel] = useState<string | null>(null);
     const [testResult, setTestResult] = useState<{ id: string; ok: boolean; message: string } | null>(null);
+    const [ssoProviders, setSsoProviders] = useState<any[]>([]);
+    const [totpSetup, setTotpSetup] = useState<any>(null);
+    const [totpCode, setTotpCode] = useState('');
+    const [totpVerified, setTotpVerified] = useState(false);
 
     useEffect(() => {
         api.getModels().then(setModels).catch(() => { });
@@ -78,6 +82,9 @@ export default function SettingsPage() {
         api.getUsage().then(setUsage).catch(() => { });
         api.getApiKeys().then(setApiKeys).catch(() => { });
         (api.notifications.list() as any).then(setChannels).catch(() => { });
+        api.ssoAnd2FA.getProviders().then((res: any) => {
+            if (Array.isArray(res?.providers)) setSsoProviders(res.providers);
+        }).catch(() => { });
     }, []);
 
     const saveProfile = async () => {
@@ -503,6 +510,75 @@ export default function SettingsPage() {
                         </p>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            {/* Faz 7 (H2): Enterprise SSO (OIDC / SAML 2.0) & 2FA (TOTP RFC 6238) */}
+                            <div style={{
+                                padding: '16px 18px', borderRadius: 10,
+                                background: 'rgba(15,23,42,0.55)', border: '1px solid rgba(52,211,153,0.28)',
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#34d399' }}>🔐 Two-Factor Authentication (RFC 6238 TOTP) & Enterprise SSO</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                            Protect production deployments with HMAC-SHA1 TOTP and OIDC/SAML 2.0 Workforce Identity
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const setup: any = await api.ssoAnd2FA.setup2FA();
+                                                setTotpSetup(setup);
+                                                if (setup?.currentCode) setTotpCode(setup.currentCode);
+                                            } catch (e: any) { alert(e.message); }
+                                        }}
+                                        style={{
+                                            padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                                            background: 'rgba(52,211,153,0.16)', border: '1px solid rgba(52,211,153,0.38)', color: '#34d399',
+                                        }}
+                                    >
+                                        {totpVerified ? '✓ 2FA TOTP Active' : '🛡️ Setup 2FA (TOTP)'}
+                                    </button>
+                                </div>
+                                {totpSetup && (
+                                    <div style={{ padding: 12, borderRadius: 8, background: 'rgba(2,6,23,0.75)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 12, fontSize: 11 }}>
+                                        <div style={{ marginBottom: 6 }}>
+                                            <strong>Base32 Secret:</strong> <code style={{ color: '#fbbf24' }}>{totpSetup.secret}</code> · <strong>Current 30s Code:</strong> <code style={{ color: '#34d399' }}>{totpSetup.currentCode}</code>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <input
+                                                value={totpCode}
+                                                onChange={e => setTotpCode(e.target.value)}
+                                                placeholder="6-digit TOTP code"
+                                                style={{ padding: '6px 10px', borderRadius: 6, background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', fontSize: 12, width: 140 }}
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const res: any = await api.ssoAnd2FA.verify2FA(totpCode);
+                                                        if (res?.verified) setTotpVerified(true);
+                                                    } catch (e: any) { alert(e.message); }
+                                                }}
+                                                style={{
+                                                    padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                                    background: '#34d399', color: '#052e16', border: 'none',
+                                                }}
+                                            >
+                                                {totpVerified ? '✓ Verified & Logged to AuditLog' : 'Verify Code'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                {ssoProviders.length > 0 && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 8 }}>
+                                        {ssoProviders.map((p: any) => (
+                                            <div key={p.id} style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 11 }}>
+                                                <div style={{ fontWeight: 700, color: '#e2e8f0' }}>{p.name}</div>
+                                                <div style={{ color: '#818cf8', fontSize: 10, marginTop: 2 }}>{p.protocol}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Change password */}
                             <div style={{
                                 padding: '16px 18px', borderRadius: 10,

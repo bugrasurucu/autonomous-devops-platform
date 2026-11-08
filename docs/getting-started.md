@@ -67,3 +67,4 @@ Tarayıcınızda **`http://localhost:3000`** adresine gidin ve yeni bir hesap ol
    - Üretilen `Dockerfile`, `terraform/main.tf`, `k8s/manifest.yaml`, `.github/workflows/orbitron-ci-cd.yml` dosyalarını inceleyebilir,
    - **OpenTofu Plan Diff (`iacHash`)**, **Checkov Security Gate** ve **Multi-Cloud Maliyet Karşılaştırmasını** görebilir,
    - **🔀 Prepare GitHub Setup PR** butonuyla tüm dosyaları kendi reponuza PR olarak aktarabilirsiniz.
+

@@ -78,6 +78,23 @@ export class AuthController {
         return this.authService.deleteAccount(req.user.userId);
     }
 
+    @Get('sso-providers')
+    getSsoProviders() {
+        return this.authService.getSsoProviders();
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('2fa/setup')
+    async setupTwoFactor(@Request() req: any) {
+        return this.authService.setupTwoFactor(req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('2fa/verify')
+    async verifyTwoFactor(@Request() req: any, @Body() body: { code: string }) {
+        return this.authService.verifyTwoFactor(req.user.userId, body.code);
+    }
+
     @Get('github')
     async githubOAuthLogin(@Request() req: any, @Res() res: any) {
         const url = await this.authService.getGithubOAuthUrl();

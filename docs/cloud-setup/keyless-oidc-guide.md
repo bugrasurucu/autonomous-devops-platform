@@ -76,3 +76,4 @@ kubectl create rolebinding orbitron-deployer-admin \
   --serviceaccount=orbitron-production:orbitron-deployer \
   -n orbitron-production
 ```
+

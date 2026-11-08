@@ -16,6 +16,13 @@ export class BillingController {
         return this.billing.getPlans();
     }
 
+    @Get('invoices')
+    @UseGuards(JwtAuthGuard)
+    async getInvoices(@Request() req: any) {
+        const org = await this.tenants.getOrCreateOrgForUser(req.user.userId);
+        return this.billing.getInvoices(org.id, req.user.userId);
+    }
+
     @Post('checkout')
     @UseGuards(JwtAuthGuard)
     async checkout(

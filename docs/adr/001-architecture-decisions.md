@@ -33,3 +33,4 @@ Bu belge, **Orbitron Multi-Cloud Autonomous DevOps Platform** mimarisinde alına
 - **Durum:** Kabul Edildi (2026-11)
 - **Bağlam:** Otonom iyileştirme (Self-Healing) ve bütçe denetiminin denetlenebilir (auditable) olması gerekir.
 - **Karar:** SRE SAAV döngüsü (`Sense → Analyze → Act → Verify`) deklaratif YAML runbook politikalarıyla (`cpu-saturation-autoscale`, `memory-pressure-recycle`, `http-5xx-canary-rollback`, `db-pool-exhaustion-proxy`) eşleştirildi ve tüm ajan/kullanıcı aksiyonları CSV/JSON olarak dışa aktarılabilen `AuditLog` tablosuna bağlandı.
+

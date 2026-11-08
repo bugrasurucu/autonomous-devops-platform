@@ -65,16 +65,19 @@ export default function BillingPage() {
     const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
     const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
     const [usage, setUsage] = useState<any>(null);
+    const [invoices, setInvoices] = useState<any[]>([]);
 
     useEffect(() => {
         Promise.all([
             api.billing.getPlans(),
             api.tenant.getMe(),
             api.cost.getUsage().catch(() => null),
-        ]).then(([plansData, orgData, usageData]: [any, any, any]) => {
+            api.billing.getInvoices().catch(() => null),
+        ]).then(([plansData, orgData, usageData, invoicesData]: [any, any, any, any]) => {
             setPlans(plansData ?? []);
             setCurrentPlan(orgData?.plan ?? 'free');
             setUsage(usageData);
+            if (invoicesData?.invoices) setInvoices(invoicesData.invoices);
         }).catch((e: any) => {
             setError(e?.message ?? 'Failed to load billing data');
         }).finally(() => setLoading(false));
@@ -372,6 +375,59 @@ export default function BillingPage() {
                                             }}>{v}</td>
                                         );
                                     })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Invoice History (Faz 7 — H4) */}
+            <div className="glass-card" style={{ overflow: 'hidden', marginBottom: 20 }}>
+                <div style={{
+                    padding: '14px 20px', borderBottom: '1px solid var(--border-color)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>🧾 Invoice History & Billing Ledger</span>
+                    <span style={{ fontSize: 11, color: '#34d399', fontFamily: 'JetBrains Mono, monospace' }}>
+                        ✓ DB-Synced Plan Entitlements ({currentMeta.label})
+                    </span>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 11 }}>
+                                <th style={{ padding: '10px 20px', textAlign: 'left' }}>INVOICE #</th>
+                                <th style={{ padding: '10px 16px', textAlign: 'left' }}>DESCRIPTION</th>
+                                <th style={{ padding: '10px 16px', textAlign: 'left' }}>BILLING PERIOD</th>
+                                <th style={{ padding: '10px 16px', textAlign: 'right' }}>AMOUNT</th>
+                                <th style={{ padding: '10px 20px', textAlign: 'right' }}>STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoices.map((inv: any) => (
+                                <tr key={inv.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                    <td style={{ padding: '10px 20px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: '#818cf8' }}>
+                                        {inv.number}
+                                    </td>
+                                    <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>
+                                        {inv.description || `Orbitron ${currentMeta.label} Subscription`}
+                                    </td>
+                                    <td style={{ padding: '10px 16px', color: 'var(--text-secondary)', fontSize: 11 }}>
+                                        {inv.periodStart ? new Date(inv.periodStart).toLocaleDateString() : '—'} → {inv.periodEnd ? new Date(inv.periodEnd).toLocaleDateString() : '—'}
+                                    </td>
+                                    <td style={{ padding: '10px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700 }}>
+                                        ${Number(inv.amountUsd || 0).toFixed(2)} {inv.currency || 'USD'}
+                                    </td>
+                                    <td style={{ padding: '10px 20px', textAlign: 'right' }}>
+                                        <span style={{
+                                            fontSize: 10, padding: '2px 8px', borderRadius: 6, fontWeight: 700,
+                                            background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)',
+                                            textTransform: 'uppercase',
+                                        }}>
+                                            {inv.status || 'PAID'}
+                                        </span>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

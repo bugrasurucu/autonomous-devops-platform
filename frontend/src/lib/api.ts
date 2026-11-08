@@ -80,6 +80,18 @@ export const api = {
         request(`/agents/${id}/trigger`, { method: 'POST', body: JSON.stringify({ task }) }),
     completeAgent: (id: string, output?: string, success?: boolean) =>
         request(`/agents/${id}/complete`, { method: 'POST', body: JSON.stringify({ output, success }) }),
+    getAgentRuntimeProfile: () => request('/agents/runtime-profile'),
+    registerCustomAgent: (data: {
+        name: string;
+        role: string;
+        description: string;
+        emoji?: string;
+        color?: string;
+        capabilities?: string[];
+        mcpServers?: string[];
+        customPrompt?: string;
+        model?: string;
+    }) => request('/agents/custom', { method: 'POST', body: JSON.stringify(data) }),
 
     // Deployments
     deploy: (data: { projectName: string; region?: string; environment?: string; budget?: number; sourceType?: string; sourceValue?: string; githubRepo?: string; githubBranch?: string }) =>
@@ -93,6 +105,9 @@ export const api = {
     stopLiveContainer: (id: string) => request(`/deployments/${id}/stop-container`, { method: 'POST' }),
     getDeploymentArtifacts: (id: string) => request(`/deployments/${id}/artifacts`),
     getDeploymentPlanDiff: (id: string) => request(`/deployments/${id}/plan-diff`),
+    getReleaseHistory: (id: string) => request(`/deployments/${id}/releases`),
+    mutateDeploymentByNaturalLanguage: (id: string, prompt: string) =>
+        request(`/deployments/${id}/nl-mutate`, { method: 'POST', body: JSON.stringify({ prompt }) }),
     createGithubSetupPr: (id: string) => request(`/deployments/${id}/github-pr`, { method: 'POST' }),
     getCloudProviders: () => request('/deployments/providers'),
     destroyDeployment: (id: string) => request(`/deployments/${id}/destroy`, { method: 'POST' }),
@@ -184,10 +199,18 @@ export const api = {
     // Billing
     billing: {
         getPlans: () => request('/billing/plans'),
+        getInvoices: () => request('/billing/invoices'),
         checkout: (plan: string, returnUrl: string) =>
             request('/billing/checkout', { method: 'POST', body: JSON.stringify({ plan, returnUrl }) }),
         portal: (returnUrl: string) =>
             request('/billing/portal', { method: 'POST', body: JSON.stringify({ returnUrl }) }),
+    },
+
+    // Enterprise SSO & 2FA
+    ssoAnd2FA: {
+        getProviders: () => request('/auth/sso-providers'),
+        setup2FA: () => request('/auth/2fa/setup', { method: 'POST' }),
+        verify2FA: (code: string) => request('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code }) }),
     },
 
     // kagent / K8s status
