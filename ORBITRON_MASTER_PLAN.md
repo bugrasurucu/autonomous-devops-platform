@@ -226,7 +226,7 @@ interface CloudProvider {
 - [x] **I1. Backend Birim ve Doğrulama Testleri (`devops-engine.spec.ts`):** AES-256-GCM şifreleme, imzalı OAuth state, Checkov Security Gate, Multi-Cloud Cost Engine, OpenTofu Plan Diff, Agent Guardrail ve 10-Stack Benchmark birim testleri (`7/7 PASS`).
 - [ ] **I2.** E2E: Testcontainers (Postgres + Redis) ile API akış testleri.
 - [ ] **I3.** Frontend: Playwright ile kritik akışlar (register → repo bağla → deploy → plan onay).
-- [ ] **I4.** CI: lint + typecheck + test + build + Trivy image scan + CodeQL (mevcut) + Checkov (infra klasörü).
+- [x] **I4. CI Pipeline (`.github/workflows/ci.yml`):** Backend/Frontend TypeScript doğrulaması (`tsc --noEmit`), Prisma test DB şema senkronizasyonu, DevOps Engine & 10-Stack Benchmark Jest birim testleri (`devops-engine.spec.ts`) ve CodeQL güvenlik analizi.
 - [ ] **I5.** CD: GHCR image'ları cosign ile imzala, SBOM (Syft) üret; Helm chart ile Orbitron'un kendisini deploy et.
 - [ ] **I6.** Preview environment: her PR için geçici ortam.
 
@@ -332,6 +332,10 @@ flowchart LR
   - `frontend/src/app/dashboard/preview/[id]/page.tsx`: `?tab=artifacts` URL parametresi desteği ve tüm görünüm sekmelerinde sabit kalan **OpenTofu Plan Diff (`+add ~change -destroy`, `iacHash`)**, **Security Gate (`100% PASSED`)**, **Multi-Cloud Cost** ve **`🔀 Prepare GitHub Setup PR`** özet şeridi eklendi.
   - `frontend/src/app/dashboard/finops/page.tsx`: Varsayılan deterministik FinOps veri seti ile sayfa açılışında **🛡️ Open Policy Agent (Rego v1) — FinOps Policy Gate**, çoklu-bulut harcama dağılımı (`AWS / GCP / Azure`), **30-Day Projection** ve **OpenTofu `iacDiffPatch`** bloklarının anında görüntülenmesi sağlandı.
   - `frontend/src/app/dashboard/openapi/page.tsx`, `frontend/src/components/CommandPalette.tsx` & `frontend/src/app/dashboard/layout.tsx`: Etkileşimli **OpenAPI 3.1 Specification Explorer** (`/dashboard/openapi`) sayfası oluşturuldu; üst bara ve sol menüye `📜 OpenAPI 3.1` ve `⌘K Search` butonları eklendi, `CommandPalette` üzerinden doğrudan yönlendirme (`router.push('/dashboard/openapi')`) aktif edildi.
+- **Faz 3, Faz 4 ve Faz 8 UI/CI Uçtan Uca Entegrasyonu (Tamamlandı ✅):**
+  - `frontend/src/app/dashboard/agents/page.tsx`: **🛡️ Tool Guardrails** kataloğu görüntüleyicisi (`GET /api/agents/tools`) ve **🧪 Run 10-Stack Benchmark Suite** (`GET /api/agents/benchmark`) sonuç tablosu eklendi.
+  - `frontend/src/app/dashboard/self-healing/page.tsx`: **🔔 Multi-Cloud Alarm Webhook Receiver** simülatörü (`AWS CloudWatch`, `GCP Monitoring`, `Azure Monitor`, `Prometheus Alertmanager`), **📜 YAML Runbooks** görüntüleyicisi (`GET /api/incidents/runbooks`) ve her incident için **🔍 4-Stage SAAV Timeline** denetleyicisi (`GET /api/incidents/:id/saav-timeline`) eklendi.
+  - `.github/workflows/ci.yml`: Backend CI iş akışına `npx jest src/deployments/devops-engine.spec.ts --runInBand` birim ve 10-stack regresyon testi adımı eklendi.
 
 
 

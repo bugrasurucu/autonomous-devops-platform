@@ -60,6 +60,9 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Run DevOps Engine & Multi-Stack Benchmark Unit Tests
+        run: npx jest src/deployments/devops-engine.spec.ts --runInBand
+
       - name: Build
         run: npm run build
 

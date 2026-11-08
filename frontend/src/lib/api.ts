@@ -74,6 +74,8 @@ export const api = {
     // Agents
     getAgents: () => request('/agents'),
     getAgent: (id: string) => request(`/agents/${id}`),
+    getAgentTools: () => request('/agents/tools'),
+    runAgentBenchmark: () => request('/agents/benchmark'),
     triggerAgent: (id: string, task?: string) =>
         request(`/agents/${id}/trigger`, { method: 'POST', body: JSON.stringify({ task }) }),
     completeAgent: (id: string, output?: string, success?: boolean) =>
@@ -106,6 +108,10 @@ export const api = {
     // Incidents
     getIncidents: (limit?: number) => request(`/incidents?limit=${limit || 20}`),
     getIncidentStats: () => request('/incidents/stats'),
+    getIncidentRunbooks: () => request('/incidents/runbooks'),
+    getIncidentSaavTimeline: (id: string) => request(`/incidents/${id}/saav-timeline`),
+    triggerCloudAlarmWebhook: (provider: string, payload: any) =>
+        request(`/incidents/webhook/${provider}`, { method: 'POST', body: JSON.stringify(payload) }),
     resolveIncident: (id: string, resolution?: string) =>
         request(`/incidents/${id}/resolve`, { method: 'POST', body: JSON.stringify({ resolution }) }),
     autoHealIncident: (id: string) =>

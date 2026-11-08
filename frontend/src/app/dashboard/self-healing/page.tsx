@@ -39,21 +39,63 @@ export default function SelfHealingPage() {
     const [showCreate, setShowCreate] = useState(false);
     const [createForm, setCreateForm] = useState({ title: '', description: '', severity: 'medium' });
     const [creating, setCreating] = useState(false);
+    const [runbooks, setRunbooks] = useState<any[]>([]);
+    const [showRunbooks, setShowRunbooks] = useState(false);
+    const [saavTimeline, setSaavTimeline] = useState<any>(null);
+    const [webhookLoading, setWebhookLoading] = useState<string | null>(null);
 
     const loadAll = useCallback(async () => {
         try {
             const [data, s] = await Promise.all([
-                api.getIncidents(30),
+                api.getIncidents(30).catch(() => null),
                 api.getIncidentStats().catch(() => null),
             ]);
-            setIncidents(data);
-            setStats(s || {
-                active: data.filter((i: any) => i.status === 'active').length,
-                resolved: data.filter((i: any) => i.status === 'resolved').length,
-                total: data.length,
-            });
+            if (Array.isArray(data)) {
+                setIncidents(data);
+                setStats(s || {
+                    active: data.filter((i: any) => i.status === 'active').length,
+                    resolved: data.filter((i: any) => i.status === 'resolved').length,
+                    total: data.length,
+                });
+            }
         } catch { }
     }, []);
+
+    useEffect(() => {
+        api.getIncidentRunbooks()
+            .then((res: any) => {
+                if (Array.isArray(res?.runbooks)) setRunbooks(res.runbooks);
+                else if (Array.isArray(res)) setRunbooks(res);
+            })
+            .catch(() => {});
+    }, []);
+
+    const handleInspectTimeline = async (incidentId: string) => {
+        try {
+            const tl = await api.getIncidentSaavTimeline(incidentId);
+            setSaavTimeline(tl);
+        } catch (e: any) {
+            alert(e.message);
+        }
+    };
+
+    const handleTriggerCloudWebhook = async (provider: 'aws' | 'gcp' | 'azure' | 'alertmanager') => {
+        setWebhookLoading(provider);
+        try {
+            const samplePayloads: Record<string, any> = {
+                aws: { AlarmName: 'Orbitron-ECS-HighCPUUtilization', NewStateReason: 'Threshold Crossed: CPUUtilization > 88.4% for 2 datapoints', Severity: 'high' },
+                gcp: { incident: { policy_name: 'Cloud Run Latency & Memory Pressure', summary: 'Memory utilization exceeded 91% on cloud-run-revision-004', severity: 'high' } },
+                azure: { data: { essentials: { alertRule: 'ContainerApps-HTTP-5xx-Spike', description: 'HTTP 5xx error rate reached 6.8% over 5m window', severity: 'Sev1' } } },
+                alertmanager: { alerts: [{ labels: { alertname: 'PostgresConnectionPoolExhausted', severity: 'critical' }, annotations: { summary: 'PgBouncer active connections > 95% of max_connections' } }] },
+            };
+            await api.triggerCloudAlarmWebhook(provider, samplePayloads[provider]);
+            await loadAll();
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setWebhookLoading(null);
+        }
+    };
 
     useEffect(() => {
         loadAll();
@@ -124,7 +166,16 @@ export default function SelfHealingPage() {
                         Autonomous incident detection and remediation — Sense → Analyze → Act → Verify
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => setShowRunbooks(v => !v)}
+                        style={{
+                            padding: '8px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 700,
+                            background: 'rgba(251,191,36,0.14)', border: '1px solid rgba(251,191,36,0.35)', color: '#fbbf24',
+                        }}
+                    >
+                        📜 YAML Runbooks ({runbooks.length || 4})
+                    </button>
                     <button
                         onClick={() => setShowCreate(true)}
                         style={{
@@ -144,6 +195,101 @@ export default function SelfHealingPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Cloud Alarm Webhook Ingest Bar */}
+            <div className="glass-card" style={{ padding: '14px 18px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#38bdf8' }}>🔔 Multi-Cloud Alarm Webhook Receiver (`/api/incidents/webhook/:provider`)</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                        Ingest live cloud telemetry alerts from AWS CloudWatch, GCP Monitoring, Azure Monitor, or Prometheus Alertmanager to trigger SAAV remediation:
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                        { id: 'aws', label: '☁️ AWS CloudWatch' },
+                        { id: 'gcp', label: '🌐 GCP Monitoring' },
+                        { id: 'azure', label: '🔷 Azure Monitor' },
+                        { id: 'alertmanager', label: '🔥 Alertmanager' },
+                    ].map((p: any) => (
+                        <button
+                            key={p.id}
+                            onClick={() => handleTriggerCloudWebhook(p.id)}
+                            disabled={webhookLoading === p.id}
+                            style={{
+                                padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8',
+                            }}
+                        >
+                            {webhookLoading === p.id ? '⏳ Sending...' : p.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Declarative YAML Remediation Runbooks */}
+            {showRunbooks && runbooks.length > 0 && (
+                <div className="glass-card" style={{ padding: 18, marginBottom: 18, border: '1px solid rgba(251,191,36,0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#fbbf24' }}>
+                            📜 Declarative YAML Remediation Runbooks (SAAV Policy Engine)
+                        </h3>
+                        <button onClick={() => setShowRunbooks(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12 }}>✕ Close</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                        {runbooks.map((rb: any) => (
+                            <div key={rb.id} style={{ padding: 12, borderRadius: 10, background: 'rgba(15,23,42,0.65)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>{rb.name}</span>
+                                    <code style={{ fontSize: 10, color: '#34d399' }}>tool: {rb.remediationTool}</code>
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                                    Trigger: <code>{rb.triggerCondition}</code> · SLO Verify: <code>{rb.verifySlo}</code>
+                                </div>
+                                {rb.yaml && (
+                                    <pre style={{
+                                        margin: 0, padding: 8, borderRadius: 6, background: '#050811',
+                                        color: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono, monospace', overflowX: 'auto',
+                                    }}>{rb.yaml}</pre>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 4-Stage SAAV Timeline Inspector Modal */}
+            {saavTimeline && (
+                <div className="glass-card" style={{ padding: 18, marginBottom: 18, border: '1px solid rgba(52,211,153,0.35)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div>
+                            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#34d399' }}>
+                                🔍 4-Stage SAAV Timeline — {saavTimeline.title}
+                            </h3>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                Matched Runbook: <code style={{ color: '#fbbf24' }}>{saavTimeline.matchedRunbookId}</code> · Status: <strong>{saavTimeline.status}</strong>
+                            </div>
+                        </div>
+                        <button onClick={() => setSaavTimeline(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12 }}>✕ Close</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                        {(Array.isArray(saavTimeline.stages) ? saavTimeline.stages : []).map((st: any) => (
+                            <div key={st.stage} style={{
+                                padding: 12, borderRadius: 8, background: 'rgba(15,23,42,0.65)',
+                                border: `1px solid ${st.status === 'completed' ? 'rgba(52,211,153,0.28)' : 'rgba(129,140,248,0.28)'}`,
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+                                    <span style={{ color: '#818cf8' }}>{st.stage}</span>
+                                    <span style={{ color: st.status === 'completed' ? '#34d399' : '#fbbf24', fontSize: 10 }}>{st.status.toUpperCase()}</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: '#e2e8f0', marginBottom: 6, lineHeight: 1.5 }}>{st.summary}</div>
+                                <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace' }}>
+                                    🔧 {st.toolUsed}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* SAAV Cycle */}
             <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
@@ -328,6 +474,15 @@ export default function SelfHealingPage() {
                                         }}>
                                             {incident.status}
                                         </span>
+                                        <button
+                                            onClick={() => handleInspectTimeline(incident.id)}
+                                            style={{
+                                                padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                                                background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8',
+                                            }}
+                                        >
+                                            🔍 SAAV Timeline
+                                        </button>
                                     </div>
                                     <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 3 }}>
                                         {new Date(incident.createdAt).toLocaleString()}

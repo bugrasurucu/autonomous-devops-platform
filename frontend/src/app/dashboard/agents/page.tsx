@@ -26,6 +26,31 @@ export default function AgentsPage() {
     const [liveSteps, setLiveSteps] = useState<any[]>([]);
     const [customTask, setCustomTask] = useState('');
     const [triggering, setTriggering] = useState(false);
+    const [toolCatalog, setToolCatalog] = useState<any[]>([]);
+    const [benchmarkData, setBenchmarkData] = useState<any>(null);
+    const [runningBenchmark, setRunningBenchmark] = useState(false);
+    const [showToolsModal, setShowToolsModal] = useState(false);
+
+    const handleRunBenchmark = async () => {
+        setRunningBenchmark(true);
+        try {
+            const res = await api.runAgentBenchmark();
+            setBenchmarkData(res);
+        } catch {
+            // fallback ignored
+        } finally {
+            setRunningBenchmark(false);
+        }
+    };
+
+    useEffect(() => {
+        api.getAgentTools()
+            .then((res: any) => {
+                if (Array.isArray(res?.tools)) setToolCatalog(res.tools);
+                else if (Array.isArray(res)) setToolCatalog(res);
+            })
+            .catch(() => {});
+    }, []);
 
     // Use a ref for selected so the polling interval doesn't depend on it
     const selectedRef = useRef<any>(null);
@@ -150,12 +175,121 @@ export default function AgentsPage() {
 
     return (
         <div>
-            <div style={{ marginBottom: 24 }}>
-                <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Agent Management</span></h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-                    ReAct-driven autonomous agents with real-time reasoning chain
-                </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                    <h1 style={{ fontSize: 22, fontWeight: 700 }}><span className="gradient-text">Agent Management</span></h1>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+                        ReAct-driven autonomous agents with deterministic MCP tool-calling & guardrail policies
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => setShowToolsModal(v => !v)}
+                        style={{
+                            padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            background: 'rgba(251,191,36,0.14)', border: '1px solid rgba(251,191,36,0.35)', color: '#fbbf24',
+                        }}
+                    >
+                        🛡️ Tool Guardrails ({toolCatalog.length || 8})
+                    </button>
+                    <button
+                        onClick={handleRunBenchmark}
+                        disabled={runningBenchmark}
+                        style={{
+                            padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.35)', color: '#34d399',
+                        }}
+                    >
+                        {runningBenchmark ? '⏳ Running 10-Stack Benchmark...' : '🧪 Run 10-Stack Benchmark Suite'}
+                    </button>
+                </div>
             </div>
+
+            {/* Deterministic Tool Guardrail Catalog */}
+            {showToolsModal && toolCatalog.length > 0 && (
+                <div className="glass-card" style={{ padding: 18, marginBottom: 18, border: '1px solid rgba(251,191,36,0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#fbbf24' }}>
+                            🛡️ Deterministic Agent Tool Catalog & Production Guardrail Policy
+                        </h3>
+                        <button onClick={() => setShowToolsModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12 }}>✕ Close</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 10 }}>
+                        {toolCatalog.map((tool: any) => (
+                            <div key={tool.id} style={{
+                                padding: 12, borderRadius: 8, background: 'rgba(15,23,42,0.6)',
+                                border: `1px solid ${tool.requiresApprovalInProd ? 'rgba(248,113,113,0.3)' : 'rgba(52,211,153,0.2)'}`,
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                    <code style={{ fontSize: 12, fontWeight: 700, color: '#818cf8' }}>{tool.id}</code>
+                                    <span style={{
+                                        fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                                        background: tool.requiresApprovalInProd ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)',
+                                        color: tool.requiresApprovalInProd ? '#f87171' : '#34d399',
+                                    }}>
+                                        {tool.requiresApprovalInProd ? '🔒 HITL Approval' : '✓ Auto-Allowed'}
+                                    </span>
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>{tool.description}</div>
+                                <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                                    Allowed Agents: <strong>{(tool.allowedAgents || []).join(', ')}</strong>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 10-Stack Multi-Cloud Benchmark Results */}
+            {benchmarkData && (
+                <div className="glass-card" style={{ padding: 18, marginBottom: 18, border: '1px solid rgba(52,211,153,0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#34d399' }}>
+                                🧪 10-Stack Multi-Cloud Evaluation Benchmark — {benchmarkData.passed}/{benchmarkData.totalStacks} Passed ({benchmarkData.passRatePct}%)
+                            </h3>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                End-to-end verification across Repo Analysis → OpenTofu Plan Diff → Checkov Security Gate → Infracost Multi-Cloud Gate
+                            </div>
+                        </div>
+                        <button onClick={() => setBenchmarkData(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12 }}>✕ Hide</button>
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>
+                                    <th style={{ padding: '8px 10px' }}>Stack Archetype</th>
+                                    <th style={{ padding: '8px 10px' }}>Cloud Provider</th>
+                                    <th style={{ padding: '8px 10px' }}>OpenTofu Resources</th>
+                                    <th style={{ padding: '8px 10px' }}>Security Score</th>
+                                    <th style={{ padding: '8px 10px' }}>Est. Cost</th>
+                                    <th style={{ padding: '8px 10px' }}>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(Array.isArray(benchmarkData.results) ? benchmarkData.results : []).map((r: any) => (
+                                    <tr key={r.stack} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <td style={{ padding: '8px 10px', fontWeight: 600 }}>{r.stack}</td>
+                                        <td style={{ padding: '8px 10px', fontFamily: 'JetBrains Mono, monospace', color: '#818cf8' }}>{r.provider?.toUpperCase()}</td>
+                                        <td style={{ padding: '8px 10px', fontFamily: 'JetBrains Mono, monospace', color: '#34d399' }}>+{r.planResourcesAdded} resources</td>
+                                        <td style={{ padding: '8px 10px' }}>{r.securityScore}%</td>
+                                        <td style={{ padding: '8px 10px', color: '#fbbf24', fontWeight: 600 }}>${r.estimatedMonthlyUsd}/mo</td>
+                                        <td style={{ padding: '8px 10px' }}>
+                                            <span style={{
+                                                padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                                                background: r.passed ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
+                                                color: r.passed ? '#34d399' : '#f87171',
+                                            }}>
+                                                {r.passed ? '✓ PASS' : '✕ FAIL'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16, minHeight: '70vh' }}>
                 {/* Left: Agent list */}
