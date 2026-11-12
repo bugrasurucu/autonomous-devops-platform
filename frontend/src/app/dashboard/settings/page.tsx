@@ -541,8 +541,14 @@ export default function SettingsPage() {
                                 {totpSetup && (
                                     <div style={{ padding: 12, borderRadius: 8, background: 'rgba(2,6,23,0.75)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 12, fontSize: 11 }}>
                                         <div style={{ marginBottom: 6 }}>
-                                            <strong>Base32 Secret:</strong> <code style={{ color: '#fbbf24' }}>{totpSetup.secret}</code> · <strong>Current 30s Code:</strong> <code style={{ color: '#34d399' }}>{totpSetup.currentCode}</code>
+                                            <strong>Base32 Secret (Authenticator App):</strong> <code style={{ color: '#fbbf24' }}>{totpSetup.secret}</code>
                                         </div>
+                                        {Array.isArray(totpSetup.recoveryCodes) && (
+                                            <div style={{ marginBottom: 8, color: '#94a3b8' }}>
+                                                <strong>Single-Use Recovery Codes:</strong>{' '}
+                                                <code style={{ color: '#38bdf8' }}>{totpSetup.recoveryCodes.join(' · ')}</code>
+                                            </div>
+                                        )}
                                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                             <input
                                                 value={totpCode}

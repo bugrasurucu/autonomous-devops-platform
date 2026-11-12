@@ -29,8 +29,8 @@ export class AuthController {
     }
 
     @Post('login')
-    async login(@Body() body: { email: string; password: string }) {
-        return this.authService.login(body.email, body.password);
+    async login(@Body() body: { email: string; password: string; totpCode?: string }) {
+        return this.authService.login(body.email, body.password, body.totpCode);
     }
 
     @UseGuards(JwtAuthGuard)
@@ -95,6 +95,18 @@ export class AuthController {
         return this.authService.verifyTwoFactor(req.user.userId, body.code);
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Post('2fa/disable')
+    async disableTwoFactor(@Request() req: any, @Body() body: { code: string }) {
+        return this.authService.disableTwoFactor(req.user.userId, body.code);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('2fa/status')
+    async twoFactorStatus(@Request() req: any) {
+        return this.authService.getTwoFactorStatus(req.user.userId);
+    }
+
     @Get('github')
     async githubOAuthLogin(@Request() req: any, @Res() res: any) {
         const url = await this.authService.getGithubOAuthUrl();
@@ -102,13 +114,14 @@ export class AuthController {
     }
 
     @Get('github/callback')
-    async githubOAuthCallback(@Query('code') code: string, @Res() res: any) {
+    async githubOAuthCallback(@Query('code') code: string, @Query('state') state: string, @Res() res: any) {
+        const frontend = process.env.FRONTEND_URL || 'http://localhost:3000';
         try {
-            const { token } = await this.authService.githubLogin(code);
-            // Redirect to frontend with token
-            res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?token=${token}`);
+            const { token } = await this.authService.githubLogin(code, state);
+            // Token goes in the URL fragment (never sent to servers / not logged / not leaked via Referer).
+            res.redirect(`${frontend}/login#token=${encodeURIComponent(token)}`);
         } catch (err) {
-            res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=github_failed`);
+            res.redirect(`${frontend}/login?error=github_failed`);
         }
     }
 }

@@ -85,14 +85,17 @@ export default function AppPreviewPage() {
     const [nlMutating, setNlMutating] = useState(false);
     const [nlResult, setNlResult] = useState<any>(null);
 
-    const handleNaturalLanguageMutate = async (customPrompt?: string) => {
+    const handleNaturalLanguageMutate = async (customPrompt?: string, applyNow = true) => {
         if (!deployment) return;
         const promptToUse = (customPrompt ?? nlPrompt).trim();
         if (!promptToUse) return;
         setNlMutating(true);
         try {
             const targetId = deployment.id || deployment.deployId || id;
-            const res = await api.mutateDeploymentByNaturalLanguage(targetId, promptToUse);
+            const res = await api.mutateDeploymentByNaturalLanguage(targetId, promptToUse, {
+                apply: applyNow,
+                confirm: deployment.projectName,
+            });
             setNlResult(res);
             const updatedArt = await api.getDeploymentArtifacts(targetId).catch(() => null);
             if (updatedArt) setArtifactsData(updatedArt);

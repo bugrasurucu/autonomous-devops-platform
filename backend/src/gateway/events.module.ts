@@ -8,7 +8,7 @@ import { EventsGateway } from './events.gateway';
         JwtModule.registerAsync({
             imports: [ConfigModule],
             useFactory: (config: ConfigService) => ({
-                secret: config.get('JWT_SECRET', 'mission-control-saas-2026-secret-key'),
+                secret: config.get('JWT_SECRET') || 'orbitron-local-dev-jwt-secret-only',
                 signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '7d') },
             }),
             inject: [ConfigService],

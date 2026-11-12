@@ -90,65 +90,47 @@ export class BillingService {
             }
         }
 
-        const priceUsd = PLAN_LIMITS[org.plan]?.priceUsd ?? 0;
-        const now = new Date();
-        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-
-        const invoices = [
-            {
-                id: `inv_${org.id.substring(0, 6)}_${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}`,
-                number: `ORB-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}01`,
-                description: `Orbitron ${org.plan.toUpperCase()} Plan Subscription (${org.monthlyTokenBudget.toLocaleString()} AI token budget)`,
-                amountUsd: priceUsd,
-                currency: 'USD',
-                status: 'paid',
-                periodStart: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
-                periodEnd: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString(),
-                pdfUrl: null,
-            },
-            {
-                id: `inv_${org.id.substring(0, 6)}_${prevMonth.getFullYear()}_${String(prevMonth.getMonth() + 1).padStart(2, '0')}`,
-                number: `ORB-${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}01`,
-                description: `Orbitron ${org.plan.toUpperCase()} Plan Subscription`,
-                amountUsd: priceUsd,
-                currency: 'USD',
-                status: 'paid',
-                periodStart: prevMonth.toISOString(),
-                periodEnd: new Date(now.getFullYear(), now.getMonth(), 0).toISOString(),
-                pdfUrl: null,
-            },
-            {
-                id: `inv_${org.id.substring(0, 6)}_${twoMonthsAgo.getFullYear()}_${String(twoMonthsAgo.getMonth() + 1).padStart(2, '0')}`,
-                number: `ORB-${twoMonthsAgo.getFullYear()}-${String(twoMonthsAgo.getMonth() + 1).padStart(2, '0')}01`,
-                description: `Orbitron Starter / Multi-Cloud Control Plane Usage`,
-                amountUsd: priceUsd,
-                currency: 'USD',
-                status: 'paid',
-                periodStart: twoMonthsAgo.toISOString(),
-                periodEnd: new Date(prevMonth.getFullYear(), prevMonth.getMonth(), 0).toISOString(),
-                pdfUrl: null,
-            },
-        ];
-
+        // No payment provider configured: there are no real invoices. Never fabricate "paid" records.
         return {
             orgId: org.id,
             orgName: org.name,
             plan: org.plan,
             monthlyTokenBudget: org.monthlyTokenBudget,
-            source: 'recorded-ledger',
-            invoices,
+            entitlements: PLAN_LIMITS[org.plan] ?? PLAN_LIMITS.free,
+            source: this.stripe ? 'stripe-no-customer' : 'billing-disabled',
+            invoices: [],
         };
     }
 
+    /** Prevents open-redirects: return URLs must point at our own frontend origin. */
+    private safeReturnUrl(returnUrl: string): string {
+        const frontend = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+        const fallback = `${frontend.replace(/\/$/, '')}/dashboard/billing`;
+        try {
+            const target = new URL(returnUrl);
+            const allowed = new URL(frontend);
+            return target.origin === allowed.origin ? `${target.origin}${target.pathname}` : fallback;
+        } catch {
+            return fallback;
+        }
+    }
+
     async createCheckoutSession(orgId: string, plan: Plan, returnUrl: string, userId?: string) {
+        returnUrl = this.safeReturnUrl(returnUrl);
         if (plan === 'free') throw new BadRequestException('Free plan has no checkout');
 
         const org = await this.prisma.organization.findUnique({ where: { id: orgId } });
         if (!org) throw new BadRequestException('Organization not found');
 
-        // If Stripe is not configured in local/self-hosted mode, perform direct plan upgrade
+        // If Stripe is not configured in local/self-hosted mode, perform direct plan upgrade —
+        // but only when explicitly allowed (never silently grant paid plans in production).
         if (!this.stripe) {
+            const selfServiceAllowed =
+                process.env.ALLOW_SELF_SERVICE_PLAN_CHANGE === 'true' ||
+                (process.env.NODE_ENV !== 'production' && process.env.ALLOW_SELF_SERVICE_PLAN_CHANGE !== 'false');
+            if (!selfServiceAllowed) {
+                throw new BadRequestException('Billing is not configured (STRIPE_SECRET_KEY missing). Paid plans are unavailable.');
+            }
             await this.tenants.updatePlan(orgId, plan);
             if (userId) {
                 const limit = PLAN_LIMITS[plan]?.deploymentsPerMonth ?? 5;
@@ -191,6 +173,7 @@ export class BillingService {
     }
 
     async createPortalSession(orgId: string, returnUrl: string) {
+        returnUrl = this.safeReturnUrl(returnUrl);
         if (!this.stripe) throw new BadRequestException('Stripe not configured');
 
         const org = await this.prisma.organization.findUnique({ where: { id: orgId } });

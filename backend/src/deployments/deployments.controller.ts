@@ -102,12 +102,13 @@ export class DeploymentsController {
     mutateByNaturalLanguage(
         @Request() req: any,
         @Param('id') id: string,
-        @Body() body: { prompt: string },
+        @Body() body: { prompt: string; apply?: boolean; confirm?: string },
     ) {
         return this.deploymentsService.mutateInfrastructureByNaturalLanguage(
             req.user.userId,
             id,
             body.prompt,
+            { apply: body.apply, confirm: body.confirm },
         );
     }
 

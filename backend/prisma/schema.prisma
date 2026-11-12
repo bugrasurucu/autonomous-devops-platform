@@ -67,6 +67,11 @@ model User {
   githubUsername   String?  @map("github_username")
   deployLimit      Int      @default(5) @map("deploy_limit")
   deployCount      Int      @default(0) @map("deploy_count")
+  // 2FA (RFC 6238 TOTP) — secret is AES-256-GCM encrypted at rest
+  twoFactorSecret  String?  @map("two_factor_secret") @db.Text
+  twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
+  twoFactorLastStep Int?    @map("two_factor_last_step")
+  twoFactorRecoveryHashes String? @map("two_factor_recovery_hashes") @db.Text
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

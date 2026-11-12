@@ -3,13 +3,27 @@ import {
     ConflictException,
     UnauthorizedException,
     NotFoundException,
+    ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { signOAuthState, verifyOAuthState } from '../common/crypto.util';
+import { signOAuthState, verifyOAuthState, encryptSecret, decryptSecret } from '../common/crypto.util';
+
+/** Fields that must never leave the API boundary. */
+const SENSITIVE_USER_FIELDS = [
+    'passwordHash',
+    'githubToken',
+    'twoFactorSecret',
+    'twoFactorLastStep',
+    'twoFactorRecoveryHashes',
+] as const;
+
+function oauthStateSecret(): string {
+    return process.env.JWT_SECRET || 'orbitron-local-dev-jwt-secret-only';
+}
 
 const SALT_ROUNDS = 10;
 
@@ -48,15 +62,28 @@ export class AuthService {
         };
     }
 
-    async login(email: string, password: string) {
-        const user = await this.prisma.user.findUnique({ where: { email } });
-        if (!user) {
+    async login(email: string, password: string, totpCode?: string) {
+        const user: any = await this.prisma.user.findUnique({ where: { email } });
+        // OAuth-only accounts have an empty passwordHash and must not be loggable via password.
+        if (!user || !user.passwordHash) {
             throw new UnauthorizedException('Invalid email or password');
         }
 
         const valid = bcrypt.compareSync(password, user.passwordHash);
         if (!valid) {
             throw new UnauthorizedException('Invalid email or password');
+        }
+
+        if (user.twoFactorEnabled) {
+            if (!totpCode) {
+                throw new UnauthorizedException({ statusCode: 401, message: '2FA_REQUIRED', twoFactorRequired: true });
+            }
+            if (!(await this.consumeSecondFactor(user, totpCode))) {
+                await this.prisma.auditLog.create({
+                    data: { userId: user.id, action: 'auth.2fa_failed', resource: user.email, metadata: '{}' },
+                }).catch(() => {});
+                throw new UnauthorizedException({ statusCode: 401, message: 'Invalid 2FA code', twoFactorRequired: true });
+            }
         }
 
         const token = this.generateToken(user);
@@ -82,11 +109,35 @@ export class AuthService {
         return this.sanitizeUser(user);
     }
 
+    /**
+     * Direct plan change WITHOUT payment. Only allowed when Stripe is not configured AND
+     * self-service plan changes are explicitly enabled (self-hosted / local dev), or for admins.
+     * Otherwise plan changes must go through Stripe checkout + webhook.
+     */
+    private async assertPlanChangeAllowed(userId: string, plan: string) {
+        if (plan === 'free') return; // downgrades are always allowed
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        const adminEmails = (process.env.ADMIN_EMAILS || '')
+            .split(',')
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean);
+        if (user && adminEmails.includes(user.email.toLowerCase())) return;
+
+        const stripeConfigured = !!process.env.STRIPE_SECRET_KEY;
+        const selfServiceAllowed =
+            process.env.ALLOW_SELF_SERVICE_PLAN_CHANGE === 'true' ||
+            (process.env.NODE_ENV !== 'production' && process.env.ALLOW_SELF_SERVICE_PLAN_CHANGE !== 'false');
+        if (stripeConfigured || !selfServiceAllowed) {
+            throw new ForbiddenException('Paid plan upgrades must be completed via Stripe checkout (POST /api/billing/checkout).');
+        }
+    }
+
     async upgradePlan(userId: string, plan: string) {
         const validPlans = ['free', 'starter', 'pro', 'enterprise'];
         if (!validPlans.includes(plan)) {
             throw new ConflictException('Invalid plan: ' + plan);
         }
+        await this.assertPlanChangeAllowed(userId, plan);
         const deployLimit = PLAN_LIMITS[plan]?.deploysPerMonth ?? 5;
         const user = await this.prisma.user.update({
             where: { id: userId },
@@ -114,7 +165,10 @@ export class AuthService {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
 
-        if (user.passwordHash && currentPassword) {
+        if (user.passwordHash) {
+            if (!currentPassword) {
+                throw new UnauthorizedException('Current password is required');
+            }
             const valid = bcrypt.compareSync(currentPassword, user.passwordHash);
             if (!valid) {
                 throw new UnauthorizedException('Current password is incorrect');
@@ -142,7 +196,8 @@ export class AuthService {
             },
         });
         if (!user) throw new NotFoundException('User not found');
-        const { passwordHash, githubToken, ...safeUser } = user;
+        const safeUser: Record<string, any> = { ...user };
+        for (const f of SENSITIVE_USER_FIELDS) delete safeUser[f];
         return {
             exportedAt: new Date().toISOString(),
             platform: 'Orbitron Autonomous DevOps Platform',
@@ -161,7 +216,7 @@ export class AuthService {
         const clientId = process.env.GITHUB_CLIENT_ID;
         const redirectUri = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/github/callback`;
         const scope = 'user:email';
-        const state = signOAuthState('github-oauth', process.env.JWT_SECRET || 'orbitron-oauth-secret');
+        const state = signOAuthState('github-login', oauthStateSecret());
         return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;
     }
 
@@ -209,11 +264,12 @@ export class AuthService {
     }
 
     /**
-     * Faz 7 (H2): RFC 6238 TOTP 2FA Setup & Verification
+     * Faz 7 (H2): RFC 6238 TOTP 2FA — per-user random secret, AES-256-GCM encrypted at rest,
+     * replay-protected (last used time-step persisted), single-use hashed recovery codes,
+     * and enforced on password login once enabled.
      */
-    private deriveUserTotpSecret(userId: string, email: string): Buffer {
-        const master = process.env.JWT_SECRET || 'orbitron-totp-default-key';
-        return crypto.createHmac('sha256', master).update(`totp:${userId}:${email}`).digest().subarray(0, 20);
+    private encKey(): string {
+        return process.env.ENCRYPTION_KEY || 'devops-platform-encryption-key-2026';
     }
 
     private toBase32(buf: Buffer): string {
@@ -248,66 +304,148 @@ export class AuthService {
         return String(binary % 1_000_000).padStart(6, '0');
     }
 
+    private hashRecoveryCode(code: string): string {
+        return crypto.createHash('sha256').update(code.trim().toUpperCase()).digest('hex');
+    }
+
+    /**
+     * Returns the matched time-step if `code` is valid (±1 step window) and newer than the last
+     * accepted step (replay protection); otherwise null.
+     */
+    private matchTotpStep(secretB64: string, code: string, lastStep?: number | null): number | null {
+        const clean = String(code || '').replace(/\s/g, '');
+        if (!/^\d{6}$/.test(clean)) return null;
+        const secret = Buffer.from(secretB64, 'base64');
+        const now = Math.floor(Date.now() / 1000 / 30);
+        for (const step of [now - 1, now, now + 1]) {
+            const expected = Buffer.from(this.generateTotpCode(secret, step));
+            const provided = Buffer.from(clean);
+            if (expected.length === provided.length && crypto.timingSafeEqual(expected, provided)) {
+                if (lastStep != null && step <= lastStep) return null;
+                return step;
+            }
+        }
+        return null;
+    }
+
     async setupTwoFactor(userId: string) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
+        if ((user as any).twoFactorEnabled) {
+            throw new ConflictException('2FA is already enabled. Disable it first to re-enroll.');
+        }
 
-        const secretBuf = this.deriveUserTotpSecret(user.id, user.email);
+        const secretBuf = crypto.randomBytes(20);
         const base32Secret = this.toBase32(secretBuf);
-        const currentStep = Math.floor(Date.now() / 1000 / 30);
-        const currentCode = this.generateTotpCode(secretBuf, currentStep);
         const otpauthUri = `otpauth://totp/Orbitron:${encodeURIComponent(user.email)}?secret=${base32Secret}&issuer=Orbitron&algorithm=SHA1&digits=6&period=30`;
+        const recoveryCodes = Array.from({ length: 8 }, () => crypto.randomBytes(5).toString('hex').toUpperCase());
 
-        const recoveryCodes = Array.from({ length: 6 }, (_, i) =>
-            crypto
-                .createHash('sha256')
-                .update(`${base32Secret}:recovery:${i}`)
-                .digest('hex')
-                .substring(0, 8)
-                .toUpperCase(),
-        );
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                twoFactorSecret: encryptSecret(secretBuf.toString('base64'), this.encKey()),
+                twoFactorEnabled: false,
+                twoFactorLastStep: null,
+                twoFactorRecoveryHashes: JSON.stringify(recoveryCodes.map((c) => this.hashRecoveryCode(c))),
+            } as any,
+        });
 
+        // The secret & recovery codes are shown ONCE; the current code is never returned.
         return {
             algorithm: 'RFC 6238 TOTP (HMAC-SHA1, 6 digits, 30s)',
             secret: base32Secret,
             otpauthUri,
-            currentCode,
             recoveryCodes,
+            enabled: false,
+            next: 'POST /api/auth/2fa/verify with a code from your authenticator app to activate 2FA',
         };
     }
 
     async verifyTwoFactor(userId: string, code: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        const user: any = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
+        if (!user.twoFactorSecret) throw new ConflictException('2FA setup has not been started');
 
-        const cleanCode = String(code || '').trim();
-        const secretBuf = this.deriveUserTotpSecret(user.id, user.email);
-        const currentStep = Math.floor(Date.now() / 1000 / 30);
-        const validCodes = [-1, 0, 1].map((offset) => this.generateTotpCode(secretBuf, currentStep + offset));
+        const secretB64 = decryptSecret(user.twoFactorSecret, this.encKey());
+        const step = this.matchTotpStep(secretB64, code, user.twoFactorLastStep);
+        if (step === null) throw new UnauthorizedException('Invalid or already-used 2FA code');
 
-        const isValid = validCodes.includes(cleanCode);
-        if (!isValid) {
-            throw new UnauthorizedException('Invalid 2FA TOTP code');
-        }
-
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { twoFactorEnabled: true, twoFactorLastStep: step } as any,
+        });
         await this.prisma.auditLog.create({
             data: {
                 userId,
-                action: 'auth.2fa_verified',
+                action: user.twoFactorEnabled ? 'auth.2fa_verified' : 'auth.2fa_enabled',
                 resource: user.email,
-                metadata: JSON.stringify({ method: 'TOTP-RFC6238', verifiedAt: new Date().toISOString() }),
+                metadata: JSON.stringify({ method: 'TOTP-RFC6238' }),
             },
         }).catch(() => {});
 
-        return {
-            verified: true,
-            enabled: true,
-            method: 'TOTP-RFC6238-SHA1',
-            verifiedAt: new Date().toISOString(),
-        };
+        return { verified: true, enabled: true, method: 'TOTP-RFC6238-SHA1' };
     }
 
-    async githubLogin(code: string) {
+    async disableTwoFactor(userId: string, code: string) {
+        const user: any = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+        if (!user.twoFactorEnabled) return { enabled: false };
+        if (!(await this.consumeSecondFactor(user, code))) {
+            throw new UnauthorizedException('Invalid 2FA or recovery code');
+        }
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                twoFactorEnabled: false,
+                twoFactorSecret: null,
+                twoFactorLastStep: null,
+                twoFactorRecoveryHashes: null,
+            } as any,
+        });
+        await this.prisma.auditLog.create({
+            data: { userId, action: 'auth.2fa_disabled', resource: user.email, metadata: '{}' },
+        }).catch(() => {});
+        return { enabled: false };
+    }
+
+    async getTwoFactorStatus(userId: string) {
+        const user: any = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+        const remaining = user.twoFactorRecoveryHashes ? JSON.parse(user.twoFactorRecoveryHashes).length : 0;
+        return { enabled: !!user.twoFactorEnabled, recoveryCodesRemaining: remaining };
+    }
+
+    /** Accepts either a TOTP code (replay-protected) or a single-use recovery code. */
+    private async consumeSecondFactor(user: any, code?: string): Promise<boolean> {
+        if (!code || !user.twoFactorSecret) return false;
+        const secretB64 = decryptSecret(user.twoFactorSecret, this.encKey());
+        const step = this.matchTotpStep(secretB64, code, user.twoFactorLastStep);
+        if (step !== null) {
+            await this.prisma.user.update({ where: { id: user.id }, data: { twoFactorLastStep: step } as any });
+            return true;
+        }
+        const hashes: string[] = user.twoFactorRecoveryHashes ? JSON.parse(user.twoFactorRecoveryHashes) : [];
+        const h = this.hashRecoveryCode(code);
+        const idx = hashes.indexOf(h);
+        if (idx >= 0) {
+            hashes.splice(idx, 1);
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: { twoFactorRecoveryHashes: JSON.stringify(hashes) } as any,
+            });
+            await this.prisma.auditLog.create({
+                data: { userId: user.id, action: 'auth.2fa_recovery_code_used', resource: user.email, metadata: JSON.stringify({ remaining: hashes.length }) },
+            }).catch(() => {});
+            return true;
+        }
+        return false;
+    }
+
+    async githubLogin(code: string, state?: string) {
+        // CSRF / login-fixation protection: the state must be one we signed in getGithubOAuthUrl().
+        if (!state || verifyOAuthState(state, oauthStateSecret()) !== 'github-login') {
+            throw new UnauthorizedException('Invalid or expired OAuth state');
+        }
         const clientId = process.env.GITHUB_CLIENT_ID;
         const clientSecret = process.env.GITHUB_CLIENT_SECRET;
         const redirectUri = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/github/callback`;
@@ -370,8 +508,9 @@ export class AuthService {
     }
 
     private sanitizeUser(user: any) {
-        const { passwordHash, ...rest } = user;
+        const rest: Record<string, any> = { ...user };
+        for (const f of SENSITIVE_USER_FIELDS) delete rest[f];
         const planLimits = PLAN_LIMITS[user.plan] || PLAN_LIMITS.free;
-        return { ...rest, planLimits };
+        return { ...rest, githubConnected: !!user.githubToken || !!user.githubUsername, planLimits };
     }
 }

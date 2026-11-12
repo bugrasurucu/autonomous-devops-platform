@@ -1819,11 +1819,17 @@ resource "aws_cloudwatch_metric_alarm" "http_5xx_${tfSlug}" {
      * - "staging'i Avrupa'ya taşı, maliyeti %20 düşür"
      * - "Switch to GCP europe-west1, enable scale-to-zero and multi-region active-active failover"
      */
-    async mutateInfrastructureByNaturalLanguage(userId: string, id: string, prompt: string) {
+    async mutateInfrastructureByNaturalLanguage(
+        userId: string,
+        id: string,
+        prompt: string,
+        options: { apply?: boolean; confirm?: string } = {},
+    ) {
         const deployment = await this.findOne(userId, id);
         if (!deployment) throw new Error('Deployment not found');
 
-        const text = (prompt || '').trim();
+        const text = (prompt || '').trim().slice(0, 500);
+        if (!text) throw new BadRequestException('prompt is required');
         const lower = text.toLowerCase();
         const currentTarget = this.resolveCloudTarget(deployment.region || 'us-east-1');
 
@@ -1992,45 +1998,59 @@ resource "orbitron_global_traffic_router" "${slug}_active_active" {
         : ''
 }`;
 
-        await this.prisma.deployment.update({
-            where: { id: deployment.id },
-            data: {
-                region: storedRegion,
-                provider: nextProvider,
-                environment: nextEnvironment,
-                cost: nextCost,
-            } as any,
-        });
+        // Safety: NL mutations are a dry-run (plan only) unless explicitly applied.
+        // Touching production additionally requires typing the project name as confirmation.
+        const touchesProduction = nextEnvironment === 'production' || (deployment.environment || 'production') === 'production';
+        const applied = options.apply === true;
+        if (applied && touchesProduction && options.confirm !== deployment.projectName) {
+            throw new BadRequestException(
+                `Applying a mutation that affects production requires confirm="${deployment.projectName}".`,
+            );
+        }
 
-        await this.prisma.auditLog.create({
-            data: {
+        if (applied) {
+            await this.prisma.deployment.update({
+                where: { id: deployment.id },
+                data: {
+                    region: storedRegion,
+                    provider: nextProvider,
+                    environment: nextEnvironment,
+                    cost: nextCost,
+                } as any,
+            });
+
+            await this.prisma.auditLog.create({
+                data: {
+                    userId,
+                    action: 'deployment.nl_mutation',
+                    resource: `${deployment.projectName}#${deployment.deployId}`,
+                    metadata: JSON.stringify({
+                        prompt: text,
+                        previousRegion: deployment.region,
+                        nextRegion: storedRegion,
+                        previousCost: currentCost,
+                        nextCost,
+                        multiRegionFailover: enableMultiRegionFailover,
+                        appliedMutations,
+                    }),
+                },
+            }).catch(() => {});
+
+            this.eventEmitter.emit('activity.new', {
                 userId,
-                action: 'deployment.nl_mutation',
-                resource: `${deployment.projectName}#${deployment.deployId}`,
-                metadata: JSON.stringify({
-                    prompt: text,
-                    previousRegion: deployment.region,
-                    nextRegion: storedRegion,
-                    previousCost: currentCost,
-                    nextCost,
-                    multiRegionFailover: enableMultiRegionFailover,
-                    appliedMutations,
-                }),
-            },
-        }).catch(() => {});
-
-        this.eventEmitter.emit('activity.new', {
-            userId,
-            text: `✨ AI Infra Copilot mutated ${deployment.projectName}: ${appliedMutations.join(' · ')}`,
-            color: '#a855f7',
-            type: 'nl_infra_mutation',
-            deployId: deployment.deployId,
-        });
+                text: `✨ AI Infra Copilot mutated ${deployment.projectName}: ${appliedMutations.join(' · ')}`,
+                color: '#a855f7',
+                type: 'nl_infra_mutation',
+                deployId: deployment.deployId,
+            });
+        }
 
         return {
             deployId: deployment.deployId,
             projectName: deployment.projectName,
             prompt: text,
+            mode: applied ? 'applied' : 'dry-run',
+            requiresConfirmation: touchesProduction,
             cloudProvider: nextProvider,
             primaryRegion: nextCleanRegion,
             secondaryRegion: enableMultiRegionFailover ? secondaryRegion : null,

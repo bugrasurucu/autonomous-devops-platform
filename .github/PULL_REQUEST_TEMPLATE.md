@@ -1,29 +1,28 @@
-## Description
+## 🪐 Summary
 
-<!-- Briefly describe the changes in this PR and why they are needed. -->
+<!-- Briefly describe the architectural, multi-cloud IaC, agent, or UI changes in this PR. -->
 
-## Related Issue
+## 🔗 Related Issue / ADR
 
-<!-- If this PR resolves an issue, replace the line below with a full reference such as `Closes #123`. Otherwise, remove it. -->
-Closes #123
+<!-- Optional: Link to a GitHub Issue or ADR in `docs/adr/` (do not leave placeholder numbers). -->
 
-## Type of Change
+## 📦 Scope of Change
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Refactor / code cleanup
-- [ ] CI/CD / infrastructure change
-- [ ] Other (describe):
+- [ ] **Multi-Cloud IaC & Providers** (`AWS`, `GCP`, `Azure`, `Kubernetes`, OpenTofu Plan Diff)
+- [ ] **Autonomous Agents & Guardrails** (`bootstrap`, `infra`, `pipeline`, `finops`, `sre`, BYOA)
+- [ ] **Security & Identity** (`AES-256-GCM`, `Checkov`, `Hadolint`, `Trivy`, `OIDC/SAML`, `RFC 6238 TOTP 2FA`)
+- [ ] **FinOps & Policy Engine** (`OPA/Rego`, multi-cloud cost gate, right-sizing patches)
+- [ ] **Observability & Self-Healing (SAAV)** (`OpenTelemetry`, cloud alarm webhooks, YAML runbooks)
+- [ ] **Frontend Control Plane / OpenAPI 3.1 / Documentation**
 
-## Checklist
+## ✅ Pre-Merge Verification Checklist
 
-- [ ] My changes follow the project's code style
-- [ ] I have tested my changes locally
-- [ ] I have updated documentation where necessary
-- [ ] All existing CI checks pass
-- [ ] I have added tests for new functionality (if applicable)
+- [ ] Backend compiles cleanly (`npm --prefix backend run build`)
+- [ ] DevOps Engine & 10-Stack Benchmark unit suite passes (`npm --prefix backend test -- src/deployments/devops-engine.spec.ts --runInBand`)
+- [ ] Frontend TypeScript check passes (`./frontend/node_modules/.bin/tsc -p frontend/tsconfig.json --noEmit`)
+- [ ] No secrets, tokens, or unencrypted credentials are exposed in API responses or logs
+- [ ] Documentation (`ORBITRON_MASTER_PLAN.md` / `ORBITRON_PRODUCTION_PLAN.md`) updated
 
-## Screenshots / Logs (if applicable)
+## 📸 Verification Output / Screenshots
 
-<!-- Add screenshots or relevant log output to help reviewers understand the change. -->
+<!-- Paste test output, Plan Diff summary, or UI screenshots if applicable. -->

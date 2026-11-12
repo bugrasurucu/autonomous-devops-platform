@@ -106,8 +106,15 @@ export const api = {
     getDeploymentArtifacts: (id: string) => request(`/deployments/${id}/artifacts`),
     getDeploymentPlanDiff: (id: string) => request(`/deployments/${id}/plan-diff`),
     getReleaseHistory: (id: string) => request(`/deployments/${id}/releases`),
-    mutateDeploymentByNaturalLanguage: (id: string, prompt: string) =>
-        request(`/deployments/${id}/nl-mutate`, { method: 'POST', body: JSON.stringify({ prompt }) }),
+    mutateDeploymentByNaturalLanguage: (
+        id: string,
+        prompt: string,
+        options?: { apply?: boolean; confirm?: string },
+    ) =>
+        request(`/deployments/${id}/nl-mutate`, {
+            method: 'POST',
+            body: JSON.stringify({ prompt, ...options }),
+        }),
     createGithubSetupPr: (id: string) => request(`/deployments/${id}/github-pr`, { method: 'POST' }),
     getCloudProviders: () => request('/deployments/providers'),
     destroyDeployment: (id: string) => request(`/deployments/${id}/destroy`, { method: 'POST' }),
@@ -209,8 +216,10 @@ export const api = {
     // Enterprise SSO & 2FA
     ssoAnd2FA: {
         getProviders: () => request('/auth/sso-providers'),
+        get2FAStatus: () => request('/auth/2fa/status'),
         setup2FA: () => request('/auth/2fa/setup', { method: 'POST' }),
         verify2FA: (code: string) => request('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code }) }),
+        disable2FA: (code: string) => request('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) }),
     },
 
     // kagent / K8s status

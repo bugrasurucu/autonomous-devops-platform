@@ -349,6 +349,18 @@ flowchart LR
   - `backend/src/agents/agents.service.ts`, `agents.controller.ts` & `frontend/src/app/dashboard/agents/page.tsx`: İzole namespace'te (`tenant-<orgId>-byoa`) özel ajan kaydetme (**BYOA** — `POST /api/agents/custom`) ve Air-Gapped / On-Premises (`Ollama`, `Harbor`, `OpenTofu Mirror`) çalışma zamanı profili (`GET /api/agents/runtime-profile`) eklendi.
   - `.github/workflows/cd.yml`: Syft ile SPDX JSON SBOM üretimi (`anchore/sbom-action`), Sigstore Cosign ile anahtarsız OIDC imaj imzalama (`sigstore/cosign-installer`) ve PR başına geçici önizleme ortamı (`pr-preview-environment`) iş akışı eklendi.
   - `backend/src/deployments/devops-engine.spec.ts`: Birim ve regresyon test paketi `9/9 PASS` olarak doğrulandı.
+- **Derin Güvenlik Denetimi (Security Audit) ve Açık Kapatma İyileştirmeleri (Tamamlandı ✅):**
+  - `backend/prisma/schema.prisma` & `backend/src/auth/auth.service.ts`:
+    - **2FA (RFC 6238 TOTP) Sıkılaştırması:** `two_factor_secret` (AES-256-GCM ile şifreli CSPRNG), `two_factor_enabled`, `two_factor_last_step` (replay koruması) ve `two_factor_recovery_hashes` (SHA-256 tek kullanımlık kurtarma kodları) veritabanı alanları eklendi (`prisma db push`); kurulum yanıtında TOTP kodunun sızdırılması kaldırıldı ve parola ile girişte (`POST /api/auth/login`) aktif 2FA zorunluluğu (`2FA_REQUIRED`) devreye alındı.
+    - **Hassas Alan Sızıntısı Koruması (`SENSITIVE_USER_FIELDS`):** `sanitizeUser` ve `exportUserData` yanıtlarından `passwordHash`, `githubToken`, `twoFactorSecret`, `twoFactorLastStep` ve `twoFactorRecoveryHashes` alanlarının tamamen temizlenmesi garanti altına alındı.
+    - **Parola Değiştirme & OAuth Güvenliği:** Mevcut parolası olan hesaplarda `currentPassword` doğrulaması zorunlu kılındı; `githubLogin` üzerinde imzalı CSRF `state` doğrulaması (`verifyOAuthState`) eklendi ve OAuth dönüşünde JWT'nin sunucu loglarına/Referer başlığına sızmasını önlemek için URL fragment (`#token=`) kullanımına geçildi (`frontend/src/app/login/page.tsx`).
+    - **Yetkisiz Plan Yükseltme Koruması (`assertPlanChangeAllowed`):** Production ortamında ödeme yapılmadan doğrudan plan yükseltme (`PUT /api/auth/plan`) engellendi.
+  - `backend/src/logger/log-stream.controller.ts`: Kimlik doğrulamasız açık olan `/api/logs/stream` SSE uç noktasına zorunlu JWT doğrulaması eklendi.
+  - `backend/src/gateway/events.module.ts`: WebSocket ağ geçidindeki farklı varsayılan `JWT_SECRET` değeri `AuthModule` ile eşitlendi.
+  - `backend/src/common/rate-limit.guard.ts`: `/api/auth/login`, `/api/auth/register`, `/api/auth/2fa/verify`, `/api/auth/2fa/disable` ve `/api/auth/change-password` uç noktalarına her ortamda geçerli IP bazlı brute-force hız sınırı (`20 istek/dk`) eklendi.
+  - `backend/src/billing/billing.service.ts`: Stripe yapılandırılmadığında sahte "paid" fatura üretilmesi kaldırıldı (`invoices: []`) ve `createCheckoutSession` / `createPortalSession` üzerindeki `returnUrl` parametresine Open Redirect koruması (`safeReturnUrl`) eklendi.
+  - `backend/src/deployments/deployments.service.ts`: Doğal dil ile altyapı değişikliği (`POST /api/deployments/:id/nl-mutate`) varsayılan olarak güvenli `dry-run` moduna alındı; canlı (`production`) ortam değişikliklerinde açık `apply: true` ve `confirm: projectName` doğrulaması zorunlu kılındı.
+  - `.github/PULL_REQUEST_TEMPLATE.md` & `ORBITRON_PRODUCTION_PLAN.md`: Şablon ve üretim planı dosyalarındaki eski yer tutucular (`Closes #123` vb.) temizlenerek güncel Multi-Cloud & Güvenlik doğrulama kontrol listesiyle senkronize edildi.
 
 
 

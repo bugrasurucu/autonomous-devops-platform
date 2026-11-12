@@ -34,11 +34,16 @@
 
 ---
 
-## 🔲 Next Engineering Phases (Detailed in [`ORBITRON_MASTER_PLAN.md`](./ORBITRON_MASTER_PLAN.md))
+## ✅ Completed Enterprise Hardening & Vision Phases (Detailed in [`ORBITRON_MASTER_PLAN.md`](./ORBITRON_MASTER_PLAN.md))
 
-- **Phase 1:** Security & Credential Vault Hardening (AES-256-GCM cloud credential store, strict JWT guard, non-root containers)
-- **Phase 2:** Durable Job Queue (BullMQ / Redis worker execution replacing in-process timers)
-- **Phase 3:** Sandboxed CLI Execution Engine (`opentofu` / `terraform`, `trivy`, `checkov`, `infracost`, `kubectl`, `helm`)
-- **Phase 4:** Live Multi-Cloud Provider Execution Adapters (`AwsCloudProvider`, `GcpCloudProvider`, `AzureCloudProvider`, `KubernetesCloudProvider`)
-- **Phase 5:** Real Git Clone & Buildpacks (`Nixpacks` / `BuildKit`) for Actual User Repo Containers
-- **Phase 6:** GitOps Pull Request Automation (Auto-commit generated DevOps bundle as a GitHub PR)
+- **Phase 1 — Security & Identity Hardening:**
+  - Node.js `crypto` **AES-256-GCM** (`v2:<iv>:<tag>:<cipher>`) encryption at rest for API keys, GitHub tokens, and 2FA TOTP secrets (`backend/src/common/crypto.util.ts`).
+  - **RFC 6238 TOTP 2FA** with per-user CSPRNG secrets, replay protection (`twoFactorLastStep`), single-use SHA-256 hashed recovery codes, and login challenge enforcement (`POST /api/auth/2fa/setup`, `POST /api/auth/2fa/verify`, `POST /api/auth/2fa/disable`).
+  - **Signed OAuth CSRF State** (`signOAuthState` / `verifyOAuthState`) and URL-fragment token delivery (`#token=`) to prevent Referer/log token leakage.
+  - **Authenticated SSE Log Stream** (`GET /api/logs/stream`) with JWT verification and strict per-IP brute-force rate limiting on authentication endpoints (`backend/src/common/rate-limit.guard.ts`).
+- **Phase 2 — Deterministic Verification Gates & 10-Stack Benchmark:**
+  - Checkov Security Gate (`evaluateSecurityGate`), Hadolint & OCI `sha256` Digest verification (`verifyDockerfileAndBuildPlan`), OpenTofu Plan Diff (`buildStructuredPlanDiff`), and 10-Stack Multi-Cloud Regression Benchmark (`GET /api/agents/benchmark`).
+- **Phase 3 — Observability, SAAV Self-Healing & FinOps OPA/Rego:**
+  - W3C TraceContext OpenTelemetry OTLP exporter (`GET /api/cost/traces`), multi-cloud alarm webhook receiver (`POST /api/incidents/webhook/:provider`), 4-stage SAAV timeline (`GET /api/incidents/:id/saav-timeline`), and OPA/Rego FinOps policy gate (`GET /api/finops/opa-evaluate`).
+- **Phase 4 — Vision Capabilities (BYOA, Air-Gapped Runtime & NL Infra Copilot):**
+  - Custom BYOA agent registration in isolated tenant namespaces (`POST /api/agents/custom`), Air-Gapped / On-Premises runtime profile (`GET /api/agents/runtime-profile`), and Natural-Language Infrastructure Mutation + Multi-Region Active-Active Failover synthesis (`POST /api/deployments/:id/nl-mutate`) with dry-run & production confirmation guards.

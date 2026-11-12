@@ -405,31 +405,39 @@ export default function BillingPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {invoices.map((inv: any) => (
-                                <tr key={inv.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                    <td style={{ padding: '10px 20px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: '#818cf8' }}>
-                                        {inv.number}
-                                    </td>
-                                    <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>
-                                        {inv.description || `Orbitron ${currentMeta.label} Subscription`}
-                                    </td>
-                                    <td style={{ padding: '10px 16px', color: 'var(--text-secondary)', fontSize: 11 }}>
-                                        {inv.periodStart ? new Date(inv.periodStart).toLocaleDateString() : '—'} → {inv.periodEnd ? new Date(inv.periodEnd).toLocaleDateString() : '—'}
-                                    </td>
-                                    <td style={{ padding: '10px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700 }}>
-                                        ${Number(inv.amountUsd || 0).toFixed(2)} {inv.currency || 'USD'}
-                                    </td>
-                                    <td style={{ padding: '10px 20px', textAlign: 'right' }}>
-                                        <span style={{
-                                            fontSize: 10, padding: '2px 8px', borderRadius: 6, fontWeight: 700,
-                                            background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)',
-                                            textTransform: 'uppercase',
-                                        }}>
-                                            {inv.status || 'PAID'}
-                                        </span>
+                            {invoices.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontSize: 12, textAlign: 'center' }}>
+                                        No Stripe invoices recorded yet — running on local/self-hosted plan ledger ({currentMeta.label}).
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                invoices.map((inv: any) => (
+                                    <tr key={inv.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <td style={{ padding: '10px 20px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: '#818cf8' }}>
+                                            {inv.number}
+                                        </td>
+                                        <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>
+                                            {inv.description || `Orbitron ${currentMeta.label} Subscription`}
+                                        </td>
+                                        <td style={{ padding: '10px 16px', color: 'var(--text-secondary)', fontSize: 11 }}>
+                                            {inv.periodStart ? new Date(inv.periodStart).toLocaleDateString() : '—'} → {inv.periodEnd ? new Date(inv.periodEnd).toLocaleDateString() : '—'}
+                                        </td>
+                                        <td style={{ padding: '10px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700 }}>
+                                            ${Number(inv.amountUsd || 0).toFixed(2)} {inv.currency || 'USD'}
+                                        </td>
+                                        <td style={{ padding: '10px 20px', textAlign: 'right' }}>
+                                            <span style={{
+                                                fontSize: 10, padding: '2px 8px', borderRadius: 6, fontWeight: 700,
+                                                background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)',
+                                                textTransform: 'uppercase',
+                                            }}>
+                                                {inv.status || 'PAID'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

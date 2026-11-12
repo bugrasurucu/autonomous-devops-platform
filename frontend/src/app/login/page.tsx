@@ -17,9 +17,13 @@ export default function LoginPage() {
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const token = params.get('token');
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const token = hashParams.get('token') || params.get('token');
         const err = params.get('error');
         if (token) {
+            if (window.location.hash) {
+                window.history.replaceState(null, '', window.location.pathname);
+            }
             setLoading(true);
             loginWithToken(token)
                 .then(() => router.push('/dashboard'))
