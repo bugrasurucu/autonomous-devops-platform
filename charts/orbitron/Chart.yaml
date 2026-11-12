@@ -1,0 +1,15 @@
+apiVersion: v2
+name: orbitron
+description: Orbitron Multi-Cloud Autonomous DevOps Platform (Control Plane API, Web Console & kagent Runtime)
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+keywords:
+  - devops
+  - opentofu
+  - multi-cloud
+  - finops
+  - self-healing
+  - kagent
+maintainers:
+  - name: Orbitron Platform Engineering

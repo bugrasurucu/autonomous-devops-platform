@@ -84,6 +84,19 @@ export default function AppPreviewPage() {
     const [nlPrompt, setNlPrompt] = useState("staging'i Avrupa'ya taşı, maliyeti %20 düşür ve multi-region failover aç");
     const [nlMutating, setNlMutating] = useState(false);
     const [nlResult, setNlResult] = useState<any>(null);
+    const [releasesData, setReleasesData] = useState<any[]>([]);
+    const [showReleases, setShowReleases] = useState(false);
+
+    const handleToggleReleases = async () => {
+        setShowReleases(v => !v);
+        if (releasesData.length === 0 && deployment) {
+            try {
+                const targetId = deployment.id || deployment.deployId || id;
+                const res: any = await api.getReleaseHistory(targetId);
+                if (Array.isArray(res?.releases)) setReleasesData(res.releases);
+            } catch { /* ignore */ }
+        }
+    };
 
     const handleNaturalLanguageMutate = async (customPrompt?: string, applyNow = true) => {
         if (!deployment) return;
@@ -524,6 +537,15 @@ export default function AppPreviewPage() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <button
+                                onClick={handleToggleReleases}
+                                style={{
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                    background: 'rgba(192,132,252,0.16)', border: '1px solid rgba(192,132,252,0.4)', color: '#c084fc',
+                                }}
+                            >
+                                🏷️ Release Lineage ({releasesData.length || 'OCI'})
+                            </button>
+                            <button
                                 onClick={handleCreateGithubPr}
                                 disabled={prLoading}
                                 style={{
@@ -621,6 +643,54 @@ export default function AppPreviewPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Faz 1 (B4): Immutable Release Lineage Table */}
+                    {showReleases && releasesData.length > 0 && (
+                        <div style={{
+                            padding: '10px 12px', borderRadius: 10,
+                            background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(192, 132, 252, 0.3)',
+                        }}>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: '#c084fc', marginBottom: 8 }}>
+                                🏷️ Immutable Release Lineage (`imageDigest`, `iacHash`, `gitSha`, `cloudProvider`)
+                            </div>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8' }}>
+                                            <th style={{ padding: '5px 8px' }}>Release</th>
+                                            <th style={{ padding: '5px 8px' }}>Environment</th>
+                                            <th style={{ padding: '5px 8px' }}>Cloud / Region</th>
+                                            <th style={{ padding: '5px 8px' }}>OCI Image Digest</th>
+                                            <th style={{ padding: '5px 8px' }}>OpenTofu iacHash</th>
+                                            <th style={{ padding: '5px 8px' }}>Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {releasesData.map((r: any) => (
+                                            <tr key={r.releaseId} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                                <td style={{ padding: '5px 8px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'JetBrains Mono, monospace' }}>
+                                                    {r.version} ({r.deployId})
+                                                </td>
+                                                <td style={{ padding: '5px 8px', color: '#38bdf8' }}>{r.environment}</td>
+                                                <td style={{ padding: '5px 8px', color: '#818cf8', fontFamily: 'JetBrains Mono, monospace' }}>
+                                                    {String(r.cloudProvider || 'aws').toUpperCase()} · {r.region}
+                                                </td>
+                                                <td style={{ padding: '5px 8px', fontFamily: 'JetBrains Mono, monospace', color: '#34d399' }}>
+                                                    {r.imageDigest?.slice(0, 23)}…
+                                                </td>
+                                                <td style={{ padding: '5px 8px', fontFamily: 'JetBrains Mono, monospace', color: '#fbbf24' }}>
+                                                    {r.iacHash}
+                                                </td>
+                                                <td style={{ padding: '5px 8px', fontWeight: 700, color: '#34d399' }}>
+                                                    ${Number(r.costMonthlyUsd || 0).toFixed(2)}/mo
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

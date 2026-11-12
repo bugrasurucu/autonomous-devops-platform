@@ -43,6 +43,18 @@ export default function SelfHealingPage() {
     const [showRunbooks, setShowRunbooks] = useState(false);
     const [saavTimeline, setSaavTimeline] = useState<any>(null);
     const [webhookLoading, setWebhookLoading] = useState<string | null>(null);
+    const [otelTraces, setOtelTraces] = useState<any>(null);
+    const [showTraces, setShowTraces] = useState(false);
+
+    const handleLoadTraces = async () => {
+        setShowTraces(v => !v);
+        if (!otelTraces) {
+            try {
+                const res = await api.cost.getTraces();
+                setOtelTraces(res);
+            } catch { /* ignore */ }
+        }
+    };
 
     const loadAll = useCallback(async () => {
         try {
@@ -168,6 +180,15 @@ export default function SelfHealingPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button
+                        onClick={handleLoadTraces}
+                        style={{
+                            padding: '8px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 700,
+                            background: 'rgba(52,211,153,0.14)', border: '1px solid rgba(52,211,153,0.35)', color: '#34d399',
+                        }}
+                    >
+                        🔭 OpenTelemetry OTLP Traces
+                    </button>
+                    <button
                         onClick={() => setShowRunbooks(v => !v)}
                         style={{
                             padding: '8px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 700,
@@ -225,6 +246,55 @@ export default function SelfHealingPage() {
                     ))}
                 </div>
             </div>
+
+            {/* OpenTelemetry W3C OTLP Distributed Traces (Faz 4 — E1) */}
+            {showTraces && (
+                <div className="glass-card" style={{ padding: 18, marginBottom: 18, border: '1px solid rgba(52,211,153,0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div>
+                            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#34d399' }}>
+                                🔭 OpenTelemetry W3C TraceContext Spans (`GET /api/cost/traces` — {otelTraces?.totalSpans || 0} spans)
+                            </h3>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                Distributed OTLP spans across multi-cloud deployments, autonomous ReAct agent tool calls, and SAAV incidents
+                            </div>
+                        </div>
+                        <button onClick={() => setShowTraces(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12 }}>✕ Close</button>
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                                    <th style={{ padding: '6px 10px' }}>W3C TRACE ID</th>
+                                    <th style={{ padding: '6px 10px' }}>SPAN ID</th>
+                                    <th style={{ padding: '6px 10px' }}>OPERATION NAME</th>
+                                    <th style={{ padding: '6px 10px' }}>DURATION</th>
+                                    <th style={{ padding: '6px 10px' }}>STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(otelTraces?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans || []).slice(0, 12).map((sp: any) => (
+                                    <tr key={sp.spanId} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <td style={{ padding: '6px 10px', fontFamily: 'JetBrains Mono, monospace', color: '#818cf8' }}>{sp.traceId?.slice(0, 16)}…</td>
+                                        <td style={{ padding: '6px 10px', fontFamily: 'JetBrains Mono, monospace', color: '#38bdf8' }}>{sp.spanId}</td>
+                                        <td style={{ padding: '6px 10px', fontWeight: 700, color: '#e2e8f0' }}>{sp.name}</td>
+                                        <td style={{ padding: '6px 10px', fontFamily: 'JetBrains Mono, monospace', color: '#fbbf24' }}>{sp.durationMs}ms</td>
+                                        <td style={{ padding: '6px 10px' }}>
+                                            <span style={{
+                                                padding: '2px 7px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                                background: sp.status === 'STATUS_CODE_OK' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
+                                                color: sp.status === 'STATUS_CODE_OK' ? '#34d399' : '#f87171',
+                                            }}>
+                                                {sp.status === 'STATUS_CODE_OK' ? 'OK' : 'ERROR'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Declarative YAML Remediation Runbooks */}
             {showRunbooks && runbooks.length > 0 && (

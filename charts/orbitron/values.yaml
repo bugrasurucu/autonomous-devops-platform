@@ -1,0 +1,39 @@
+namespace: orbitron-system
+
+backend:
+  image:
+    repository: ghcr.io/bugrasurucu/autonomous-devops-platform/api
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 2
+  port: 3001
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 75
+
+frontend:
+  image:
+    repository: ghcr.io/bugrasurucu/autonomous-devops-platform/web
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 2
+  port: 3000
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+networkPolicy:
+  enabled: true

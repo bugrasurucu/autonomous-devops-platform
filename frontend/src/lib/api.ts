@@ -50,7 +50,7 @@ export const api = {
     register: (data: { email: string; password: string; name: string }) =>
         request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 
-    login: (data: { email: string; password: string }) =>
+    login: (data: { email: string; password: string; totpCode?: string }) =>
         request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
 
     getMe: () => request('/auth/me'),
@@ -174,6 +174,7 @@ export const api = {
         getMetrics: () => request('/cost/metrics'),
         getSuggestions: () => request('/cost/suggestions'),
         getScalingHistory: () => request('/cost/scaling/history'),
+        getTraces: () => request('/cost/traces'),
         scale: (action: string) => request('/cost/scale', { method: 'POST', body: JSON.stringify({ action }) }),
     },
 

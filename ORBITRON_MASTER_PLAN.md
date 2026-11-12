@@ -361,6 +361,11 @@ flowchart LR
   - `backend/src/billing/billing.service.ts`: Stripe yapılandırılmadığında sahte "paid" fatura üretilmesi kaldırıldı (`invoices: []`) ve `createCheckoutSession` / `createPortalSession` üzerindeki `returnUrl` parametresine Open Redirect koruması (`safeReturnUrl`) eklendi.
   - `backend/src/deployments/deployments.service.ts`: Doğal dil ile altyapı değişikliği (`POST /api/deployments/:id/nl-mutate`) varsayılan olarak güvenli `dry-run` moduna alındı; canlı (`production`) ortam değişikliklerinde açık `apply: true` ve `confirm: projectName` doğrulaması zorunlu kılındı.
   - `.github/PULL_REQUEST_TEMPLATE.md` & `ORBITRON_PRODUCTION_PLAN.md`: Şablon ve üretim planı dosyalarındaki eski yer tutucular (`Closes #123` vb.) temizlenerek güncel Multi-Cloud & Güvenlik doğrulama kontrol listesiyle senkronize edildi.
+- **Helm v3 Chart (`charts/orbitron`), 2FA Login Challenge UI, OpenTelemetry W3C Trace Gezgini & Release Lineage Tablosu (Tamamlandı ✅):**
+  - `charts/orbitron/` (`Chart.yaml`, `values.yaml`, `templates/orbitron-stack.yaml`) & `.github/workflows/cd.yml`: Orbitron Control Plane API, Web Console, HPA v2 ve Tenant Isolation `NetworkPolicy` kaynaklarını içeren resmi Helm v3 paketi oluşturuldu; CD iş akışına `helm lint` ve `helm template` doğrulama adımı (`helm-deploy` — Faz 8 `I5`) eklendi.
+  - `frontend/src/app/login/page.tsx`, `frontend/src/lib/auth-context.tsx` & `frontend/src/lib/api.ts`: 2FA aktif kullanıcılar için giriş ekranında otomatik açılan **🔐 2FA Authenticator / Recovery Code** doğrulama alanı eklendi.
+  - `frontend/src/app/dashboard/self-healing/page.tsx`: **🔭 OpenTelemetry OTLP Traces** (`GET /api/cost/traces` — Faz 4 `E1`) W3C `traceId` / `spanId` dağıtık izleme tablosu eklendi.
+  - `frontend/src/app/dashboard/preview/[id]/page.tsx`: **🏷️ Release Lineage** (`GET /api/deployments/:id/releases` — Faz 1 `B4`) değiştirilemez sürüm geçmişi (`version`, `imageDigest`, `iacHash`, `cloudProvider`) tablosu eklendi.
 
 
 

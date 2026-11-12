@@ -8,6 +8,8 @@ import Link from 'next/link';
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [totpCode, setTotpCode] = useState('');
+    const [needs2FA, setNeeds2FA] = useState(false);
     const [error, setError] = useState('');
     const [isRegister, setIsRegister] = useState(false);
     const [name, setName] = useState('');
@@ -42,11 +44,16 @@ export default function LoginPage() {
             if (isRegister) {
                 await register(email, password, name || 'User');
             } else {
-                await login(email, password);
+                await login(email, password, needs2FA ? totpCode : undefined);
             }
             router.push('/dashboard');
         } catch (err: any) {
-            setError(err.message || 'Authentication failed');
+            if (err?.message === '2FA_REQUIRED' || String(err?.message || '').includes('2FA')) {
+                setNeeds2FA(true);
+                setError('🔐 Two-Factor Authentication enabled: please enter your 6-digit TOTP or recovery code.');
+            } else {
+                setError(err.message || 'Authentication failed');
+            }
         } finally {
             setLoading(false);
         }
@@ -185,6 +192,22 @@ export default function LoginPage() {
                             minLength={3}
                         />
                     </div>
+
+                    {needs2FA && !isRegister && (
+                        <div>
+                            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#34d399', marginBottom: 6, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                🔐 2FA Authenticator / Recovery Code
+                            </label>
+                            <input
+                                type="text"
+                                className="input-field"
+                                placeholder="6-digit TOTP or 10-char recovery code"
+                                value={totpCode}
+                                onChange={(e) => setTotpCode(e.target.value)}
+                                required
+                            />
+                        </div>
+                    )}
 
                     {error && (
                         <div style={{

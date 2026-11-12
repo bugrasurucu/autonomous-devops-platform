@@ -129,6 +129,19 @@ jobs:
         run: |
           cosign sign --yes ${{ env.FRONTEND_IMAGE }}@${{ steps.build.outputs.digest }}
 
+  helm-deploy:
+    name: Validate & Package Orbitron Helm v3 Chart (Faz 8 — I5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Lint & Render Orbitron Helm Chart
+        run: |
+          helm lint charts/orbitron
+          helm template orbitron charts/orbitron > /tmp/orbitron-rendered.yaml
+          head -n 35 /tmp/orbitron-rendered.yaml
+
   pr-preview-environment:
     name: Ephemeral PR Preview Environment (Faz 8 — I6)
     if: github.event_name == 'pull_request'
